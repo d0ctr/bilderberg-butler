@@ -15,7 +15,6 @@ const {ping} = require("./command-handlers/ping-handler");
 
 class TelegramHandler {
     constructor(client) {
-        this.client = client;
         this.logger = client.logger.child({ module: 'telegram-handler' });
     }
 

@@ -116,6 +116,11 @@ Small API for utilities and webhooks.
   - / — go to project page
   - /health — fetch components health (from "off" to "ready")
     - /:name — fetch health only of one of the components (redis, discord, telegram, api (ironic))
+  - /command — telegram-like commands. Arguments are passed as `args=` query parameter converted to URL string.
+    - /help — will return HTML page with help message
+    - /cur?args=amount,from,to — will return only the resulting amount as JSON
+    - /calc?args=math_expression — will return only the result of the equation as JSON
+    - /ahegao — returns random ahegao
 
 # Using or altering code
 

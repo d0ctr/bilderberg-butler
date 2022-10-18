@@ -37,7 +37,6 @@ async function get_currencies_list() {
             symbol: entry.symbol
         }
     }
-
     //get fiat
     let res_fiat = await axios.get(
         `${config.COINMARKETCAP_API}/v1/fiat/map`,
@@ -52,7 +51,7 @@ async function get_currencies_list() {
         data: {
             status: {
                 error_code: fiat_error_code,
-                error_message: fiat_error_massage,
+                error_message: fiat_error_message,
             },
             data: fiat_data,
         },
@@ -60,7 +59,7 @@ async function get_currencies_list() {
     } = res_fiat;
 
     if (fiat_status !== 200 || fiat_error_code != 0) {
-        new Error(`${fiat_error_code == 0 ? fiat_error_massage : fiat_status_text}`);
+        new Error(`${fiat_error_code == 0 ? fiat_error_message : fiat_status_text}`);
         return currencies;
     }
 
@@ -75,4 +74,4 @@ async function get_currencies_list() {
     return currencies;
 }
 
-module.exports = { get_currencies_list }
+module.exports = { get_currencies_list };

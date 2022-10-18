@@ -1,7 +1,7 @@
 const { Bot, Context, webhookCallback, InputFile } = require('grammy');
 const TelegramHandler = require('./telegram-handler');
 const config = require('../config.json');
-const { get_currencies_list } = require('./utils');
+const { get_currencies_list } = require('../utils');
 
 const inline_template_regex = /\{\{\/[^(\{\{)(\}\}))]+\}\}/gm;
 const command_name_regex = /^\/[a-zA-Zа-яА-Я0-9_-]+/;
@@ -364,11 +364,24 @@ class TelegramClient {
         this.app = app;
         this.redis = app.redis ? app.redis : null;
         this.logger = app.logger.child({ module: 'telegram-client' });
-        this.client = new Bot(process.env.TELEGRAM_TOKEN);
         this.handler = new TelegramHandler(this);
         this.cooldown_map = {};
         this.cooldown_duration = 5 * 1000;
-        
+    }
+
+    set health(value) {
+        this.app.health.telegram = value;
+    }
+
+    get health() {
+        return this.app.health.telegram;
+    }
+
+    get currencies_list() {
+        return this.app.currencies_list;
+    }
+
+    _registerCommands() {
         this.inline_commands = ['calc', 'ping', 'html', 'fizzbuzz', 'gh'];
 
         this.client.command('start', async (ctx) => new TelegramInteraction(this, 'start', ctx).respond());
@@ -381,7 +394,7 @@ class TelegramClient {
         this.client.command('gh', async (ctx) => new TelegramInteraction(this, 'gh', ctx).respond());
         this.client.command('curl', async (ctx) => new TelegramInteraction(this, 'curl', ctx).respond());
 
-        if (app && app.redis) {
+        if (this.app && this.app.redis) {
             this.inline_commands = this.inline_commands.concat(['get', 'get_list']);
             this.client.command('set', async (ctx) => new TelegramInteraction(this, 'set', ctx).respond());
             this.client.command('get', async (ctx) => new TelegramInteraction(this, 'get', ctx).respond());
@@ -406,31 +419,21 @@ class TelegramClient {
         if (process.env.COINMARKETCAP_TOKEN && config.COINMARKETCAP_API) {
             this.inline_commands.push('cur');
             this.client.command('cur', async (ctx) => new TelegramInteraction(this, 'cur', ctx).respond());
-            get_currencies_list().then(result => {
-                this.currencies_list = result;
-            }).catch(err => {
-                if (err) {
-                    this.logger.error(`Error while retrieving currencies list: ${err && err.stack}`);
-                }
-            });
         }
 
         this.client.on('inline_query', async (ctx) => new TelegramInteraction(this, 'inline_query', ctx).answer());
     }
 
-    set health(value) {
-        this.app.health.telegram = value;
-    }
 
-    get health() {
-        return this.app.health.telegram;
-    }
 
     async start() {
         if (!process.env.TELEGRAM_TOKEN) {
             this.logger.warn(`Token for Telegram wasn't specified, client is not started.`);
             return;
         }
+        
+        this.client = new Bot(process.env.TELEGRAM_TOKEN);
+        this._registerCommands();
 
         if (process.env.ENV === 'dev' || !process.env.PORT) {
             this._startPolling();
@@ -440,7 +443,7 @@ class TelegramClient {
             this.client.api.setWebhook(`${config.DOMAIN}/telegram-${timestamp}`).then(() => {
                 this.logger.info('Telegram webhook is set.');
                 this.health = 'set';
-                this.app.api.setWebhookMiddleware(`/telegram-${timestamp}`, webhookCallback(this.client));
+                this.app.api_server.setWebhookMiddleware(`/telegram-${timestamp}`, webhookCallback(this.client));
             }).catch(err => {
                 this.logger.error(`Error while setting telegram webhook: ${err && err.stack}`);
                 this.logger.info('Trying to start with polling');
