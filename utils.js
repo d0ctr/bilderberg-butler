@@ -1,5 +1,5 @@
 const axios = require('axios').default;
-const config = require('../config.json');
+const config = require('./config.json');
 
 async function get_currencies_list() {
     let currencies = {};
