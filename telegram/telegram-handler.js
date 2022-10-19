@@ -12,6 +12,7 @@ const {gh} = require("./command-handlers/github-handler");
 const {help} = require("./command-handlers/help-handler");
 const {html} = require("./command-handlers/html-handler");
 const {ping} = require("./command-handlers/ping-handler");
+const {generateImage} = require("./command-handlers/deep-handler");
 
 class TelegramHandler {
     constructor(client) {
@@ -76,6 +77,8 @@ class TelegramHandler {
     html = html.bind(this);
 
     ping = ping;
+
+    deep = generateImage.bind(this);
 
 }
 

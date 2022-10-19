@@ -1,6 +1,7 @@
 {
     "AHEGAO_API": "https://ahegao.netlify.app/api",
     "API_HOMEPAGE": "https://d0ctr.github.io/bilderberg-butler",
+    "DEEP_AI_API": "https://api.deepai.org/api/text2img",
     "DOMAIN": "https://bilderberg-butler.herokuapp.com",
     "URBAN_API": "https://api.urbandictionary.com/v0",
     "COINMARKETCAP_API": "https://pro-api.coinmarketcap.com",

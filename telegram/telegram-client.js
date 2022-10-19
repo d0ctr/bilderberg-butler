@@ -15,8 +15,8 @@ const command_name_regex = /^\/[a-zA-Zа-яА-Я0-9_-]+/;
 class TelegramInteraction {
     /**
      * One time use interaction between app and telegram
-     * @param {TelegramClient} client 
-     * @param {String} [command_name] 
+     * @param {TelegramClient} client
+     * @param {String} [command_name]
      * @param {Context} [context]
      */
     constructor(client, command_name, context) {
@@ -411,6 +411,11 @@ class TelegramClient {
             this.client.command('ahegao', async (ctx) => new TelegramInteraction(this, 'ahegao', ctx).respond());
         }
 
+        if(config.DEEP_AI_API) {
+            this.inline_commands.push('deep');
+            this.client.command('deep', async (ctx) => new TelegramInteraction(this, 'deep', ctx).respond());
+        }
+
         if (config.WIKIPEDIA_SEARCH_URL) {
             this.inline_commands.push('wiki');
             this.client.command('wiki', async (ctx) => new TelegramInteraction(this, 'wiki', ctx).respond());
@@ -431,7 +436,7 @@ class TelegramClient {
             this.logger.warn(`Token for Telegram wasn't specified, client is not started.`);
             return;
         }
-        
+
         this.client = new Bot(process.env.TELEGRAM_TOKEN);
         this._registerCommands();
 
