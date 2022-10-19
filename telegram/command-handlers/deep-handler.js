@@ -10,7 +10,7 @@ const axiosInstance = axios.create({
         'api-key': process.env.DEEP_AI_TOKEN },
 })
 
-async function generateImage(input) {
+async function generateImage(input, interaction) {
     let arg = this._parseArgs(input, 1)[1];
     if (!arg) {
         return [`Не хватает описания картинки`];
@@ -28,12 +28,14 @@ async function generateImage(input) {
             req_options.headers = form.getHeaders();
         }
 
+        interaction.replyWithPlaceholder('Генерирую картинку...');
+
         const res = await axiosInstance.post(config.DEEP_AI_API, form, req_options);
 
         const { output_url } = res.data;
         this.logger.info(` ${arg} response ready ${output_url}`);
 
-        return [null, { type: 'photo', photo: output_url, url: output_url, text: arg }];
+        return [null, { type: 'photo', media: output_url, url: output_url, text: arg }];
     } catch (err) {
         return [`i'm dead fr bruh :\n<code>${err}</code>`];
     }

@@ -1,10 +1,29 @@
 const { Bot, Context, webhookCallback, InputFile } = require('grammy');
 const TelegramHandler = require('./telegram-handler');
 const config = require('../config.json');
-const { get_currencies_list } = require('../utils');
 
 const inline_template_regex = /\{\{\/[^(\{\{)(\}\}))]+\}\}/gm;
 const command_name_regex = /^\/[a-zA-Zа-яА-Я0-9_-]+/;
+
+const media_types = [
+    'audio',      
+    'animation',  
+    'chat_action',
+    'contact',    
+    'dice',       
+    'document',   
+    'game',       
+    'invoice',    
+    'location',
+    'photo',      
+    'poll',       
+    'sticker',    
+    'venue',      
+    'video',      
+    'video_note', 
+    'voice',      
+    'text',       
+]
 
 /**
  * One time use interaction between app and telegram
@@ -21,12 +40,33 @@ class TelegramInteraction {
      */
     constructor(client, command_name, context) {
         this.client = client;
-        this.logger = client.logger.child({module: 'telegram-interaction'});
+        this.logger = client.logger.child({ module: 'telegram-interaction' });
         this.command_name = command_name;
         this.context = context;
         this.handler = client.handler;
         this._redis = client.redis;
         this._currencies_list = client.currencies_list
+
+        this.mediaToMethod = {
+            'audio':       this.context.replyWithAudio.bind(this.context),
+            'animation':   this.context.replyWithAnimation.bind(this.context),
+            'chat_action': this.context.replyWithChatAction.bind(this.context),
+            'contact':     this.context.replyWithContact.bind(this.context),
+            'dice':        this.context.replyWithDice.bind(this.context),
+            'document':    this.context.replyWithDocument.bind(this.context),
+            'game':        this.context.replyWithGame.bind(this.context),
+            'invoice':     this.context.replyWithInvoice.bind(this.context),
+            'location':    this.context.replyWithLocation.bind(this.context),
+            'media_group': this.context.replyWithMediaGroup.bind(this.context),
+            'photo':       this.context.replyWithPhoto.bind(this.context),
+            'poll':        this.context.replyWithPoll.bind(this.context),
+            'sticker':     this.context.replyWithSticker.bind(this.context),
+            'venue':       this.context.replyWithVenue.bind(this.context),
+            'video':       this.context.replyWithVideo.bind(this.context),
+            'video_note':  this.context.replyWithVideoNote.bind(this.context),
+            'voice':       this.context.replyWithVoice.bind(this.context),
+            'text':        this.context.reply.bind(this.context),
+        };
     }
 
     /**
@@ -38,6 +78,99 @@ class TelegramInteraction {
 
     get cooldown_key() {
         return `${this.notification_data.type[0] === '-' ? this.notification_data.type.slice(1) : this.notification_data.type}:${this.notification_data.user_id}:${this.chat_id}`;
+    }
+
+    _parseMessageMedia() {
+        const parsed_media = {};
+
+        // let { type, media, text } = parsed_media;
+
+        const message = this.context.message.reply_to_message;
+
+        parsed_media.text = message.text || message.caption;
+
+        parsed_media.type = Object.keys(message).filter(key => media_types.includes(key))[0];
+
+        if (parsed_media.type === 'photo') {
+            parsed_media.media = message.photo.map((photo) => {
+                return {
+                    type: 'photo',
+                    media: photo.file_id,
+                    ...photo
+                };
+            });
+            parsed_media.media[0].caption = parsed_media.text;
+            delete parsed_media.text;
+            parsed_media.type = 'media_group';
+        }
+        else if (type !== 'text') {
+            parsed_media.media = message[type].file_id;
+            parsed_media = {
+                ...parsed_media,
+                ...message[type]
+            }
+        }
+
+        return parsed_media;
+    }
+
+    _getBasicMessageOptions() {
+        return {
+            allow_sending_without_reply: true,
+            reply_to_message_id: this.context.message.message_id,
+        };
+    }
+
+    _getTextOptions() {
+        return {
+            parse_mode: 'HTML',
+            disable_web_page_preview: true,
+        };
+    }
+
+    /**
+     * Get reply method associated with content type
+     * @param {String} media_type 
+     * @return {Context.reply}
+     */
+    _getReplyMethod(media_type) {
+        return this.mediaToMethod[media_type];
+    }
+
+    _deleteCooldown(key) {
+        delete this.client.cooldown_map[key].timer;
+        if (!Object.keys(this.client.cooldown_map[key]).length) {
+            delete this.client.cooldown_map[key];
+        }
+    }
+
+
+    _cooldown() {
+        this.client.cooldown_map[this.cooldown_key] = {
+            timer: setTimeout(this._deleteCooldown.bind(this), this.client.cooldown_duration, this.cooldown_key),
+            message_id: this.sent_message.message_id
+        };
+    }
+
+    _isCooldown() {
+        if (this.client.cooldown_map[this.cooldown_key]) {
+            if (this.notification_data.type[0] === '-') {
+                if (this.client.cooldown_map[this.cooldown_key].message_id) {
+                    let message_id = this.client.cooldown_map[this.cooldown_key].message_id;
+                    this.api.deleteMessage(this.chat_id, message_id);
+                    delete this.client.cooldown_map[this.cooldown_key].message_id;
+
+                    if (!Object.keys(this.client.cooldown_map[this.cooldown_key]).length) {
+                        delete this.client.cooldown_map[this.cooldown_key];
+                        return false;
+                    }
+                }
+            }
+            if (this.client.cooldown_map[this.cooldown_key].timer) {
+                return true;
+            }
+        }
+        return false;
     }
 
     async sendNotification(notification_data, chat_id) {
@@ -61,47 +194,126 @@ class TelegramInteraction {
         this.sent_message = await this.api.sendMessage(this.chat_id, message, { parse_mode: 'HTML', disable_web_page_preview: true });
         this._cooldown();
     }
+    
+    /**
+     * Reply to message with text
+     * @param {String} text text to send
+     * @return {Object}
+     */
+     async _reply(text, overrides) {
+        this.logger.info(`Replying with [${text}]`);
+        try {
+            return await this.context.reply(text, {
+                ...this._getBasicMessageOptions(),
+                ...this._getTextOptions(),
+                ...overrides
+            });
+        } catch (err) {
+            this.logger.error(`Could not send message, got an error: ${err && err.stack}`);
+            return await this._reply(`Не смог отправить ответ, давай больше так не делать`);
+        }
+    }
 
-    _cooldown() {
-        this.client.cooldown_map[this.cooldown_key] = {
-            timer: setTimeout(this._deleteCooldown.bind(this), this.client.cooldown_duration, this.cooldown_key),
-            message_id: this.sent_message.message_id
+    /**
+     * Reply to message with media group
+     * 
+     * @param {Object} message contains media group 
+     * @param {Object | null} overrides 
+     * @returns 
+     */
+    async _replyWithMediaGroup(message, overrides) {
+        if (message.type === 'text') {
+            return this._reply(message.text, overrides)
+        }
+
+        const message_options = {
+            ...this._getBasicMessageOptions(),
+            ...overrides
+        }
+
+        const media = message.media.filter((singleMedia) => {
+            if (['audio', 'document', 'photo', 'video'].includes(singleMedia.type)) {
+                return singleMedia;
+            }
+        });
+
+        if (!media.length) {
+            this.logger.error(`No suitable media found in [${message}]`);
+            return this._reply(message.text);
+        }
+
+        media[0] = {
+            ...media[0],
+            ...this._getTextOptions(),
+            ...overrides
         };
-    }
 
-    _isCooldown() {
-        if (this.client.cooldown_map[this.cooldown_key]) {
-            if (this.notification_data.type[0] === '-') {
-                if (this.client.cooldown_map[this.cooldown_key].message_id) {
-                    let message_id = this.client.cooldown_map[this.cooldown_key].message_id;
-                    this.client.client.api.deleteMessage(this.chat_id, message_id);
-                    delete this.client.cooldown_map[this.cooldown_key].message_id;
-
-                    if (!Object.keys(this.client.cooldown_map[this.cooldown_key]).length) {
-                        delete this.client.cooldown_map[this.cooldown_key];
-                        return false;
-                    }
-                }
-            }
-            if (this.client.cooldown_map[this.cooldown_key].timer) {
-                return true;
-            }
+        if (message.text) {
+            media[0].caption = media[0].caption ? `${media[0].caption}\n${message.text}` : message.text;
         }
-        return false;
+
+        this.logger.info(`Replying with [${JSON.stringify(media)}]`);
+        return this.context.replyWithMediaGroup(media, message_options);
     }
 
-    _deleteCooldown(key) {
-        delete this.client.cooldown_map[key].timer;
-        if (!Object.keys(this.client.cooldown_map[key]).length) {
-            delete this.client.cooldown_map[key];
+    /**
+     * Reply to message with media file
+     * 
+     * @param {Object} message may contain text and an id of one of `[animation, audio, document, video, video_note, voice, sticker]`
+     * @return {Message | null}
+     */
+    async _replyWithMedia(message, overrides) {
+        if (message.type === 'text') {
+            return this._reply(message.text, overrides);
+        }
+
+        if (message.type === 'media_group') {
+            return this._replyWithMediaGroup(message, overrides);
+        }
+
+        let message_options = {
+            caption: message.text,
+            ...this._getBasicMessageOptions(),
+            ...this._getTextOptions(),
+            ...overrides
+        };
+
+        let media = message.filename ? new InputFile(message.media, message.filename) : message.media || message[message.type];
+
+        const replyMethod = this._getReplyMethod(message.type);
+
+        if (typeof replyMethod === 'function') {
+            this.logger.info(`Replying with [${message_options.caption ? `${message_options.caption} ` : ''}${message.type}:${message.filename ? message.filename : media}]`);
+            return replyMethod(media, message_options);
+        }
+
+        this.logger.info(`Can't send message as media ${JSON.stringify(message)}`);
+        return this._reply(message.text);
+    }
+
+    async replyWithPlaceholder(message) {
+        this._placeholderMessage = await this._reply(message);
+    }
+
+    async deletePlaceholder(placeholderMessageID) {
+        if (placeholderMessageID) {
+            return this.api.deleteMessage(this.context.chat.id, placeholderMessageID);
+        }
+        else if (this._placeholderMessage) {
+            return this.api.deleteMessage(this.context.chat.id, this._placeholderMessage.message_id);
         }
     }
 
-    async respond() {
+    async reply() {
         try {
             if (typeof this.handler[this.command_name] === 'function') {
                 this.logger.info(`Received command: ${this.context.message.text}`);
                 const [err, response, _, overrides] = await this.handler[this.command_name](this.context, this);
+                
+                if (this._placeholderMessage) {
+                    this.api.deleteMessage(this.context.chat.id, this._placeholderMessage.message_id);
+                }
+
                 if (err) {
                     return await this._reply(err, overrides);
                 }
@@ -127,7 +339,8 @@ class TelegramInteraction {
             throw new Error('Storage is offline');
         }
         let key = `${this.context.chat?.id || this.context.from.id}:get:${name}`;
-        return await this._redis.hgetall(key);
+        let result = await this._redis.hgetall(key);
+        return result.data ? JSON.parse(result.data) : result; // legacy support for not stringified get-s
     }
 
     async redisSet(name, data) {
@@ -143,7 +356,7 @@ class TelegramInteraction {
         if (!Object.keys(data).length) {
             new Error('Cannot save empty data');
         }
-        await this._redis.hmset(key, data);
+        await this._redis.hset(key, { data: JSON.stringify(data) });
     }
 
     async redisGetList() {
@@ -163,57 +376,6 @@ class TelegramInteraction {
         return this._currencies_list ? this._currencies_list[name] : null;
     }
 
-    /**
-     * Reply to message
-     * @param {String} text text to send
-     * @return {Message | null}
-     */
-    async _reply(text, overrides) {
-        this.logger.info(`Replying with [${text}]`);
-        try {
-            return await this.context.reply(text, {
-                reply_to_message_id: this.context.message.message_id,
-                disable_web_page_preview: overrides ? Boolean(overrides.disable_web_page_preview) : true,
-                allow_sending_without_reply: true,
-                parse_mode: 'HTML'
-            });
-        } catch (err) {
-            this.logger.error(`Could not send message, got an error: ${err && err.stack}`);
-            return this._reply(`Не смог отправить ответ, давай больше так не делать`);
-        }
-    }
-
-    /**
-     * Reply to message with media
-     * @param {Object} message may contain text and an id of one of `[animation, audio, document, video, video_note, voice, sticker]`
-     * @return {Message | null}
-     */
-    async _replyWithMedia(message, overrides) {
-        if (message.text && message.type === 'text') {
-            return this._reply(message.text, overrides);
-        }
-        let message_options = {
-            reply_to_message_id: this.context.message.message_id,
-            caption: message.text,
-            parse_mode: 'HTML',
-            disable_web_page_preview: overrides ? Boolean(overrides.disable_web_page_preview) : true,
-            allow_sending_without_reply: true
-        };
-
-        let media = message[message.type] instanceof Buffer ? new InputFile(message[message.type], message.filename) : message[message.type];
-
-        let media_type = message.type.split('');
-        media_type[0] = media_type[0].toUpperCase();
-        media_type = media_type.join('');
-
-        if (typeof this.context['replyWith' + media_type] === 'function') {
-            this.logger.info(`Replying with [${message_options.caption ? `${message_options.caption} ` : ''}${media_type}:${message.filename ? message.filename : media}]`);
-            return await this.context['replyWith' + media_type](media, message_options);
-        }
-        this.logger.info(`Can't send what is left of the message ${JSON.stringify(message)}`);
-        return (message_options.text || null) && this._reply(message_options.caption);
-    }
-
     async _answerQueryWithText(query, overrides) {
         let answer = {
             results: [
@@ -223,8 +385,8 @@ class TelegramInteraction {
                     title: query.replace(/ +/g, ' '),
                     input_message_content: {
                         message_text: query,
-                        parse_mode: 'HTML',
-                        disable_web_page_preview: overrides ? Boolean(overrides.disable_web_page_preview) : true,
+                        ...this._getTextOptions,
+                        ...overrides,
                     }
                 }
             ],
@@ -304,25 +466,26 @@ class TelegramInteraction {
                                     type: 'article',
                                     title: command_text,
                                     description: response.text,
-                                    parse_mode: 'HTML',
                                     input_message_content: {
                                         message_text: response.text,
-                                        parse_mode: 'HTML',
-                                        disable_web_page_preview: overrides ? Boolean(overrides.disable_web_page_preview) : true
-                                    }
+                                        ...this._getTextOptions(),
+                                        ...overrides,
+                                    },
+                                    ...this._getTextOptions(),
+                                    ...overrides,
                                 }
                                 query_result.results.push(answer);
                             }
                             else if (['animation', 'audio', 'document', 'video', 'voice', 'photo', 'gif', 'sticker'].includes(response.type)) {
                                 query = query.replace(match, '');
                                 let suffix = response.url ? '_url' : '_file_id';
-                                let data = response.url ? response.url : response[response.type];
+                                let data = response.url ? response.url : response.media || response[response.type];
                                 let answer = {
                                     id: Date.now(),
                                     type: response.type === 'animation' ? 'gif' : response.type,
                                     title: response.text ? response.text : clean_query,
                                     caption: response.text ? response.text : clean_query,
-                                    parse_mode: 'HTML'
+                                    ...this._getTextOptions(),
                                 };
                                 answer[`${response.type === 'animation' ? 'gif' : response.type}${suffix}`] = data;
                                 if (response.url) {
@@ -384,46 +547,46 @@ class TelegramClient {
     _registerCommands() {
         this.inline_commands = ['calc', 'ping', 'html', 'fizzbuzz', 'gh'];
 
-        this.client.command('start', async (ctx) => new TelegramInteraction(this, 'start', ctx).respond());
-        this.client.command('help', async (ctx) => new TelegramInteraction(this, 'help', ctx).respond());
-        this.client.command('calc', async (ctx) => new TelegramInteraction(this, 'calc', ctx).respond());
-        this.client.command('discord_notification', async (ctx) => new TelegramInteraction(this, 'discord_notification', ctx).respond());
-        this.client.command('ping', async (ctx) => new TelegramInteraction(this, 'ping', ctx).respond());
-        this.client.command('html', async (ctx) => new TelegramInteraction(this, 'html', ctx).respond());
-        this.client.command('fizzbuzz', async (ctx) => new TelegramInteraction(this, 'fizzbuzz', ctx).respond());
-        this.client.command('gh', async (ctx) => new TelegramInteraction(this, 'gh', ctx).respond());
-        this.client.command('curl', async (ctx) => new TelegramInteraction(this, 'curl', ctx).respond());
+        this.client.command('start', async (ctx) => new TelegramInteraction(this, 'start', ctx).reply());
+        this.client.command('help', async (ctx) => new TelegramInteraction(this, 'help', ctx).reply());
+        this.client.command('calc', async (ctx) => new TelegramInteraction(this, 'calc', ctx).reply());
+        this.client.command('discord_notification', async (ctx) => new TelegramInteraction(this, 'discord_notification', ctx).reply());
+        this.client.command('ping', async (ctx) => new TelegramInteraction(this, 'ping', ctx).reply());
+        this.client.command('html', async (ctx) => new TelegramInteraction(this, 'html', ctx).reply());
+        this.client.command('fizzbuzz', async (ctx) => new TelegramInteraction(this, 'fizzbuzz', ctx).reply());
+        this.client.command('gh', async (ctx) => new TelegramInteraction(this, 'gh', ctx).reply());
+        this.client.command('curl', async (ctx) => new TelegramInteraction(this, 'curl', ctx).reply());
 
         if (this.app && this.app.redis) {
             this.inline_commands = this.inline_commands.concat(['get', 'get_list']);
-            this.client.command('set', async (ctx) => new TelegramInteraction(this, 'set', ctx).respond());
-            this.client.command('get', async (ctx) => new TelegramInteraction(this, 'get', ctx).respond());
-            this.client.command('get_list', async (ctx) => new TelegramInteraction(this, 'get_list', ctx).respond());
+            this.client.command('set', async (ctx) => new TelegramInteraction(this, 'set', ctx).reply());
+            this.client.command('get', async (ctx) => new TelegramInteraction(this, 'get', ctx).reply());
+            this.client.command('get_list', async (ctx) => new TelegramInteraction(this, 'get_list', ctx).reply());
         }
 
         if (config.URBAN_API) {
             this.inline_commands.push('urban');
-            this.client.command('urban', async (ctx) => new TelegramInteraction(this, 'urban', ctx).respond());
+            this.client.command('urban', async (ctx) => new TelegramInteraction(this, 'urban', ctx).reply());
         }
 
         if (config.AHEGAO_API) {
             this.inline_commands.push('ahegao');
-            this.client.command('ahegao', async (ctx) => new TelegramInteraction(this, 'ahegao', ctx).respond());
+            this.client.command('ahegao', async (ctx) => new TelegramInteraction(this, 'ahegao', ctx).reply());
         }
 
         if(config.DEEP_AI_API) {
             this.inline_commands.push('deep');
-            this.client.command('deep', async (ctx) => new TelegramInteraction(this, 'deep', ctx).respond());
+            this.client.command('deep', async (ctx) => new TelegramInteraction(this, 'deep', ctx).reply());
         }
 
         if (config.WIKIPEDIA_SEARCH_URL) {
             this.inline_commands.push('wiki');
-            this.client.command('wiki', async (ctx) => new TelegramInteraction(this, 'wiki', ctx).respond());
+            this.client.command('wiki', async (ctx) => new TelegramInteraction(this, 'wiki', ctx).reply());
         }
 
         if (process.env.COINMARKETCAP_TOKEN && config.COINMARKETCAP_API) {
             this.inline_commands.push('cur');
-            this.client.command('cur', async (ctx) => new TelegramInteraction(this, 'cur', ctx).respond());
+            this.client.command('cur', async (ctx) => new TelegramInteraction(this, 'cur', ctx).reply());
         }
 
         this.client.on('inline_query', async (ctx) => new TelegramInteraction(this, 'inline_query', ctx).answer());

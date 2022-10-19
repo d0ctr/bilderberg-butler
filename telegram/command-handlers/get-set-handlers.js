@@ -1,11 +1,11 @@
+const {getRegex} = require("./utils");
+
 /**
  * `/get` command handler
  * @param {GrammyTypes.Context | Object} input
  * @param {Object} interaction
- * @returns {[String | null, Object | null]}
+ * @returns {[String | null, Object | null]} [err, message]
  */
-const {getRegex} = require("./utils");
-
 async function get(input, interaction) {
     let name = this._parseArgs(input, 1)[1];
     if (!name) {
@@ -47,69 +47,9 @@ async function set(input, interaction) {
         return ['Чтобы сохранить гет, ответьте на какое-нибудь сообщение с помощью <code>/set {название гета}</code>'];
     }
 
-    let parsed_data = {};
+    const parsed_data = interaction._parseMessageMedia();
 
-    if (input.message.reply_to_message.animation) {
-        if (input.message.reply_to_message.caption) {
-            parsed_data.text = input.message.reply_to_message.caption;
-        }
-        parsed_data.animation = input.message.reply_to_message.animation.file_id;
-        parsed_data.type = 'animation';
-    }
-    else if (input.message.reply_to_message.audio) {
-        if (input.message.reply_to_message.caption) {
-            parsed_data.text = input.message.reply_to_message.caption;
-        }
-        parsed_data.audio = input.message.reply_to_message.audio.file_id;
-        parsed_data.type = 'audio';
-    }
-    else if (input.message.reply_to_message.document) {
-        if (input.message.reply_to_message.caption) {
-            parsed_data.text = input.message.reply_to_message.caption;
-        }
-        parsed_data.document = input.message.reply_to_message.document.file_id;
-        parsed_data.type = 'document';
-    }
-    else if (input.message.reply_to_message.video) {
-        if (input.message.reply_to_message.caption) {
-            parsed_data.text = input.message.reply_to_message.caption;
-        }
-        parsed_data.video = input.message.reply_to_message.video.file_id;
-        parsed_data.type = 'video';
-    }
-    else if (input.message.reply_to_message.video_note) {
-        if (input.message.reply_to_message.caption) {
-            parsed_data.text = input.message.reply_to_message.caption;
-        }
-        parsed_data.video_note = input.message.reply_to_message.video_note.file_id;
-        parsed_data.type = 'video_note';
-    }
-    else if (input.message.reply_to_message.voice) {
-        if (input.message.reply_to_message.caption) {
-            parsed_data.text = input.message.reply_to_message.caption;
-        }
-        parsed_data.voice = input.message.reply_to_message.voice.file_id;
-        parsed_data.type = 'voice';
-    }
-    else if (input.message.reply_to_message.sticker) {
-        if (input.message.reply_to_message.caption) {
-            parsed_data.text = input.message.reply_to_message.caption;
-        }
-        parsed_data.sticker = input.message.reply_to_message.sticker.file_id;
-        parsed_data.type = 'sticker';
-    }
-    else if (input.message.reply_to_message.photo) {
-        if (input.message.reply_to_message.caption) {
-            parsed_data.text = input.message.reply_to_message.caption;
-        }
-        parsed_data.photo = input.message.reply_to_message.photo[0].file_id;
-        parsed_data.type = 'photo';
-    }
-    else if (input.message.reply_to_message.text) {
-        parsed_data.text = input.message.reply_to_message.text;
-        parsed_data.type = 'text';
-    }
-    else {
+    if (!parsed_data.type) {
         return [`Такое сохранить не получится, сейчас поддерживаются только следующие форматы:
 Простой текст, изображение, гифки, аудио, видео, документы, стикеры, голосовые и видео сообщения`];
     }

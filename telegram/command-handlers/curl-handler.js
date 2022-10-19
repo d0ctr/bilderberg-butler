@@ -73,7 +73,7 @@ async function curl(input) {
         type = 'document';
         result = Buffer.from(result.data);
     }
-    return [null, { type: type, [type]: result, filename: filename, text: caption }];
+    return [null, { type: type, media: result, filename: filename, text: caption }];
 }
 
 module.exports = {

@@ -88,6 +88,7 @@ This bot talks with you in Russian (because I've decided so, fill free to add tr
   - /cur {amount} {from} {to} — convert amount from one currency to another
   - /gh {link} — convert GitHub link to a GitHub link with Instant View
   - /wiki {query} — returns a summary from wikipedia
+  - /deep {promt} — generates an image based on prompt with DeepAI
 
 ### Inline Query
 
