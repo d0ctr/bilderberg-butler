@@ -611,7 +611,7 @@ class TelegramClient {
             this.client.api.setWebhook(`${config.DOMAIN}/telegram-${timestamp}`).then(() => {
                 this.logger.info('Telegram webhook is set.');
                 this.health = 'set';
-                this.app.api_server.setWebhookMiddleware(`/telegram-${timestamp}`, webhookCallback(this.client));
+                this.app.api_server.setWebhookMiddleware(`/telegram-${timestamp}`, webhookCallback(this.client, null, webhookTiemoutCallback.bind(this)));
             }).catch(err => {
                 this.logger.error(`Error while setting telegram webhook: ${err && err.stack}`);
                 this.logger.info('Trying to start with polling');
@@ -650,6 +650,11 @@ class TelegramClient {
         for (let diff of notification_data['-']) {
             new TelegramInteraction(this).sendNotification({ ...diff, ...notification_data.channel }, chat_id);
         }
+    }
+
+    webhookTiemoutCallback() {
+        let logger = this.logger.child({ module: 'grammy-webhook' });
+        logger.info('Webhook Handler ran out of time!!! This needs fix!');
     }
 }
 
