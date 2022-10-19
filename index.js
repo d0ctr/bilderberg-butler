@@ -68,7 +68,7 @@ function main() {
     if (process.env.COINMARKETCAP_TOKEN && config.COINMARKETCAP_API) {
         app.logger.info('Retrieving currencies list...');
         get_currencies_list().then(result => {
-            app.logger.info('Retireved currencies list');
+            app.logger.info('Retrieved currencies list');
             app.currencies_list = result;
         }).catch(err => {
             if (err) {

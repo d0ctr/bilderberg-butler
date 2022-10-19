@@ -74,7 +74,7 @@ class DiscordClient {
             this.logger.warn(`Token for Discord wasn't specified, client is not started.`);
             return;
         }
-        this.client.login(process.env.DISCORD_TOKEN);
+        return this.client.login(process.env.DISCORD_TOKEN);
     }
 
     async stop() {
@@ -131,7 +131,9 @@ class DiscordClient {
         }
 
         for (let channel_id of channel_ids) {
-            this.restoreChannelSubscriber(guild, channel_id);
+            this.restoreChannelSubscriber(guild, channel_id).catch(err => {
+                this.logger.error(`Error while restoring channel subscriber: ${err && err.stack}`);
+            });
         }
     }
 

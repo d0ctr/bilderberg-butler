@@ -1,18 +1,19 @@
 const GrammyTypes = require('grammy');
-const {ahegaoHandler} = require("./command-handlers/ahegao-handler");
-const {wiki} = require("./command-handlers/wiki-handler");
-const {calc} = require("./command-handlers/calc-handler");
-const {curl} = require("./command-handlers/curl-handler");
-const {convertCurrency} = require("./command-handlers/currency-handler");
-const {sendDiscordNotification} = require("./command-handlers/discord-handler");
-const {fizzbuzz} = require("./command-handlers/fizzbuzz-handler");
-const {get, set, getList} = require("./command-handlers/get-set-handlers");
-const {urban} = require("./command-handlers/urban-handler");
-const {gh} = require("./command-handlers/github-handler");
-const {help} = require("./command-handlers/help-handler");
-const {html} = require("./command-handlers/html-handler");
-const {ping} = require("./command-handlers/ping-handler");
-const {generateImage} = require("./command-handlers/deep-handler");
+
+const { ahegaoHandler } = require("./command-handlers/ahegao-handler");
+const { wiki } = require("./command-handlers/wiki-handler");
+const { calc } = require("./command-handlers/calc-handler");
+const { curl } = require("./command-handlers/curl-handler");
+const { convertCurrency } = require("./command-handlers/currency-handler");
+const { sendDiscordNotification } = require("./command-handlers/discord-handler");
+const { fizzbuzz } = require("./command-handlers/fizzbuzz-handler");
+const { get, set, getList } = require("./command-handlers/get-set-handlers");
+const { urban } = require("./command-handlers/urban-handler");
+const { gh } = require("./command-handlers/github-handler");
+const { help } = require("./command-handlers/help-handler");
+const { html } = require("./command-handlers/html-handler");
+const { ping } = require("./command-handlers/ping-handler");
+const { generateImage } = require("./command-handlers/deep-handler");
 
 class TelegramHandler {
     constructor(client) {
@@ -44,8 +45,8 @@ class TelegramHandler {
      * @returns {[null, String]}
      */
     start() {
-         let message = 'Этот бот что-то может, чтобы узнать что, воспользуйся командой /help';
-         return [null, message];
+        let message = 'Этот бот что-то может, чтобы узнать что, воспользуйся командой /help';
+        return [null, message];
     }
 
     wiki = wiki.bind(this);
