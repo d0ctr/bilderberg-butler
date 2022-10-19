@@ -72,8 +72,7 @@ async function searchWikipedia(query, locale = null) {
  * @param {GrammyTypes.Context | Object} input
  * @returns {[null, Object | null, null, Object | null]} [null, answer, null, overrides]
  */
-
-const wiki = async (input) => {
+async function wiki(input) {
     let arg = this._parseArgs(input, 1)[1];
     if (!arg) {
         return ['Напиши что искать, например <code>/wiki Википедия</code>'];

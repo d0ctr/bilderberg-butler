@@ -83,8 +83,6 @@ class TelegramInteraction {
     _parseMessageMedia() {
         const parsed_media = {};
 
-        // let { type, media, text } = parsed_media;
-
         const message = this.context.message.reply_to_message;
 
         parsed_media.text = message.text || message.caption;
@@ -92,23 +90,10 @@ class TelegramInteraction {
         parsed_media.type = Object.keys(message).filter(key => media_types.includes(key))[0];
 
         if (parsed_media.type === 'photo') {
-            parsed_media.media = message.photo.map((photo) => {
-                return {
-                    type: 'photo',
-                    media: photo.file_id,
-                    ...photo
-                };
-            });
-            parsed_media.media[0].caption = parsed_media.text;
-            delete parsed_media.text;
-            parsed_media.type = 'media_group';
+            parsed_media.media = message.photo[0].file_id;
         }
-        else if (type !== 'text') {
+        else if (parsed_media.type !== 'text') {
             parsed_media.media = message[type].file_id;
-            parsed_media = {
-                ...parsed_media,
-                ...message[type]
-            }
         }
 
         return parsed_media;
