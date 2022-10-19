@@ -611,7 +611,7 @@ class TelegramClient {
             this.client.api.setWebhook(`${config.DOMAIN}/telegram-${timestamp}`).then(() => {
                 this.logger.info('Telegram webhook is set.');
                 this.health = 'set';
-                this.app.api_server.setWebhookMiddleware(`/telegram-${timestamp}`, webhookCallback(this.client, null, this.webhookTimeoutCallback.bind(this)));
+                this.app.api_server.setWebhookMiddleware(`/telegram-${timestamp}`, webhookCallback(this.client, 'express', this.webhookTimeoutCallback.bind(this)));
             }).catch(err => {
                 this.logger.error(`Error while setting telegram webhook: ${err && err.stack}`);
                 this.logger.info('Trying to start with polling');
