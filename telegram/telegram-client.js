@@ -104,7 +104,7 @@ class TelegramInteraction {
     _getBasicMessageOptions() {
         return {
             allow_sending_without_reply: true,
-            reply_to_message_id: this.context.message.message_id,
+            reply_to_message_id: this.context.message?.message_id,
         };
     }
 
@@ -279,7 +279,9 @@ class TelegramInteraction {
     }
 
     async replyWithPlaceholder(message) {
-        this._placeholderMessage = await this._reply(message);
+        if (this.context.message) {
+            this._placeholderMessage = await this._reply(message);
+        }
     }
 
     async deletePlaceholder() {
@@ -293,7 +295,7 @@ class TelegramInteraction {
             if (typeof this.handler[this.command_name] === 'function') {
                 this.logger.info(`Received command: ${this.context.message.text}`);
 
-                this.handler[this.command_name](this.context, this).then(async ([err, response, _, overrides]) => {
+                this.handler[this.command_name](this.context, this).then(([err, response, _, overrides]) => {
                     if (err) {
                         return this._reply(err, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
                             this.logger.error(`Error while replying with an error message to [${this.context.message.text}]: ${err.stack}`);
@@ -484,9 +486,17 @@ class TelegramInteraction {
                                 if (response.url) {
                                     answer['thumb_url'] = response.type !== 'video' ? response.url : config.VIDEO_THUMB_URL;
                                 }
+
+                                for (let key in answer) {
+                                    if (!answer[key]) {
+                                        delete answer[key];
+                                    }
+                                }
+
                                 if (!answer.title) {
                                     answer.title = ' ';
                                 }
+
                                 this.logger.info(`Pushing answer [${JSON.stringify(answer)}]`);
                                 query_result.results.push(answer);
                             }
@@ -568,7 +578,7 @@ class TelegramClient {
         }
 
         if (config.DEEP_AI_API) {
-            this.inline_commands.push('deep');
+            // this.inline_commands.push('deep'); // Takes too long, InlineQuery id expires faster
             this.client.command('deep', async (ctx) => new TelegramInteraction(this, 'deep', ctx).reply());
         }
 
