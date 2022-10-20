@@ -2,7 +2,7 @@
  * `/ping` command handler
  * @returns {[null, String]}
  */
-const ping = () => {
+async function ping() {
     let message = '<code>pong</code>';
     return [null, message];
 }

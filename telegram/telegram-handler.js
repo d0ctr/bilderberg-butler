@@ -44,7 +44,7 @@ class TelegramHandler {
      * `/start` command handler
      * @returns {[null, String]}
      */
-    start() {
+    async start() {
         let message = 'Этот бот что-то может, чтобы узнать что, воспользуйся командой /help';
         return [null, message];
     }

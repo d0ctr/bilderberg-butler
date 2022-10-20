@@ -6,23 +6,23 @@ const inline_template_regex = /\{\{\/[^(\{\{)(\}\}))]+\}\}/gm;
 const command_name_regex = /^\/[a-zA-Zа-яА-Я0-9_-]+/;
 
 const media_types = [
-    'audio',      
-    'animation',  
+    'audio',
+    'animation',
     'chat_action',
-    'contact',    
-    'dice',       
-    'document',   
-    'game',       
-    'invoice',    
+    'contact',
+    'dice',
+    'document',
+    'game',
+    'invoice',
     'location',
-    'photo',      
-    'poll',       
-    'sticker',    
-    'venue',      
-    'video',      
-    'video_note', 
-    'voice',      
-    'text',       
+    'photo',
+    'poll',
+    'sticker',
+    'venue',
+    'video',
+    'video_note',
+    'voice',
+    'text',
 ]
 
 /**
@@ -47,26 +47,28 @@ class TelegramInteraction {
         this._redis = client.redis;
         this._currencies_list = client.currencies_list
 
-        this.mediaToMethod = {
-            'audio':       this.context.replyWithAudio.bind(this.context),
-            'animation':   this.context.replyWithAnimation.bind(this.context),
-            'chat_action': this.context.replyWithChatAction.bind(this.context),
-            'contact':     this.context.replyWithContact.bind(this.context),
-            'dice':        this.context.replyWithDice.bind(this.context),
-            'document':    this.context.replyWithDocument.bind(this.context),
-            'game':        this.context.replyWithGame.bind(this.context),
-            'invoice':     this.context.replyWithInvoice.bind(this.context),
-            'location':    this.context.replyWithLocation.bind(this.context),
-            'media_group': this.context.replyWithMediaGroup.bind(this.context),
-            'photo':       this.context.replyWithPhoto.bind(this.context),
-            'poll':        this.context.replyWithPoll.bind(this.context),
-            'sticker':     this.context.replyWithSticker.bind(this.context),
-            'venue':       this.context.replyWithVenue.bind(this.context),
-            'video':       this.context.replyWithVideo.bind(this.context),
-            'video_note':  this.context.replyWithVideoNote.bind(this.context),
-            'voice':       this.context.replyWithVoice.bind(this.context),
-            'text':        this.context.reply.bind(this.context),
-        };
+        if (context) {
+            this.mediaToMethod = {
+                'audio': this.context.replyWithAudio.bind(this.context),
+                'animation': this.context.replyWithAnimation.bind(this.context),
+                'chat_action': this.context.replyWithChatAction.bind(this.context),
+                'contact': this.context.replyWithContact.bind(this.context),
+                'dice': this.context.replyWithDice.bind(this.context),
+                'document': this.context.replyWithDocument.bind(this.context),
+                'game': this.context.replyWithGame.bind(this.context),
+                'invoice': this.context.replyWithInvoice.bind(this.context),
+                'location': this.context.replyWithLocation.bind(this.context),
+                'media_group': this.context.replyWithMediaGroup.bind(this.context),
+                'photo': this.context.replyWithPhoto.bind(this.context),
+                'poll': this.context.replyWithPoll.bind(this.context),
+                'sticker': this.context.replyWithSticker.bind(this.context),
+                'venue': this.context.replyWithVenue.bind(this.context),
+                'video': this.context.replyWithVideo.bind(this.context),
+                'video_note': this.context.replyWithVideoNote.bind(this.context),
+                'voice': this.context.replyWithVoice.bind(this.context),
+                'text': this.context.reply.bind(this.context),
+            };
+        }
     }
 
     /**
@@ -179,13 +181,13 @@ class TelegramInteraction {
         this.sent_message = await this.api.sendMessage(this.chat_id, message, { parse_mode: 'HTML', disable_web_page_preview: true });
         this._cooldown();
     }
-    
+
     /**
      * Reply to message with text
      * @param {String} text text to send
      * @return {Object}
      */
-     async _reply(text, overrides) {
+    async _reply(text, overrides) {
         this.logger.info(`Replying with [${text}]`);
         try {
             return await this.context.reply(text, {
@@ -280,11 +282,8 @@ class TelegramInteraction {
         this._placeholderMessage = await this._reply(message);
     }
 
-    async deletePlaceholder(placeholderMessageID) {
-        if (placeholderMessageID) {
-            return this.api.deleteMessage(this.context.chat.id, placeholderMessageID);
-        }
-        else if (this._placeholderMessage) {
+    async deletePlaceholder() {
+        if (this._placeholderMessage) {
             return this.api.deleteMessage(this.context.chat.id, this._placeholderMessage.message_id);
         }
     }
@@ -293,21 +292,30 @@ class TelegramInteraction {
         try {
             if (typeof this.handler[this.command_name] === 'function') {
                 this.logger.info(`Received command: ${this.context.message.text}`);
-                const [err, response, _, overrides] = await this.handler[this.command_name](this.context, this);
-                
-                if (this._placeholderMessage) {
-                    this.api.deleteMessage(this.context.chat.id, this._placeholderMessage.message_id);
-                }
 
-                if (err) {
-                    return await this._reply(err, overrides);
-                }
-                if (response instanceof String || typeof response === 'string') {
-                    return await this._reply(response, overrides);
-                }
-                if (response instanceof Object) {
-                    return await this._replyWithMedia(response, overrides);
-                }
+                this.handler[this.command_name](this.context, this).then(async ([err, response, _, overrides]) => {
+                    if (err) {
+                        return this._reply(err, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
+                            this.logger.error(`Error while replying with an error message to [${this.context.message.text}]: ${err.stack}`);
+                            this._reply(`Что-то случилось:\n<code>${err}</code>`);
+                        });
+                    }
+                    if (response instanceof String || typeof response === 'string') {
+                        return this._reply(response, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
+                            this.logger.error(`Error while replying with response text to [${this.context.message.text}]: ${err.stack}`);
+                            this._reply(`Что-то случилось:\n<code>${err}</code>`);
+                        });
+                    }
+                    if (response instanceof Object) {
+                        return this._replyWithMedia(response, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
+                            this.logger.error(`Error while replying with media to [${this.context.message.text}]: ${err.stack}`);
+                            this._reply(`Что-то случилось:\n<code>${err}</code>`);
+                        });
+                    }
+                }).catch((err) => {
+                    this.logger.error(`Error while processing command [${this.context.message.text}]: ${err.stack}`);
+                    this._reply(`Что-то случилось:\n<code>${err}</code>`);
+                });
             }
             else {
                 this.logger.info(`Received nonsense, how did it get here???: ${this.context.message.text}`);
@@ -559,7 +567,7 @@ class TelegramClient {
             this.client.command('ahegao', async (ctx) => new TelegramInteraction(this, 'ahegao', ctx).reply());
         }
 
-        if(config.DEEP_AI_API) {
+        if (config.DEEP_AI_API) {
             this.inline_commands.push('deep');
             this.client.command('deep', async (ctx) => new TelegramInteraction(this, 'deep', ctx).reply());
         }
@@ -629,10 +637,7 @@ class TelegramClient {
 
     async sendNotification(notification_data, chat_id) {
         if (!notification_data || !chat_id || !this.client) return;
-        for (let diff of notification_data['+']) {
-            new TelegramInteraction(this).sendNotification({ ...diff, ...notification_data.channel }, chat_id);
-        }
-        for (let diff of notification_data['-']) {
+        for (let diff of notification_data['+'].concat(notification_data['-'])) {
             new TelegramInteraction(this).sendNotification({ ...diff, ...notification_data.channel }, chat_id);
         }
     }

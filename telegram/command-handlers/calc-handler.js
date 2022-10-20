@@ -7,7 +7,7 @@ const GrammyTypes = require('grammy');
  * @returns {[String | null, String | null, String | null]} [err, response, short_response]
  */
 
-function calc(input) {
+async function calc(input) {
     let math_line = this._parseArgs(input, 1)[1];
     if (!math_line) {
         return ['Напиши хоть что-нибудь, типа: 1+1'];

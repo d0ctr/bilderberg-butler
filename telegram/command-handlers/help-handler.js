@@ -3,7 +3,7 @@
  * @returns {[null, String | null]}
  */
 
-const help = () => {
+async function help() {
     let message = `Вот список доступных команд:
 /help - список команд
 /discord_notification - получение id чата для получения уведомлений из дискорда
