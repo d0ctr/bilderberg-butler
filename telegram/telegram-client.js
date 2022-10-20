@@ -278,9 +278,9 @@ class TelegramInteraction {
         return this._reply(message.text);
     }
 
-    async replyWithPlaceholder(message) {
+    async replyWithPlaceholder(placeholder_text) {
         if (this.context.message) {
-            this._placeholderMessage = await this._reply(message);
+            this._placeholderMessage = await this._reply(placeholder_text);
         }
     }
 
