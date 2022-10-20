@@ -92,21 +92,21 @@ This bot talks with you in Russian (because I've decided so, fill free to add tr
 
 ### Inline Query
 
-You can get results of some of the commands by typing somewhat like `@<Bot name> Ping {{/ping}}` in Telegram app in input field, mentioned example will result in sending `Ping pong`, where `pong` is the result of the `/ping` command.
+You can get results of some of the commands by typing somewhat like `@<Bot name> /ping` in Telegram app in input field, mentioned example will result in sending `pong`, where `pong` is the result of the `/ping` command.
 
-Not all commands are supported, and they may also give different results compared to the usual use.
+Here is the list of supported inline commands:
 
-  - /ping - returns `pong` (embeds in your message)
-  - /calc {math eq} — will return only the result of the equation (embeds)
-  - /get — will return gif, video, voice, audio, photo, sticker or text that was saved with `/get` in user's private chat with bot (will embed only if didn't contain a caption originally)
-  - /get_list — will return only the list of available gets (embeds)
-  - /ahegao — will return a random ahegao (embeds)
-  - /urban {pharse?} — will return article (doesn't embed)
-  - /html — will return the same result as usual (embeds)
-  - /cur {amount} {from} {to} — will return only the resulting amount (embeds)
-  - /gh {link} — convert GitHub link to a GitHub link with Instant View (doesn't embed)
-  - /curl {link} - returns the result of the request to link as headers and file
-  - /wiki {query} — returns a summary from wikipedia
+  - /ping
+  - /calc
+  - /get
+  - /get_list
+  - /ahegao
+  - /urban
+  - /html
+  - /cur
+  - /gh
+  - /curl
+  - /wiki
 
 ## API
 

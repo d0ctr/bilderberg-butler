@@ -2,7 +2,7 @@ const { Bot, Context, webhookCallback, InputFile } = require('grammy');
 const TelegramHandler = require('./telegram-handler');
 const config = require('../config.json');
 
-const inline_template_regex = /\{\{\/[^(\{\{)(\}\}))]+\}\}/gm;
+const inline_template_regex = /\/.+ .*/gm;
 const command_name_regex = /^\/[a-zA-Zа-яА-Я0-9_-]+/;
 
 const media_types = [
@@ -380,9 +380,11 @@ class TelegramInteraction {
                     title: query.replace(/ +/g, ' '),
                     input_message_content: {
                         message_text: query,
-                        ...this._getTextOptions,
+                        ...this._getTextOptions(),
                         ...overrides,
-                    }
+                    },
+                    ...this._getTextOptions(),
+                    ...overrides,
                 }
             ],
             other: {
@@ -439,27 +441,27 @@ class TelegramInteraction {
             let clean_query = query.replace(inline_template_regex, '').replace(/ +/g, ' ');
 
             for (let match of template_matches) {
-                let command_text = match.slice(2, -2)
-                let command_name = command_text.match(command_name_regex)[0].slice(1);
+                let command_name = match.match(command_name_regex)[0].slice(1);
                 if (this.client.inline_commands.includes(command_name) && typeof this.handler[command_name] === 'function') {
-                    let input = Object.assign({ message: { text: command_text } }, parsed_context)
+                    let input = Object.assign({ message: { text: match } }, parsed_context)
                     try {
-                        const [err, response, short, overrides] = await this.handler[command_name](input, this);
+                        const [err, response, _, overrides] = await this.handler[command_name](input, this);
                         if (err) {
-                            query = query.replace(command_text, 'ОШИБКА');
-                        }
-                        else if (short) {
-                            query = query.replace(match, short);
+                            query = query.replace(match, 'ОШИБКА');
+
+                            return await this._answerQueryWithText(query, overrides);
                         }
                         else if (response) {
                             if (response instanceof String || typeof response === 'string') {
                                 query = query.replace(match, response);
+
+                                return await this._answerQueryWithText(query, overrides);
                             }
                             else if (response.type === 'text') {
                                 let answer = {
                                     id: Date.now(),
                                     type: 'article',
-                                    title: command_text,
+                                    title: match,
                                     description: response.text,
                                     input_message_content: {
                                         message_text: response.text,
@@ -470,6 +472,8 @@ class TelegramInteraction {
                                     ...overrides,
                                 }
                                 query_result.results.push(answer);
+
+                                return await this._answerQueryWithArray(query_result, overrides);
                             }
                             else if (['animation', 'audio', 'document', 'video', 'voice', 'photo', 'gif', 'sticker'].includes(response.type)) {
                                 query = query.replace(match, '');
@@ -499,6 +503,8 @@ class TelegramInteraction {
 
                                 this.logger.info(`Pushing answer [${JSON.stringify(answer)}]`);
                                 query_result.results.push(answer);
+
+                                return await this._answerQueryWithArray(query_result, overrides);
                             }
                         }
                     }
@@ -508,12 +514,6 @@ class TelegramInteraction {
                     }
                 }
             }
-
-            if (query_result.results.length) {
-                return await this._answerQueryWithArray(query_result);
-            }
-
-            return await this._answerQueryWithText(query);
         }
         catch (err) {
             this.logger.error(`Error while processing inline query [${this.context.inlineQuery.query}]: ${err && err.stack}`);
