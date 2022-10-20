@@ -637,8 +637,14 @@ class TelegramClient {
             this.logger.warn(`Token for Telegram wasn't specified, client is not started.`);
             return;
         }
-        this.client.start().then(() => {
-            this.health = 'ready';
+        this.client.start({
+            onStart: () => {
+                this.logger.info('Long polling is starting');
+                this.health = 'ready';
+            }
+        }).then(() => {
+            this.logger.info('Long polling has ended');
+            this.health = 'off';
         }).catch(err => {
             this.logger.error(`Error while starting Telegram client: ${err && err.stack}`);
             this.health = 'off';
