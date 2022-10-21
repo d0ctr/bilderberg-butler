@@ -628,7 +628,7 @@ class TelegramClient {
             else { 
                 this.logger.info('Telegram webhook is set.');
                 this.health = 'set';
-                this.app.api_server.setWebhookMiddleware(`${webhookUrl.split('/').slice(-1)[0]}`, webhookCallback(this.client, 'express'));
+                this.app.api_server.setWebhookMiddleware(`/${webhookUrl.split('/').slice(-1)[0]}`, webhookCallback(this.client, 'express'));
             }
         }
         catch(err) {
