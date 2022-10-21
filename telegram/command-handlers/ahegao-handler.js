@@ -34,7 +34,7 @@ async function ahegaoHandler() {
     if (!ahegao_url) {
         return [`Вроде было, но не могу найти ни одно ахегао`];
     }
-    if (ahegao_url.split('.').slice(-1) === 'gif') {
+    if (ahegao_url.split('.').slice(-1)[0] === 'gif') {
         return [null, { type: 'animation', media: ahegao_url }];
     }
     return [null, { type: 'photo', media: ahegao_url, url: ahegao_url }];

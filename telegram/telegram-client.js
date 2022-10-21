@@ -362,7 +362,7 @@ class TelegramInteraction {
         let r_keys = await this._redis.keys(key);
         let keys = [];
         for (let r_key of r_keys) {
-            keys.push(r_key.split(':').slice(-1));
+            keys.push(r_key.split(':').slice(-1)[0]);
         }
         return keys;
     }
@@ -610,17 +610,29 @@ class TelegramClient {
             this._startPolling();
         }
         else {
-            let timestamp = Date.now();
-            this.client.api.setWebhook(`${config.DOMAIN}/telegram-${timestamp}`).then(() => {
+            this._setWebhook();
+        }
+    }
+
+    _setWebhook(webhookUrl = this._interruptedWebhookUrl) {
+        if (!webhookUrl) {
+            webhookUrl = `${config.DOMAIN}/telegram-${Date.now()}`;
+        }
+
+        this.client.api.setWebhook(webhookUrl).then(() => {
+            if (this._interruptedWebhookUrl) {
+                this.logger.info(`Restored interrupted webhook [${this._interruptedWebhookUrl}]`);
+            }
+            else { 
                 this.logger.info('Telegram webhook is set.');
                 this.health = 'set';
-                this.app.api_server.setWebhookMiddleware(`/telegram-${timestamp}`, webhookCallback(this.client, 'express', this.webhookTimeoutCallback.bind(this)));
-            }).catch(err => {
-                this.logger.error(`Error while setting telegram webhook: ${err && err.stack}`);
-                this.logger.info('Trying to start with polling');
-                this._startPolling();
-            });
-        }
+                this.app.api_server.setWebhookMiddleware(`${webhookUrl.split('/').slice(-1)[0]}`, webhookCallback(this.client));
+            }
+        }).catch(err => {
+            this.logger.error(`Error while setting telegram webhook: ${err && err.stack}`);
+            this.logger.info('Trying to start with polling');
+            this._startPolling();
+        });
     }
 
     async stop() {
@@ -628,8 +640,18 @@ class TelegramClient {
             return;
         }
         this.logger.info('Gracefully shutdowning Telegram client.');
-        this.client.api.setWebhook();
+        this.client.api.deleteWebhook();
         this.client.stop();
+        this._setWebhook(); // restoring previous webhook if possible
+    }
+
+    _saveWebhookStatus() {
+        this.client.api.getWebhookInfo().then(({ url }) => {
+            if (url) {
+                this.logger.info(`Saving previous webhook for restoration [${url}]`);
+                this._interruptedWebhookUrl = url;
+            }
+        })
     }
 
     _startPolling() {
@@ -637,6 +659,9 @@ class TelegramClient {
             this.logger.warn(`Token for Telegram wasn't specified, client is not started.`);
             return;
         }
+
+        this._saveWebhookStatus();
+
         this.client.start().then(() => {
             this.health = 'ready';
         }).catch(err => {
