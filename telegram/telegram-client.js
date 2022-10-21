@@ -614,14 +614,14 @@ class TelegramClient {
         }
     }
 
-    _setWebhook(webhookUrl = this._interruptedWebhookUrl) {
+    _setWebhook(webhookUrl = this._interruptedWebhookURL) {
         if (!webhookUrl) {
             webhookUrl = `${config.DOMAIN}/telegram-${Date.now()}`;
         }
 
         this.client.api.setWebhook(webhookUrl).then(() => {
-            if (this._interruptedWebhookUrl) {
-                this.logger.info(`Restored interrupted webhook [${this._interruptedWebhookUrl}]`);
+            if (this._interruptedWebhookURL) {
+                this.logger.info(`Restored interrupted webhook url [${this._interruptedWebhookURL}]`);
             }
             else { 
                 this.logger.info('Telegram webhook is set.');
@@ -642,14 +642,14 @@ class TelegramClient {
         this.logger.info('Gracefully shutdowning Telegram client.');
         this.client.api.deleteWebhook();
         this.client.stop();
-        this._setWebhook(); // restoring previous webhook if possible
+        this._setWebhook(); // restoring interrupted webhook if possible
     }
 
-    _saveWebhookStatus() {
+    _saveInterruptedWebhookURL() {
         this.client.api.getWebhookInfo().then(({ url }) => {
             if (url) {
-                this.logger.info(`Saving previous webhook for restoration [${url}]`);
-                this._interruptedWebhookUrl = url;
+                this.logger.info(`Saving interrupted webhook url for restoration [${url}]`);
+                this._interruptedWebhookURL = url;
             }
         })
     }
@@ -660,7 +660,7 @@ class TelegramClient {
             return;
         }
 
-        this._saveWebhookStatus();
+        this._saveInterruptedWebhookURL();
 
         this.client.start().then(() => {
             this.health = 'ready';
