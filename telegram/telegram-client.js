@@ -614,12 +614,14 @@ class TelegramClient {
         }
     }
 
-    _setWebhook(webhookUrl = this._interruptedWebhookURL) {
+    async _setWebhook(webhookUrl = this._interruptedWebhookURL) {
         if (!webhookUrl) {
             webhookUrl = `${config.DOMAIN}/telegram-${Date.now()}`;
         }
 
-        this.client.api.setWebhook(webhookUrl).then(() => {
+        try {
+            await this.client.api.setWebhook(webhookUrl);
+
             if (this._interruptedWebhookURL) {
                 this.logger.info(`Restored interrupted webhook url [${this._interruptedWebhookURL}]`);
             }
@@ -628,11 +630,12 @@ class TelegramClient {
                 this.health = 'set';
                 this.app.api_server.setWebhookMiddleware(`${webhookUrl.split('/').slice(-1)[0]}`, webhookCallback(this.client));
             }
-        }).catch(err => {
+        }
+        catch(err) {
             this.logger.error(`Error while setting telegram webhook: ${err && err.stack}`);
             this.logger.info('Trying to start with polling');
             this._startPolling();
-        });
+        };
     }
 
     async stop() {
@@ -640,9 +643,9 @@ class TelegramClient {
             return;
         }
         this.logger.info('Gracefully shutdowning Telegram client.');
-        this.client.api.deleteWebhook();
-        this.client.stop();
-        this._setWebhook(); // restoring interrupted webhook if possible
+        await this.client.api.deleteWebhook();
+        await this.client.stop();
+        await this._setWebhook(); // restoring interrupted webhook if possible
     }
 
     _saveInterruptedWebhookURL() {
