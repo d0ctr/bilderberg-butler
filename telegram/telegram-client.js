@@ -775,10 +775,11 @@ class TelegramClient {
                 parse_mode: 'HTML',
             }
         ).then((message) => {
+            this.logger.info(`Sent [notification: ${discord_notification.getNotificationText()}] about [channel:${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}], got [message: ${message.message_id}]`);
             discord_notification.current_message_id = message.message_id;
             this._pinNotificationMessage(discord_notification);
         }).catch((err) => {
-            this.logger.error(`Error while sending notification channel_id:${discord_notification.channel_id} chat_id:${discord_notification.chat_id} : ${err && err.stack}`);
+            this.logger.error(`Error while sending [notification: ${discord_notification.getNotificationText(notification_data)}] about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}] : ${err && err.stack}`);
         });
     }
 
@@ -790,9 +791,9 @@ class TelegramClient {
                 disable_notification: true,
             }
         ).then(() => {
-            this.logger.info(`Pinned [message: ${current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`);
+            this.logger.info(`Pinned [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`);
         }).catch((err) => {
-            this.logger.error(`Error while pinning [message: ${current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]: ${err && err.stack}`);
+            this.logger.error(`Error while pinning [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]: ${err && err.stack}`);
         });
     }
 
@@ -807,9 +808,9 @@ class TelegramClient {
             }
         ).then((message) => {
             discord_notification.current_message_id = message.message_id;
-            this.logger.info(`Edited [message: ${current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}] with [notification: ${this.getNotificationText()}]`);
+            this.logger.info(`Edited [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}] with [notification: ${discord_notification.getNotificationText()}]`);
         }).catch((err) => {
-            this.logger.error(`Error while editing [message: ${current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}] with [notification: ${this.getNotificationText()}]: ${err && err.stack}`);
+            this.logger.error(`Error while editing [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}] with [notification: ${discord_notification.getNotificationText()}]: ${err && err.stack}`);
         });
     }
 
