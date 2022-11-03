@@ -635,6 +635,26 @@ class TelegramClient {
         }
     }
 
+    _autoReplyToMisha() {
+        if (process.env.MISHA_KUPI_KOLDU) {
+            this.client.on('msg', async (ctx) => {
+                if (ctx.message?.from?.id === Number(process.env.MISHA_KUPI_KOLDU)) {
+                    ctx.reply('Миша купи колду', { reply_to_message_id: ctx.message.message_id });
+                }
+            })
+        }
+    }
+
+    _filterServiceMessages() {
+        this.client.on('message:pinned_message', async (ctx) => {
+            if (ctx.message?.pinned_message?.from?.is_bot) {
+                ctx.deleteMessage().catch((err) => {
+                    this.logger.error(`Error while deleting service [message: ${ctx.message.message_id}] in [chat: ${ctx.chat.id}] : ${err && err.stack}`);
+                });
+            }
+        });
+    }
+
     _registerCommands() {
         this._registerCommand('start');
         this._registerCommand('help', true, true);
@@ -720,6 +740,8 @@ class TelegramClient {
 
         this.client = new Bot(process.env.TELEGRAM_TOKEN);
         this._registerCommands();
+        this._filterServiceMessages();
+        this._autoReplyToMisha();
 
         if (process.env.ENV === 'dev' || !process.env.PORT) {
             this._startPolling();
@@ -730,6 +752,9 @@ class TelegramClient {
     }
 
     _getDiscordNotification(notification_data, chat_id) {
+        if (notification_data instanceof DiscordNotification) {
+            return notification_data;
+        }
         let discord_notification = this._discord_notification_map[`${chat_id}:${notification_data.channel_id}`];
         if (!discord_notification) {
             this._discord_notification_map[`${chat_id}:${notification_data.channel_id}`] = new DiscordNotification(notification_data, chat_id);
@@ -738,17 +763,15 @@ class TelegramClient {
         return discord_notification;
     }
 
-    async _clearNotification(notification_data, chat_id) {
-        const discord_notification = this._getDiscordNotification(notification_data, chat_id);
-
+    async _clearNotification(discord_notification) {
         if (!discord_notification.isNotified()) {
             return;
         }
 
         const current_message_id = discord_notification.clear();
 
-        return this.client.api.deleteMessage(chat_id, current_message_id).catch(err => {
-            this.logger.error(`Error while clearing notification channel_id:${notification_data.channel_id} chat_id:${chat_id} : ${err && err.stack}`);
+        return this.client.api.deleteMessage(discord_notification.chat_id, current_message_id).catch(err => {
+            this.logger.error(`Error while clearing notification [message: ${current_message_id}] about [channel_id: ${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}] : ${err && err.stack}`);
         });
     }
 
@@ -837,7 +860,7 @@ class TelegramClient {
         if (!notification_data || !chat_id || !this.client) return;
 
         if (!notification_data.members.size) {
-            this._clearNotification(notification_data, chat_id);
+            this._clearNotification(this._getDiscordNotification(notification_data, chat_id));
             return;
         }
 
