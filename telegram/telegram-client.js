@@ -89,7 +89,7 @@ class DiscordNotification {
         return current_message_id;
     }
 
-    getNotificationText(notification_data = this.notification_data) {
+    getNotificationText(notification_data = this) {
         let text = `Канал <a href="${notification_data.channel_url}">${notification_data.channel_name}</a> в Discord:`;
 
         notification_data.members.forEach((member) => {
@@ -822,7 +822,7 @@ class TelegramClient {
             discord_notification.current_message_id = await (await this._sendNotificationMessage(discord_notification)).message_id;
         }
         catch(err) {
-            this.logger.error(`Errro while sending notification channel_id:${discord_notification.channel_id} chat_id:${discord_notification.chat_id} : ${err && err.stack}`);
+            this.logger.error(`Error while sending notification channel_id:${discord_notification.channel_id} chat_id:${discord_notification.chat_id} : ${err && err.stack}`);
         }
     }
 
