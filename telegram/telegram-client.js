@@ -39,10 +39,6 @@ class DiscordNotification {
 
         this.pending_notification_data_timer = null;
         this.cooldown_timer = null;
-        
-        this.silent = true;
-
-        this.had_stream = false;
     }
 
     get channel_url() {
@@ -65,40 +61,34 @@ class DiscordNotification {
         return this.cooldown;
     }
 
-    hasStream() {
-        let has_stream = false;
-        this.members.forEach((member) => {
-            if (member.streaming) {
-                has_stream = true;
-            }
-        })
-        return has_stream;
+    startCooldownTimer() {
+        this.cooldown = true;
+        this.cooldown_timer = setTimeout(() => {
+            this.cooldown_timer = null;
+            this.cooldown = false;
+        }, this.cooldown_duration);
     }
+
     update(notification_data) {
         if (!notification_data) {
             this.current_notification_data = null;
             this.cooldown = false;
             this.pending_notification_data = null;
-            this.silent = true;
-            this.had_stream = false;
 
             return this.current_message_id;
         }
 
         this.current_notification_data = notification_data;
 
-        this.silent = !(!this.had_stream && this.hasStream());
-        this.had_stream = this.hasStream();
-
-        this.cooldown = true;
-        this.cooldown_timer = setTimeout(() => {
-            this.cooldown = false;
-        }, this.cooldown_duration);
+        this.startCooldownTimer();
     }
 
     clear() {
         clearTimeout(this.pending_notification_data_timer);
         clearTimeout(this.cooldown_timer);
+
+        this.pending_notification_data_timer = null;
+        this.cooldown_timer = null;
 
         const current_message_id = `${this.update()}`;
 
@@ -126,14 +116,13 @@ ${member.streaming && '🎥' || ' '}`;
 
         this.pending_notification_data = notification_data;
         this.pending_notification_data_timer = setTimeout(() => {
-            this.update(notification_data);
-            callback(this)
+            this.update(this.pending_notification_data);
+            callback(this);
+            this.pending_notification_data = null;
+            this.pending_notification_timer = null;
         }, this.cooldown_duration);
 
-        this.cooldown = true;
-        this.cooldown_timer = setTimeout(() => {
-            this.cooldown = false;
-        }, this.cooldown_duration);
+        this.startCooldownTimer();
     }
 }
 
@@ -190,10 +179,6 @@ class TelegramInteraction {
         return this.client.client.api;
     }
 
-    get cooldown_key() {
-        return `${this.chat_id}`;
-    }
-
     _parseMessageMedia() {
         const parsed_media = {};
 
@@ -234,42 +219,6 @@ class TelegramInteraction {
      */
     _getReplyMethod(media_type) {
         return this.mediaToMethod[media_type];
-    }
-
-    _deleteCooldown(key) {
-        delete this.client.cooldown_map[key].timer;
-        if (!Object.keys(this.client.cooldown_map[key]).length) {
-            delete this.client.cooldown_map[key];
-        }
-    }
-
-
-    _cooldown() {
-        this.client.cooldown_map[this.cooldown_key] = {
-            timer: setTimeout(this._deleteCooldown.bind(this), this.client.cooldown_duration, this.cooldown_key),
-            message_id: this.sent_message.message_id
-        };
-    }
-
-    _isCooldown() {
-        if (this.client.cooldown_map[this.cooldown_key]) {
-            if (this.notification_data.type[0] === '-') {
-                if (this.client.cooldown_map[this.cooldown_key].message_id) {
-                    let message_id = this.client.cooldown_map[this.cooldown_key].message_id;
-                    this.api.deleteMessage(this.chat_id, message_id);
-                    delete this.client.cooldown_map[this.cooldown_key].message_id;
-
-                    if (!Object.keys(this.client.cooldown_map[this.cooldown_key]).length) {
-                        delete this.client.cooldown_map[this.cooldown_key];
-                        return false;
-                    }
-                }
-            }
-            if (this.client.cooldown_map[this.cooldown_key].timer) {
-                return true;
-            }
-        }
-        return false;
     }
 
     async sendNotification(notification_data, chat_id) {
@@ -643,7 +592,7 @@ class TelegramClient {
         this.redis = app.redis ? app.redis : null;
         this.logger = app.logger.child({ module: 'telegram-client' });
         this.handler = new TelegramHandler(this);
-        this.discord_notification_map = {};
+        this._discord_notification_map = {};
     }
 
     set health(value) {
@@ -754,6 +703,10 @@ class TelegramClient {
             return;
         }
         this.logger.info('Gracefully shutdowning Telegram client.');
+
+        for(let discord_notification of Object.values(this._discord_notification_map)) {
+            await this._clearNotification(discord_notification);
+        }
         await this.client.api.deleteWebhook();
         await this.client.stop();
         await this._setWebhook(); // restoring interrupted webhook if possible
@@ -791,15 +744,15 @@ class TelegramClient {
     }
 
     _getDiscordNotification(notification_data, chat_id) {
-        let discord_notification = this.discord_notification_map[`${chat_id}:${notification_data.channel_id}`];
+        let discord_notification = this._discord_notification_map[`${chat_id}:${notification_data.channel_id}`];
         if (!discord_notification) {
-            this.discord_notification_map[`${chat_id}:${notification_data.channel_id}`] = new DiscordNotification(notification_data, chat_id);
-            return this.discord_notification_map[`${chat_id}:${notification_data.channel_id}`];
+            this._discord_notification_map[`${chat_id}:${notification_data.channel_id}`] = new DiscordNotification(notification_data, chat_id);
+            return this._discord_notification_map[`${chat_id}:${notification_data.channel_id}`];
         }
         return discord_notification;
     }
 
-    _clearNotification(notification_data, chat_id) {
+    async _clearNotification(notification_data, chat_id) {
         const discord_notification = this._getDiscordNotification(notification_data, chat_id);
 
         if (!discord_notification.isNotified()) {
@@ -808,55 +761,75 @@ class TelegramClient {
 
         const current_message_id = discord_notification.clear();
 
-        this.client.api.deleteMessage(chat_id, current_message_id).catch(err => {
+        return this.client.api.deleteMessage(chat_id, current_message_id).catch(err => {
             this.logger.error(`Error while clearing notification channel_id:${notification_data.channel_id} chat_id:${chat_id} : ${err && err.stack}`);
         });
     }
 
-    async _sendNotificationMessage(discord_notification, overrides) {
-        this.logger.info(`Sending [discord channel: ${discord_notification.channel_id}] [notification: ${discord_notification.getNotificationText()} to [telegram chat: ${discord_notification.chat_id}]`);
+    async _sendNotificationMessage(discord_notification) {
         return this.client.api.sendMessage(
             discord_notification.chat_id,
             discord_notification.getNotificationText(),
             {
                 disable_web_page_preview: true,
                 parse_mode: 'HTML',
-                ...overrides,
             }
-        );
+        ).then((message) => {
+            discord_notification.current_message_id = message.message_id;
+            this._pinNotificationMessage(discord_notification);
+        }).catch((err) => {
+            this.logger.error(`Error while sending notification channel_id:${discord_notification.channel_id} chat_id:${discord_notification.chat_id} : ${err && err.stack}`);
+        });
     }
 
-    async _updateNotificationMessage(discord_notification) {
-        if (!discord_notification) {
-            return;
-        }
-        let overrides  = {};
-        if (discord_notification.current_message_id) {
-            overrides.disable_notification = discord_notification.silent;
-            this.client.api.deleteMessage(discord_notification.chat_id, discord_notification.current_message_id).catch(err => {
-                this.logger.error(`Error while deleting old notification channel_id:${discord_notification.channel_id} chat_id:${discord_notification.chat_id} : ${err && err.stack}`);
-            });
-        }
+    async _pinNotificationMessage(discord_notification) {
+        return this.client.api.pinChatMessage(
+            discord_notification.chat_id, 
+            discord_notification.current_message_id,
+            {
+                disable_notification: true,
+            }
+        ).then(() => {
+            this.logger.info(`Pinned [message: ${current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`);
+        }).catch((err) => {
+            this.logger.error(`Error while pinning [message: ${current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]: ${err && err.stack}`);
+        });
+    }
 
-        try {
-            discord_notification.current_message_id = await (await this._sendNotificationMessage(discord_notification, overrides)).message_id;
-        }
-        catch(err) {
-            this.logger.error(`Error while sending notification channel_id:${discord_notification.channel_id} chat_id:${discord_notification.chat_id} : ${err && err.stack}`);
-        }
+    async _editNotificationMessage(discord_notification) {
+        return this.client.api.editMessageText(
+            discord_notification.chat_id,
+            discord_notification.current_message_id,
+            discord_notification.getNotificationText(),
+            {
+                disable_web_page_preview: true,
+                parse_mode: 'HTML',
+            }
+        ).then((message) => {
+            discord_notification.current_message_id = message.message_id;
+            this.logger.info(`Edited [message: ${current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}] with [notification: ${this.getNotificationText()}]`);
+        }).catch((err) => {
+            this.logger.error(`Error while editing [message: ${current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}] with [notification: ${this.getNotificationText()}]: ${err && err.stack}`);
+        });
     }
 
     _wrapInCooldown(notification_data, chat_id) {
         const discord_notification = this._getDiscordNotification(notification_data, chat_id);
 
-        if (discord_notification.isCooldownActive()) {
-            this.logger.info(`Suspending [discord channel: ${discord_notification.channel_id}] [notification: ${discord_notification.getNotificationText(notification_data)} to [telegram chat: ${discord_notification.chat_id}]`);
-            discord_notification.suspendNotification(notification_data, this._updateNotificationMessage.bind(this));
+        if (discord_notification.isNotified() && discord_notification.isCooldownActive()) {
+            this.logger.info(`Suspending [notification: ${discord_notification.getNotificationText(notification_data)}] about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}]`);
+            discord_notification.suspendNotification(notification_data, this._editNotificationMessage.bind(this));
             return;
         }
 
         discord_notification.update(notification_data);
-        this._updateNotificationMessage(discord_notification);
+
+        if (discord_notification.isNotified()) {
+            return this._editNotificationMessage(discord_notification);
+        }
+        else {
+            return this._sendNotificationMessage(discord_notification);
+        }
     }
 
     async sendNotification(notification_data, chat_id) {
