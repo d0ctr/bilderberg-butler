@@ -39,6 +39,10 @@ class DiscordNotification {
 
         this.pending_notification_data_timer = null;
         this.cooldown_timer = null;
+
+        this.silent = true;
+
+        this.had_stream = false;
     }
 
     get channel_url() {
@@ -61,16 +65,31 @@ class DiscordNotification {
         return this.cooldown;
     }
 
+    hasStream() {
+        let has_stream = false;
+        this.members.forEach((member) => {
+            if (member.streaming) {
+                has_stream = true;
+            }
+        })
+        return has_stream;
+    }
+
     update(notification_data) {
         if (!notification_data) {
             this.current_notification_data = null;
             this.cooldown = false;
             this.pending_notification_data = null;
+            this.silent = true;
+            this.had_stream = false;
 
             return this.current_message_id;
         }
 
         this.current_notification_data = notification_data;
+
+        this.silent = !(!this.had_stream && this.hasStream());
+        this.had_stream = this.hasStream();
 
         this.cooldown = true;
         this.cooldown_timer = setTimeout(() => {
@@ -795,7 +814,7 @@ class TelegramClient {
         });
     }
 
-    async _sendNotificationMessage(discord_notification) {
+    async _sendNotificationMessage(discord_notification, overrides) {
         this.logger.info(`Sending [discord channel: ${discord_notification.channel_id}] [notification: ${discord_notification.getNotificationText()} to [telegram chat: ${discord_notification.chat_id}]`);
         return this.client.api.sendMessage(
             discord_notification.chat_id,
@@ -803,6 +822,7 @@ class TelegramClient {
             {
                 disable_web_page_preview: true,
                 parse_mode: 'HTML',
+                ...overrides,
             }
         );
     }
@@ -811,15 +831,16 @@ class TelegramClient {
         if (!discord_notification) {
             return;
         }
-
+        let overrides  = {};
         if (discord_notification.current_message_id) {
+            overrides.disable_notification = discord_notification.silent;
             this.client.api.deleteMessage(discord_notification.chat_id, discord_notification.current_message_id).catch(err => {
                 this.logger.error(`Error while deleting old notification channel_id:${discord_notification.channel_id} chat_id:${discord_notification.chat_id} : ${err && err.stack}`);
             });
         }
 
         try {
-            discord_notification.current_message_id = await (await this._sendNotificationMessage(discord_notification)).message_id;
+            discord_notification.current_message_id = await (await this._sendNotificationMessage(discord_notification, overrides)).message_id;
         }
         catch(err) {
             this.logger.error(`Error while sending notification channel_id:${discord_notification.channel_id} chat_id:${discord_notification.chat_id} : ${err && err.stack}`);
