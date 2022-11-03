@@ -39,7 +39,7 @@ class DiscordNotification {
 
         this.pending_notification_data_timer = null;
         this.cooldown_timer = null;
-
+        
         this.silent = true;
 
         this.had_stream = false;
@@ -74,7 +74,6 @@ class DiscordNotification {
         })
         return has_stream;
     }
-
     update(notification_data) {
         if (!notification_data) {
             this.current_notification_data = null;
