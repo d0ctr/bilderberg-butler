@@ -53,10 +53,10 @@ class DiscordClient {
 
         this.client.on('voiceStateUpdate', async (prev_state, new_state) => {
             if(this.channel_to_subscriber[new_state.channelId]) {
-                this.channel_to_subscriber[new_state.channelId].notify(prev_state, new_state, new_state);
+                this.channel_to_subscriber[new_state.channelId].notify(new_state);
             }
-            else if (this.channel_to_subscriber[prev_state.channelId]) {
-                this.channel_to_subscriber[prev_state.channelId].notify(prev_state, new_state, prev_state);
+            if (new_state.channelId !== prev_state.channelId && this.channel_to_subscriber[prev_state.channelId]) {
+                this.channel_to_subscriber[prev_state.channelId].notify(prev_state);
             }
         });
     }

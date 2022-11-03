@@ -1,3 +1,40 @@
+function isDifferent(obj1, obj2) {
+    if (Object.keys(obj1).length !== Object.keys(obj2).length) {
+        return true;
+    }
+
+    for(const [k, v] of Object.entries(old_state)) {
+        if (typeof obj1[k] === 'object' && typeof obj2[k] === 'object') {
+            if(isDifferent(obj1[k], obj2[k])) return true;
+        }
+        else {
+            if (obj1[k] !== obj2[k]) return true;
+        }
+    }
+    return false;
+}
+
+function replacer(key, value) {
+    if (value instanceof Map) {
+        return {
+            dataType: 'Map',
+            value: Array.from(value.entries()), // or with spread: value: [...value]
+        };
+    }
+    else {
+        return value;
+    }
+}
+
+function reviver(key, value) {
+    if (typeof value === 'object' && value !== null) {
+        if (value.dataType === 'Map') {
+            return new Map(value.value);
+        }
+    }
+    return value;
+}
+
 class ChannelSubscriber {
     constructor(handler) {
         this.handler = handler;
@@ -5,189 +42,82 @@ class ChannelSubscriber {
         this.logger = this.handler.logger.child({module: 'channel-subscriber'});
         this.redis = this.app.redis ? this.app.redis : null;
         this.active = false;
-        this.telegram_chat_id = null;
+        this.telegram_chat_ids = [];
+        this.last_state = null;
         this._dump_retries = 0;
         this._restore_retries = 0;
     }
     
-    notify(prev_state, new_state, watched_state) {
+    async notify(state) {
         if (!this.active) {
             return;
         }
 
-        prev_state = this._parseState(prev_state);
-        new_state = this._parseState(new_state);
-        watched_state = this._parseState(watched_state);
-        this.logger.info(`Discord received updated state: ${JSON.stringify(watched_state)}`);
+        const parsed_state = this._parseState(await state.channel.fetch());
 
-        let diff = {
-            '+': [],
-            '-': []
-        };
-
-        // foreveralone
-        if (prev_state.other_members && Object.keys(prev_state.other_members).length === 1
-            && new_state.channel_id === undefined
-            && Object.values(prev_state.other_members)[0].muted
-            && watched_state.channel_id === prev_state.channel_id) {
-
-            diff['+'].push({ 
-                type: 'foreveralone',
-                ...Object.values(prev_state.other_members)[0]
-            });
-        }
-        // -foreveralone
-        if (prev_state.other_members && Object.keys(prev_state.other_members).length === 0
-            && new_state.channel_id === undefined
-            && prev_state.muted
-            && watched_state.channel_id === prev_state.channel_id) {
-
-            diff['-'].push({
-                type: '-foreveralone',
-                user_id: prev_state.user_id,
-                user_name: prev_state.user_name,
-                streaming: false,
-                member_id: prev_state.member_id,
-                muted: false
-            });
-        }
-        // first join
-        if ((!prev_state.channel_id || new_state.channel_id !== prev_state.channel_id)
-            && new_state.other_members && Object.keys(new_state.other_members).length === 0
-            && new_state.channel_id === watched_state.channel_id) {
-
-            diff['+'].push({
-                type: 'first_join',
-                user_id: new_state.user_id,
-                user_name: new_state.user_name,
-                streaming: new_state.streaming,
-                member_id: new_state.member_id,
-                muted: new_state.muted
-            });
-        }
-        // -first join
-        if (prev_state.other_members && Object.keys(prev_state.other_members).length === 0
-            && (!new_state.channel_id || new_state.channel_id !== prev_state.channel_id)
-            && watched_state.channel_id === prev_state.channel_id) {
-
-            let i = diff['-'].push({
-                type: '-first_join',
-                user_id: prev_state.user_id,
-                user_name: prev_state.user_name,
-                streaming: false,
-                member_id: prev_state.member_id,
-                muted: false
-            });
-            // here goes some sketchy shpt
-            // this needs fix (probably rework of the current state diff)
-            diff['-'].push({
-                ...diff['-'][i - 1],
-                type: '-new_stream'
-            })
-            diff['-'].push({
-                ...diff['-'][i - 1],
-                type: '-foreveralone'
-            })
-        }
-        // new stream started but not everybody here
-        if (new_state.other_members && Object.keys(new_state.other_members).length === 0
-            && (prev_state.streaming !== new_state.streaming)
-            && new_state.streaming
-            && watched_state.channel_id === new_state.channel_id) {
-
-            diff['+'].push({
-                type: 'new_stream',
-                user_id: new_state.user_id,
-                user_name: new_state.user_name,
-                streaming: new_state.streaming,
-                member_id: new_state.member_id,
-                muted: new_state.muted
-            });
-        }
-        // -new stream
-        if (prev_state.other_members && Object.keys(prev_state.other_members).length === 0
-            && (!new_state.streaming || prev_state.streaming !== new_state.streaming)
-            && prev_state.streaming
-            && watched_state.channel_id === prev_state.channel_id) {
-
-            diff['-'].push({
-                type: '-new_stream',
-                user_id: new_state.user_id,
-                user_name: new_state.user_name,
-                streaming: false,
-                member_id: prev_state.member_id,
-                muted: new_state.muted || false
-            });
-        }
-
-        if (Object.keys(diff).length) {
-            diff['channel'] = {
-                channel_id: watched_state.channel_id,
-                channel_name: watched_state.channel_name,
-                channel_url: watched_state.channel_url,
-                channel_type: watched_state.channel_type
-            }
-        }
-        else {
+        if (this.last_state && (!isDifferent(state, this.last_state) || !isDifferent(this.last_state, state))) {
             return;
         }
-        this.logger.info(`Catched diff: ${JSON.stringify(diff)}`);
-        if (diff && this.telegram_chat_id) {
-            try{
-                this.app.telegram_client.sendNotification(diff, this.telegram_chat_id);
-            }
-            catch (e) {
-                this.logger.error(`Couldn't send notification for ${this._guild.name}:${this._channel.name}:`)
-            }
+
+        this.logger.info(`Catched updated voice channel state: ${JSON.stringify(parsed_state, replacer)}`);
+        
+        if (parsed_state && this.telegram_chat_ids) {
+            this.telegram_chat_ids.forEach((telegram_chat_id) => {
+                this.app.telegram_client.sendNotification(parsed_state, telegram_chat_id).catch(err => {
+                    this.logger.error(`Couldn't send notification for ${this._guild.name}:${this._channel.name}: ${err && err.stack}`);
+                });
+            });
         }
     }
 
     _parseState(state) {
         if (!state) return;
-        let parsed_state = {};
-        parsed_state.user_id = state.member.user.id;
-        parsed_state.user_name = state.member.user.username;
-        parsed_state.streaming = state.streaming;
-        parsed_state.member_id = state.member.id;
-        parsed_state.muted = state.mute
 
-        if (state.channel) {
-            parsed_state.channel_id = state.channel.id;
-            parsed_state.channel_name = state.channel.name;
-            parsed_state.channel_url = state.channel.url;
-            parsed_state.channel_type = state.channel.type;
-            
-            parsed_state.other_members = {};
-            state.channel.members.forEach((member, key) => {
-                if (key !== parsed_state.user_id) {
-                    parsed_state.other_members[key] = {
-                            user_id: member.user.id,
-                            user_name: member.user.username,
-                            streaming: member.voice.streaming,
-                            member_id: member.id,
-                            muted: member.voice.mute
-                        };
-                }
-            });
-        }
+        let parsed_state = {};
+
+        parsed_state.channel_id = state.id;
+        parsed_state.channel_name = state.name;
+        parsed_state.channel_url = state.url;
+        parsed_state.channel_type = state.type;
+
+        parsed_state.members = new Map();
+        
+        state.members.forEach((member, key) => {
+            parsed_state.members.set(key, {
+                    user_id: member.user.id,
+                    user_name: member.user.username,
+                    streaming: member.voice.streaming,
+                    member_id: member.id,
+                    muted: member.voice.mute,
+                    deafened: member.voice.deaf,
+                    server_muted: member.voice.serverMute,
+                    server_deafened: member.voice.serverDeaf
+                });
+        });
 
         return parsed_state;
     }
 
     async start(channel, telegram_chat_id) {
-        if (this.active 
-            && this.telegram_chat_id
-            && this.telegram_chat_id === telegram_chat_id) return;
         if (!channel || !telegram_chat_id) return;
+        if (this.active 
+            && this.telegram_chat_ids
+            && this.telegram_chat_ids.includes(telegram_chat_id)) return;
         this.active = true;
-        this.telegram_chat_id = telegram_chat_id;
+        this.telegram_chat_ids.push(telegram_chat_id);
         this._channel = channel;
         this._guild = channel.guild;
         this.dump();
     }
 
-    stop() {
+    stop(telegram_chat_id) {
         this.active = false;
+        if (telegram_chat_id && this.telegram_chat_ids.length) {
+            delete this.telegram_chat_ids[this.telegram_chat_ids.indexOf(telegram_chat_id)];
+        }
+        else {
+            this.telegram_chat_ids = [];
+        }
         this.dump();
     }
 
@@ -197,7 +127,8 @@ class ChannelSubscriber {
         }
         this.redis.hmset(`${this._guild.id}:channel_subscriber:${this._channel.id}`, {
             active: this.active,
-            telegram_chat_id: this.telegram_chat_id
+            telegram_chat_ids: JSON.stringify(this.telegram_chat_ids),
+            last_state: JSON.stringify(this.last_state, replacer)
         }).catch(err => {
             this.logger.error(`Error while dumping data for ${this._guild.id}:channel_subscriber: ${err.stack}`);
             if (this._dump_retries < 15) {
@@ -256,9 +187,10 @@ class ChannelSubscriber {
         }
 
         this.active = data.active === 'true';
-        this.telegram_chat_id = data.telegram_chat_id;
+        this.telegram_chat_ids = data.telegram_chat_ids && JSON.parse(data.telegram_chat_ids);
+        this.last_state = data.last_state && JSON.parse(data.last_state, reviver);
         
-        this.logger.info(`Parsed data: ${JSON.stringify({ active: this.active, telegram_chat_id: this.telegram_chat_id })}`);
+        this.logger.info(`Parsed data: ${JSON.stringify({ active: this.active, telegram_chat_ids: this.telegram_chat_ids, last_state: this.last_state }, replacer)}`);
     }
 
     deleteDump() {

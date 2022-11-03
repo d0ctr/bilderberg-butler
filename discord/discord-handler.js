@@ -111,7 +111,7 @@ class DiscordHandler {
         let telegram_chat_id = interaction.options.getString('telegram_chat_id');
         if (this.client.channel_to_subscriber[channel.id] 
             && this.client.channel_to_subscriber[channel.id].active
-            && this.client.channel_to_subscriber[channel.id].telegram_chat_id === telegram_chat_id) {
+            && this.client.channel_to_subscriber[channel.id].telegram_chat_ids?.includes(telegram_chat_id)) {
             return this.reply(interaction, `There is an active subscriber for channel ${channel.name} that notifies ${telegram_chat_id}.`)
         }
         if (!this.client.channel_to_subscriber[channel.id]) {
@@ -133,6 +133,11 @@ class DiscordHandler {
         let channel = interaction.options.getChannel('channel');
         if (!(this.client.channel_to_subscriber[channel.id] && this.client.channel_to_subscriber[channel.id].active)) {
             return this.reply(interaction, `There is no active subscriber for channel ${channel.name}.`)
+        }
+        let telegram_chat_id = interaction.options.getString('telegram_chat_id');
+        if (telegram_chat_id) {
+            this.client.channel_to_subscriber[channel.id].stop(telegram_chat_id);
+            return this.reply(interaction, `You have unsubscribed telegram chat ${telegram_chat_id} from events in ${channel.name}.`);
         }
         this.client.channel_to_subscriber[channel.id].stop();
         return this.reply(interaction, `You have unsubscribed from events in ${channel.name}.`);

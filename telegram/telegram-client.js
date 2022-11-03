@@ -25,6 +25,100 @@ const media_types = [
     'text',
 ]
 
+class DiscordNotification {
+    constructor(notification_data, chat_id) {
+        this.current_notification_data = notification_data;
+        this.chat_id = chat_id;
+        this.channel_id = notification_data.channel_id;
+
+        this.cooldown = false;
+        this.cooldown_duration = 5 * 1000;
+
+        this.current_message_id = null;
+        this.pending_notification_data = null;
+
+        this.pending_notification_data_timer = null;
+        this.cooldown_timer = null;
+    }
+
+    get channel_url() {
+        return this.current_notification_data.channel_url;
+    }
+
+    get channel_name() {
+        return this.current_notification_data.channel_name;
+    }
+
+    get members() {
+        return this.current_notification_data.members;
+    }
+
+    isNotified() {
+        return this.current_message_id && true || false;
+    }
+
+    isCooldownActive() {
+        return this.cooldown;
+    }
+
+    update(notification_data) {
+        if (!notification_data) {
+            this.current_notification_data = null;
+            this.cooldown = false;
+            this.pending_notification_data = null;
+
+            return this.current_message_id;
+        }
+
+        this.current_notification_data = notification_data;
+
+        this.cooldown = true;
+        this.cooldown_timer = setTimeout(() => {
+            this.cooldown = false;
+        }, this.cooldown_duration);
+    }
+
+    clear() {
+        clearTimeout(this.pending_notification_data_timer);
+        clearTimeout(this.cooldown_timer);
+
+        const current_message_id = `${this.update()}`;
+
+        this.current_message_id = null;
+
+        return current_message_id;
+    }
+
+    getNotificationText(notification_data = this.notification_data) {
+        let text = `Канал <a href="${notification_data.channel_url}">${notification_data.channel_name}</a> в Discord:`;
+
+        notification_data.members.forEach((member) => {
+            text += `\n${member.user_name}\t\
+${member.muted && '🔇' || ' '}\
+${member.deafened && '🔕' || ' '}\
+${member.streaming && '🎥' || ' '}`;
+        });
+
+        return text;
+    }
+
+    suspendNotification(notification_data, callback) {
+        clearTimeout(this.pending_notification_data_timer);
+        clearTimeout(this.cooldown_timer);
+
+        this.pending_notification_data = notification_data;
+        this.pending_notification_data_timer = setTimeout(() => {
+            this.update(notification_data);
+            callback(this)
+        }, this.cooldown_duration);
+
+        this.cooldown = true;
+        this.cooldown_timer = setTimeout(() => {
+            this.cooldown = false;
+        }, this.cooldown_duration);
+    }
+}
+
 /**
  * One time use interaction between app and telegram
  * @property {TelegramClient} this.client
@@ -79,7 +173,7 @@ class TelegramInteraction {
     }
 
     get cooldown_key() {
-        return `${this.notification_data.type[0] === '-' ? this.notification_data.type.slice(1) : this.notification_data.type}:${this.notification_data.user_id}:${this.chat_id}`;
+        return `${this.chat_id}`;
     }
 
     _parseMessageMedia() {
@@ -531,8 +625,7 @@ class TelegramClient {
         this.redis = app.redis ? app.redis : null;
         this.logger = app.logger.child({ module: 'telegram-client' });
         this.handler = new TelegramHandler(this);
-        this.cooldown_map = {};
-        this.cooldown_duration = 5 * 1000;
+        this.discord_notification_map = {};
     }
 
     set health(value) {
@@ -679,11 +772,82 @@ class TelegramClient {
         });
     }
 
+    _getDiscordNotification(notification_data, chat_id) {
+        let discord_notification = this.discord_notification_map[`${chat_id}:${notification_data.channel_id}`];
+        if (!discord_notification) {
+            this.discord_notification_map[`${chat_id}:${notification_data.channel_id}`] = new DiscordNotification(notification_data, chat_id);
+            return this.discord_notification_map[`${chat_id}:${notification_data.channel_id}`];
+        }
+        return discord_notification;
+    }
+
+    _clearNotification(notification_data, chat_id) {
+        const discord_notification = this._getDiscordNotification(notification_data, chat_id);
+
+        if (!discord_notification.isNotified()) {
+            return;
+        }
+
+        const current_message_id = discord_notification.clear();
+
+        this.client.api.deleteMessage(chat_id, current_message_id).catch(err => {
+            this.logger.error(`Error while clearing notification channel_id:${notification_data.channel_id} chat_id:${chat_id} : ${err && err.stack}`);
+        });
+    }
+
+    async _sendNotificationMessage(discord_notification) {
+        this.logger.info(`Sending [discord channel: ${discord_notification.channel_id}] [notification: ${discord_notification.getNotificationText()} to [telegram chat: ${discord_notification.chat_id}]`);
+        return this.client.api.sendMessage(
+            discord_notification.chat_id,
+            discord_notification.getNotificationText(),
+            {
+                disable_web_page_preview: true,
+                parse_mode: 'HTML',
+            }
+        );
+    }
+
+    async _updateNotificationMessage(discord_notification) {
+        if (!discord_notification) {
+            return;
+        }
+
+        if (discord_notification.current_message_id) {
+            this.client.api.deleteMessage(discord_notification.chat_id, discord_notification.current_message_id).catch(err => {
+                this.logger.error(`Error while deleting old notification channel_id:${discord_notification.channel_id} chat_id:${discord_notification.chat_id} : ${err && err.stack}`);
+            });
+        }
+
+        try {
+            discord_notification.current_message_id = await (await this._sendNotificationMessage(discord_notification)).message_id;
+        }
+        catch(err) {
+            this.logger.error(`Errro while sending notification channel_id:${discord_notification.channel_id} chat_id:${discord_notification.chat_id} : ${err && err.stack}`);
+        }
+    }
+
+    _wrapInCooldown(notification_data, chat_id) {
+        const discord_notification = this._getDiscordNotification(notification_data, chat_id);
+
+        if (discord_notification.isCooldownActive()) {
+            this.logger.info(`Suspending [discord channel: ${discord_notification.channel_id}] [notification: ${discord_notification.getNotificationText(notification_data)} to [telegram chat: ${discord_notification.chat_id}]`);
+            discord_notification.suspendNotification(notification_data, this._updateNotificationMessage.bind(this));
+            return;
+        }
+
+        discord_notification.update(notification_data);
+        this._updateNotificationMessage(discord_notification);
+    }
+
     async sendNotification(notification_data, chat_id) {
         if (!notification_data || !chat_id || !this.client) return;
-        for (let diff of notification_data['+'].concat(notification_data['-'])) {
-            new TelegramInteraction(this).sendNotification({ ...diff, ...notification_data.channel }, chat_id);
+
+        if (!notification_data.members.size) {
+            this._clearNotification(notification_data, chat_id);
+            return;
         }
+
+        this._wrapInCooldown(notification_data, chat_id);
     }
 
     webhookTimeoutCallback() {

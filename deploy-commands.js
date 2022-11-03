@@ -43,7 +43,11 @@ const commands = [
             input.setName('channel')
                 .setDescription('Voice Channel to unsubscribe from')
                 .addChannelTypes(ChannelType.GuildVoice)
-                .setRequired(true)),
+                .setRequired(true))
+        .addStringOption(input =>
+            input.setName('telegram_chat_id')
+                .setDescription('ID of the Telegram Chat, that will receive notifications')
+                .setRequired(false)),
 
     new SlashCommandBuilder() // wordle
         .setName('wordle')
