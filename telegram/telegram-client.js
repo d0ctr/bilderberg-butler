@@ -201,7 +201,7 @@ class TelegramInteraction {
     _getBasicMessageOptions() {
         return {
             allow_sending_without_reply: true,
-            reply_to_message_id: this.context.message?.message_id,
+            reply_to_message_id: this.context.message?.reply_to_message?.message_id || this.context.message?.message_id,
         };
     }
 
@@ -592,6 +592,7 @@ class TelegramClient {
         this.redis = app.redis ? app.redis : null;
         this.logger = app.logger.child({ module: 'telegram-client' });
         this.handler = new TelegramHandler(this);
+        this.inline_commands = [];
         this._discord_notification_map = {};
     }
 
@@ -607,109 +608,53 @@ class TelegramClient {
         return this.app.currencies_list;
     }
 
+    /**
+     * 
+     * @param {String} command_name command name
+     * @param {* | Function?} condition {true} condition on which to register command or function that returns this condition
+     * @param {Boolean?} is_inline {false} if command should be available for inline querying
+     * @param {String?} handle_function_name {command_name} which function from TelegramHandler handles this command
+     */
+    _registerCommand(command_name, condition = true, is_inline = false, handle_function_name = command_name) {
+        if (!command_name) {
+            return;
+        }
+
+        if (typeof condition === 'function') {
+            condition = condition();
+        }
+
+        if (!condition) {
+            return;
+        }
+
+        this.client.command(command_name, async (ctx) => new TelegramInteraction(this, handle_function_name, ctx).reply());
+
+        if (is_inline) {
+            this.inline_commands.push(command_name);
+        }
+    }
+
     _registerCommands() {
-        this.inline_commands = ['calc', 'ping', 'html', 'fizzbuzz', 'gh'];
-
-        this.client.command('start', async (ctx) => new TelegramInteraction(this, 'start', ctx).reply());
-        this.client.command('help', async (ctx) => new TelegramInteraction(this, 'help', ctx).reply());
-        this.client.command('calc', async (ctx) => new TelegramInteraction(this, 'calc', ctx).reply());
-        this.client.command('discord_notification', async (ctx) => new TelegramInteraction(this, 'discord_notification', ctx).reply());
-        this.client.command('ping', async (ctx) => new TelegramInteraction(this, 'ping', ctx).reply());
-        this.client.command('html', async (ctx) => new TelegramInteraction(this, 'html', ctx).reply());
-        this.client.command('fizzbuzz', async (ctx) => new TelegramInteraction(this, 'fizzbuzz', ctx).reply());
-        this.client.command('gh', async (ctx) => new TelegramInteraction(this, 'gh', ctx).reply());
-        this.client.command('curl', async (ctx) => new TelegramInteraction(this, 'curl', ctx).reply());
-
-        if (this.app && this.app.redis) {
-            this.inline_commands = this.inline_commands.concat(['get', 'get_list']);
-            this.client.command('set', async (ctx) => new TelegramInteraction(this, 'set', ctx).reply());
-            this.client.command('get', async (ctx) => new TelegramInteraction(this, 'get', ctx).reply());
-            this.client.command('get_list', async (ctx) => new TelegramInteraction(this, 'get_list', ctx).reply());
-        }
-
-        if (config.URBAN_API) {
-            this.inline_commands.push('urban');
-            this.client.command('urban', async (ctx) => new TelegramInteraction(this, 'urban', ctx).reply());
-        }
-
-        if (config.AHEGAO_API) {
-            this.inline_commands.push('ahegao');
-            this.client.command('ahegao', async (ctx) => new TelegramInteraction(this, 'ahegao', ctx).reply());
-        }
-
-        if (config.DEEP_AI_API) {
-            // this.inline_commands.push('deep'); // Takes too long, InlineQuery id expires faster
-            this.client.command('deep', async (ctx) => new TelegramInteraction(this, 'deep', ctx).reply());
-        }
-
-        if (config.WIKIPEDIA_SEARCH_URL) {
-            this.inline_commands.push('wiki');
-            this.client.command('wiki', async (ctx) => new TelegramInteraction(this, 'wiki', ctx).reply());
-        }
-
-        if (process.env.COINMARKETCAP_TOKEN && config.COINMARKETCAP_API) {
-            this.inline_commands.push('cur');
-            this.client.command('cur', async (ctx) => new TelegramInteraction(this, 'cur', ctx).reply());
-        }
+        this._registerCommand('start');
+        this._registerCommand('help', true, true);
+        this._registerCommand('calc', true, true);
+        this._registerCommand('discord_notification');
+        this._registerCommand('ping', true, true);
+        this._registerCommand('html', true, true);
+        this._registerCommand('fizzbuzz', true, true);
+        this._registerCommand('gh', true, true);
+        this._registerCommand('curl', true, true);
+        this._registerCommand('set', this.app && this.app.redis);
+        this._registerCommand('get', this.app && this.app.redis, true);
+        this._registerCommand('get_list', this.app && this.app.redis, true);
+        this._registerCommand('urban', config.URBAN_API, true);
+        this._registerCommand('ahegao', config.AHEGAO_API, true);
+        this._registerCommand('deep', config.DEEP_AI_API);
+        this._registerCommand('wiki', config.WIKIPEDIA_SEARCH_URL, true);
+        this._registerCommand('cur', process.env.COINMARKETCAP_TOKEN && config.COINMARKETCAP_API, true);
 
         this.client.on('inline_query', async (ctx) => new TelegramInteraction(this, 'inline_query', ctx).answer());
-    }
-
-
-
-    async start() {
-        if (!process.env.TELEGRAM_TOKEN) {
-            this.logger.warn(`Token for Telegram wasn't specified, client is not started.`);
-            return;
-        }
-
-        this.client = new Bot(process.env.TELEGRAM_TOKEN);
-        this._registerCommands();
-
-        if (process.env.ENV === 'dev' || !process.env.PORT) {
-            this._startPolling();
-        }
-        else {
-            this._setWebhook();
-        }
-    }
-
-    async _setWebhook(webhookUrl = this._interruptedWebhookURL) {
-        if (!webhookUrl) {
-            webhookUrl = `${config.DOMAIN}/telegram-${Date.now()}`;
-        }
-
-        try {
-            await this.client.api.setWebhook(webhookUrl);
-
-            if (this._interruptedWebhookURL) {
-                this.logger.info(`Restored interrupted webhook url [${this._interruptedWebhookURL}]`);
-            }
-            else { 
-                this.logger.info('Telegram webhook is set.');
-                this.health = 'set';
-                this.app.api_server.setWebhookMiddleware(`/${webhookUrl.split('/').slice(-1)[0]}`, webhookCallback(this.client, 'express'));
-            }
-        }
-        catch(err) {
-            this.logger.error(`Error while setting telegram webhook: ${err && err.stack}`);
-            this.logger.info('Trying to start with polling');
-            this._startPolling();
-        };
-    }
-
-    async stop() {
-        if (!process.env.TELEGRAM_TOKEN) {
-            return;
-        }
-        this.logger.info('Gracefully shutdowning Telegram client.');
-
-        for(let discord_notification of Object.values(this._discord_notification_map)) {
-            await this._clearNotification(discord_notification);
-        }
-        await this.client.api.deleteWebhook();
-        await this.client.stop();
-        await this._setWebhook(); // restoring interrupted webhook if possible
     }
 
     _saveInterruptedWebhookURL() {
@@ -743,6 +688,47 @@ class TelegramClient {
         });
     }
 
+    async _setWebhook(webhookUrl = this._interruptedWebhookURL) {
+        if (!webhookUrl) {
+            webhookUrl = `${config.DOMAIN}/telegram-${Date.now()}`;
+        }
+
+        try {
+            await this.client.api.setWebhook(webhookUrl);
+
+            if (this._interruptedWebhookURL) {
+                this.logger.info(`Restored interrupted webhook url [${this._interruptedWebhookURL}]`);
+            }
+            else { 
+                this.logger.info('Telegram webhook is set.');
+                this.health = 'set';
+                this.app.api_server.setWebhookMiddleware(`/${webhookUrl.split('/').slice(-1)[0]}`, webhookCallback(this.client, 'express'));
+            }
+        }
+        catch(err) {
+            this.logger.error(`Error while setting telegram webhook: ${err && err.stack}`);
+            this.logger.info('Trying to start with polling');
+            this._startPolling();
+        };
+    }
+
+    async start() {
+        if (!process.env.TELEGRAM_TOKEN) {
+            this.logger.warn(`Token for Telegram wasn't specified, client is not started.`);
+            return;
+        }
+
+        this.client = new Bot(process.env.TELEGRAM_TOKEN);
+        this._registerCommands();
+
+        if (process.env.ENV === 'dev' || !process.env.PORT) {
+            this._startPolling();
+        }
+        else {
+            this._setWebhook();
+        }
+    }
+
     _getDiscordNotification(notification_data, chat_id) {
         let discord_notification = this._discord_notification_map[`${chat_id}:${notification_data.channel_id}`];
         if (!discord_notification) {
@@ -766,6 +752,34 @@ class TelegramClient {
         });
     }
 
+    async stop() {
+        if (!process.env.TELEGRAM_TOKEN) {
+            return;
+        }
+        this.logger.info('Gracefully shutdowning Telegram client.');
+
+        for(let discord_notification of Object.values(this._discord_notification_map)) {
+            await this._clearNotification(discord_notification);
+        }
+        await this.client.api.deleteWebhook();
+        await this.client.stop();
+        await this._setWebhook(); // restoring interrupted webhook if possible
+    }
+
+    async _pinNotificationMessage(discord_notification) {
+        return this.client.api.pinChatMessage(
+            discord_notification.chat_id, 
+            discord_notification.current_message_id,
+            {
+                disable_notification: true,
+            }
+        ).then(() => {
+            this.logger.info(`Pinned [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`);
+        }).catch((err) => {
+            this.logger.error(`Error while pinning [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]: ${err && err.stack}`);
+        });
+    }
+
     async _sendNotificationMessage(discord_notification) {
         return this.client.api.sendMessage(
             discord_notification.chat_id,
@@ -780,20 +794,6 @@ class TelegramClient {
             this._pinNotificationMessage(discord_notification);
         }).catch((err) => {
             this.logger.error(`Error while sending [notification: ${discord_notification.getNotificationText(notification_data)}] about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}] : ${err && err.stack}`);
-        });
-    }
-
-    async _pinNotificationMessage(discord_notification) {
-        return this.client.api.pinChatMessage(
-            discord_notification.chat_id, 
-            discord_notification.current_message_id,
-            {
-                disable_notification: true,
-            }
-        ).then(() => {
-            this.logger.info(`Pinned [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`);
-        }).catch((err) => {
-            this.logger.error(`Error while pinning [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]: ${err && err.stack}`);
         });
     }
 
@@ -842,11 +842,6 @@ class TelegramClient {
         }
 
         this._wrapInCooldown(notification_data, chat_id);
-    }
-
-    webhookTimeoutCallback() {
-        let logger = this.logger.child({ module: 'grammy-webhook' });
-        logger.info('Webhook Handler ran out of time!!! This needs fix!');
     }
 }
 
