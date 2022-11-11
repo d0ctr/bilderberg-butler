@@ -2,7 +2,7 @@ const { Bot, Context, webhookCallback, InputFile } = require('grammy');
 const TelegramHandler = require('./telegram-handler');
 const config = require('../config.json');
 
-const inline_template_regex = /\/.+ .*/gm;
+const inline_template_regex = /\/.+.*/gm;
 const command_name_regex = /^\/[a-zA-Zа-яА-Я0-9_-]+/;
 
 const media_types = [
@@ -763,7 +763,7 @@ class TelegramClient {
         return discord_notification;
     }
 
-    async _clearNotification(discord_notification) {
+    _clearNotification(discord_notification) {
         if (!discord_notification.isNotified()) {
             return;
         }
@@ -789,7 +789,7 @@ class TelegramClient {
         await this._setWebhook(); // restoring interrupted webhook if possible
     }
 
-    async _pinNotificationMessage(discord_notification) {
+    _pinNotificationMessage(discord_notification) {
         return this.client.api.pinChatMessage(
             discord_notification.chat_id, 
             discord_notification.current_message_id,
@@ -803,7 +803,7 @@ class TelegramClient {
         });
     }
 
-    async _sendNotificationMessage(discord_notification) {
+    _sendNotificationMessage(discord_notification) {
         return this.client.api.sendMessage(
             discord_notification.chat_id,
             discord_notification.getNotificationText(),
@@ -820,7 +820,7 @@ class TelegramClient {
         });
     }
 
-    async _editNotificationMessage(discord_notification) {
+    _editNotificationMessage(discord_notification) {
         return this.client.api.editMessageText(
             discord_notification.chat_id,
             discord_notification.current_message_id,
