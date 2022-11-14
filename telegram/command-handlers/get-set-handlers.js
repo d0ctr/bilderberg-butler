@@ -63,7 +63,7 @@ async function set(input, interaction) {
     }
 
     return [null, `Гет был сохранён, теперь его можно вызвать командой:\n<code>/get ${name}</code>${
-        input.chat.id === input.from.id ? `\nТак же можешь вызвать этот гет написав <code>@BilderbergButler_bot {{/get ${name}}}</code> в поле ввода сообщения` : ''}`];
+        input.chat.id === input.from.id ? `\nТак же можешь вызвать этот гет написав <code>@BilderbergButler_bot /get ${name}</code> в поле ввода сообщения` : ''}`];
 }
 
 /**
