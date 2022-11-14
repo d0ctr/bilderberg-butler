@@ -77,7 +77,7 @@ class ChannelSubscriber {
 
         parsed_state.channel_id = state.id;
         parsed_state.channel_name = state.name;
-        parsed_state.channel_url = state.url;
+        parsed_state.channel_url = state.url.replace(/http(s)?/, 'discord');
         parsed_state.channel_type = state.type;
 
         parsed_state.members = new Map();
@@ -111,13 +111,17 @@ class ChannelSubscriber {
     }
 
     stop(telegram_chat_id) {
-        this.active = false;
         if (telegram_chat_id && this.telegram_chat_ids.length) {
             delete this.telegram_chat_ids[this.telegram_chat_ids.indexOf(telegram_chat_id)];
         }
         else {
             this.telegram_chat_ids = [];
         }
+        
+        if (!this.telegram_chat_ids.length) {
+            this.active = false;
+        }
+
         this.dump();
     }
 
