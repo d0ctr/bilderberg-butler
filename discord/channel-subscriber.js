@@ -77,7 +77,7 @@ class ChannelSubscriber {
 
         parsed_state.channel_id = state.id;
         parsed_state.channel_name = state.name;
-        parsed_state.channel_url = state.url.replace(/http(s)?/, 'discord');
+        parsed_state.channel_url = state.url;
         parsed_state.channel_type = state.type;
 
         parsed_state.members = new Map();

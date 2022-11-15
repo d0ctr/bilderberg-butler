@@ -98,7 +98,7 @@ class DiscordNotification {
     }
 
     getNotificationText(notification_data = this) {
-        let text = `Канал <a href="${notification_data.channel_url}">${notification_data.channel_name}</a> в Discord:`;
+        let text = `Канал <a href="${config.DOMAIN}/discordredirect/${notification_data.channel_url.replace(/.*discord.com\//, '')}">${notification_data.channel_name}</a> в Discord:`;
 
         notification_data.members.forEach((member) => {
             text += `\n${member.user_name}\t\
@@ -743,7 +743,7 @@ class TelegramClient {
         this._filterServiceMessages();
         this._autoReplyToMisha();
 
-        if (process.env.ENV === 'dev' || !process.env.PORT) {
+        if (process.env.ENV.toLowerCase() === 'dev' || !process.env.PORT) {
             this._startPolling();
         }
         else {

@@ -35,6 +35,14 @@ class APIServer {
             res.json(this.app.health);
         });
 
+        this.express.get('/discordredirect/:prefix/:serverid/:channelid', (req, res) => {
+            if (req.params.serverid && req.params.channelid && req.params.prefix) {
+                res.redirect(`discord://discord.com/${req.params.prefix}/${req.params.serverid}/${req.params.channelid}`);
+                return;
+            }
+            res.sendStatus(404);
+        })
+
         this.registerEndpoint('help');
         this.registerEndpoint('calc');
         this.registerEndpoint('ahegao');
