@@ -98,7 +98,7 @@ class DiscordNotification {
     }
 
     getNotificationText(notification_data = this) {
-        let text = `Канал <a href="${config.DOMAIN}/discordredirect/${notification_data.channel_url.replace(/.*discord.com\//, '')}">${notification_data.channel_name}</a> в Discord:`;
+        let text = `Канал <a href="${process.env.DOMAIN ? `${process.env.DOMAIN}/discordredirect/${notification_data.channel_url.replace(/.*discord.com\//, '')}` : notification_data.channel_url}">${notification_data.channel_name}</a> в Discord:`;
 
         notification_data.members.forEach((member) => {
             text += `\n${member.user_name}\t\
@@ -710,7 +710,7 @@ class TelegramClient {
 
     async _setWebhook(webhookUrl = this._interruptedWebhookURL) {
         if (!webhookUrl) {
-            webhookUrl = `${config.DOMAIN}/telegram-${Date.now()}`;
+            webhookUrl = `${process.env.DOMAIN}/telegram-${Date.now()}`;
         }
 
         try {
@@ -743,7 +743,7 @@ class TelegramClient {
         this._filterServiceMessages();
         this._autoReplyToMisha();
 
-        if (process.env.ENV.toLowerCase() === 'dev' || !process.env.PORT) {
+        if (process.env.ENV.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
             this._startPolling();
         }
         else {

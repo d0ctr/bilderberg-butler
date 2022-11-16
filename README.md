@@ -23,7 +23,6 @@ This is an application that runs two bots simultaniously: one for Discord and on
   - [Functionality](#functionality)
     * [Discord Bot](#discord-bot)
       + [Commands](#commands)
-      + [Supported Voice Channel Changes](#supported-voice-channel-changes)
     * [Telegram Bot](#telegram-bot)
       + [Commands](#commands-1)
       + [Inline Query](#inline-query)
@@ -56,17 +55,8 @@ This bot talks with you in English and have a number of interesting (and not so 
     - status — prints the status of the wordle scheduler
     - clearall — deletes all events on the server
     - whitelist — deletes all events and stops the scheduler
-  - /subscribe — {voice channel} {telegram chat id} — turns on notifications of [changes](#supported-voice-channel-changes) in specified voice channel and sends them to specified chat in telegram (only one chat per voice channel)
-  - /unsubscribe {voice channel} — turns of notifications about [changes](#supported-voice-channel-changes) in specified voice channel
-
-### Supported Voice Channel Changes
-
-  - `first join` — user enters empty channel
-    - `-first join` — user exits empty channel (will delete notification about join of this user)
-  - `new stream` - user starts stream in empty channel
-    - `-new stream` — user stops stream in an empty channel (will delete notification about the start of this user's stream)
-  - `foreveralone` — user is muted and left alone in a channel
-    - `-foreveralone` — user exits channel where they were muted and alone (will delete notification about that user was muted and left alone)
+  - /subscribe — {voice channel} {telegram chat id} — will send (and edit afterwards) to `telegram chat id` a message containing the list of current users and their statuses in `voice channel` . It will be pinned and updated on any change. When channel becomes empty the message will be deleted. 
+  - /unsubscribe {voice channel} {telegram chat id?} — will turn off the feature for selected `voice channel` and won't send messages to `telegram chat id` or (if empty) to all previously configured `telegram chat id`s.
 
 ## Telegram Bot
 
@@ -137,7 +127,8 @@ You can use this code to start your own bot/s or you may also contribute somethi
     - You may also not do it, if you only intend to use Discord bot.
   - Create a Redis instance. I use Redis Add-on in Heroku (which is basically click-and-ready), search the web if you want to do it the other way.
     - You may create an empty application in Heroku and add Redis to it (but I am not sure if that's the best way).
-    - You may also ignore this if you are not planning to use `get` and `set` commands in Telegram and if you are sure that your application won't be restarted at any point (if that happends application will lose data about wordle schedulers and voice channel subscriptions).
+    - You may ignore that if you like, most of the Telegram side features are available without it. It is necessary only for Telegram commands `/get`, `/set`, `/get_list` and Discord `/wordle`, `/subscribe`, `/unsubscribe`.
+      - It is also possible to use above Discord commands without Redis, but only if you are sure that your application won't be restarted at any point (if that happends application will lose data about wordle schedulers and voice channel subscriptions).
 
 ### Required tools
 
@@ -155,8 +146,9 @@ This application automatically loads variables specified in [`.env`](https://www
   - `TELEGRAM_TOKEN` — Telegram bot token (ignore if you are not planning to use it)
   - `REDISCLOUD_URL` — Redis connection URL that can be accepted by [ioredis](https://www.npmjs.com/package/ioredis/v/4.28.3) (can also be ignored)
   - `PORT` — Port for API (can be ignored)
-  - `ENV` — define environment, if equals `dev` (or if `PORT` is not specified) will start polling for Telegram client, if is absent will start webhooking
+  - `ENV` — define environment, if equals `dev` (or if `PORT` is not specified, or if `DOMAIN` is not specified) will start polling for Telegram client, if is absent will start webhooking
   - `COINMARKETCAP_TOKEN` — CoinMarketCap API token for currency conversion
+  - `DOMAIN` — domain that application is available on (neeeded for webhooks and API)
 
 ## config.json
 
@@ -164,7 +156,6 @@ Config file is used to share some non-secret variables
 
   - `AHEGAO_API` — API to get urls for random ahegao
   - `API_HOMEPAGE` — URL to which redirect home (`/`) endpoint to
-  - `DOMAIN` — base URL for webhooking
   - `URBAN_API` — API for definitions from urban dictionary
   - `COINMARKETCAP_API` — API for CoinMarketCap
   - `VIDEO_THUMB_URL` — placeholder for video thumbnail in inline query results
