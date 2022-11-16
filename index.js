@@ -1,4 +1,4 @@
-const dotenv = require('dotenv');
+const dotenv = require('dotenv-vault-core');
 const Redis = require('ioredis');
 const DiscordClient = require('./discord');
 const TelegramClient = require('./telegram');

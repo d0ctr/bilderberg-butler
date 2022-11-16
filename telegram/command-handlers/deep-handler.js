@@ -1,7 +1,7 @@
 const axios = require("axios");
 const formData = require('form-data');
 const config = require('../../config.json');
-const dotenv = require("dotenv");
+const dotenv = require("dotenv-vault-core");
 dotenv.config();
 
 const axiosInstance = axios.create({
