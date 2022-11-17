@@ -2,11 +2,12 @@ const express = require('express');
 
 const config = require('../config.json')
 const APIHandler = require('./api-handler');
+const { handleWebhook } = require('./webhook-handler');
 
 class APIServer {
     constructor (app) {
         this.app = app;
-        this.logger = app.logger.child({ module: 'api-server' });
+        this.logger = require('../logger').child({ module: 'api-server' });
 
         this.express = express();
 
@@ -42,6 +43,10 @@ class APIServer {
             }
             res.sendStatus(404);
         })
+
+        if (process.env.WEBHOOK_TELEGRAM_TOKEN) {
+            this.setWebhookMiddleware('/webhook/:app/:telegram_chat_id', handleWebhook);
+        }
 
         this.registerEndpoint('help');
         this.registerEndpoint('calc');

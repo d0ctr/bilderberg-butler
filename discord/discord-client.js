@@ -6,8 +6,8 @@ const ChannelSubscriber = require('./channel-subscriber');
 class DiscordClient {
     constructor(app) {
         this.app = app;
-        this.logger = app.logger.child({ module: 'discord-client' });
-        this.discordjs_logger = app.logger.child({ module: 'discordjs' });
+        this.logger = require('../logger').child({ module: 'discord-client' });
+        this.discordjs_logger = require('../logger').child({ module: 'discordjs' });
         this.redis = app.redis;
         this.handler = new Handler(this);
         this.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });

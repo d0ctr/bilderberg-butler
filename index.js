@@ -3,21 +3,12 @@ const Redis = require('ioredis');
 const DiscordClient = require('./discord');
 const TelegramClient = require('./telegram');
 const APIServer = require('./api');
-const { createLogger, format, transports } = require('winston');
 const config = require('./config.json');
 const { get_currencies_list } = require('./utils');
 
 dotenv.config();
 
-const logger = createLogger({
-    format: format.combine(
-        format.timestamp(),
-        format.printf(options => {
-            return `${options.timestamp} - ${options.module} - ${options.level} - ${options.level === 'error' ? options.message : options.message.replace(/\n/gm, '\\n').replace(/ +/gm, ' ')}`;
-        })
-    ),
-    transports: [new transports.Console()]
-});
+const logger = require('./logger');
 
 function main() {
     let app = {};
@@ -29,11 +20,11 @@ function main() {
         api: 'off'
     };
 
-    app.logger = logger.child({ module: 'index' });
+    app.logger = require('./logger').child({ module: 'index' });
 
     app.redis = process.env.REDISCLOUD_URL ? new Redis(process.env.REDISCLOUD_URL) : null;
     if (app.redis) {
-        let redis_logger = logger.child({ module: 'redis' });
+        let redis_logger = require('./logger').child({ module: 'redis' });
 
         app.redis.on('connect', () => {
             redis_logger.info('Redis is connected');

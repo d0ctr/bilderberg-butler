@@ -5,7 +5,7 @@ class DiscordHandler {
     constructor(client) {
         this.client = client;
         this.app = client.app;
-        this.logger = client.logger.child({module: 'discord-handler'});
+        this.logger = require('../logger').child({module: 'discord-handler'});
     }
 
     async handleCommand(interaction) {

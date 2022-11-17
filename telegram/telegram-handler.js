@@ -16,8 +16,8 @@ const { ping } = require("./command-handlers/ping-handler");
 const { generateImage } = require("./command-handlers/deep-handler");
 
 class TelegramHandler {
-    constructor(client) {
-        this.logger = client.logger.child({ module: 'telegram-handler' });
+    constructor() {
+        this.logger = require('../logger').child({ module: 'telegram-handler' });
     }
 
     /**

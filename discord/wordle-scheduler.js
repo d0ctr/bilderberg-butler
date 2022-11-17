@@ -4,7 +4,7 @@ class WordleScheduler {
     constructor(handler) {
         this.handler = handler;
         this.app = handler.app;
-        this.logger = handler.logger.child({module: 'wordle-scheduler'});
+        this.logger = require('../logger').child({module: 'wordle-scheduler'});
         this.wordle_url = 'https://www.nytimes.com/games/wordle/index.html';
         this.event_name = "Угадывай слово";
         this.event_selector = '#wordle'

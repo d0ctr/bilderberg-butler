@@ -141,7 +141,7 @@ class TelegramInteraction {
      */
     constructor(client, command_name, context) {
         this.client = client;
-        this.logger = client.logger.child({ module: 'telegram-interaction' });
+        this.logger = require('../logger').child({ module: 'telegram-interaction' });
         this.command_name = command_name;
         this.context = context;
         this.handler = client.handler;
@@ -590,7 +590,7 @@ class TelegramClient {
     constructor(app) {
         this.app = app;
         this.redis = app.redis ? app.redis : null;
-        this.logger = app.logger.child({ module: 'telegram-client' });
+        this.logger = require('../logger').child({ module: 'telegram-client' });
         this.handler = new TelegramHandler(this);
         this.inline_commands = [];
         this._discord_notification_map = {};

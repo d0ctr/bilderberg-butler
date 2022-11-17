@@ -39,7 +39,7 @@ class ChannelSubscriber {
     constructor(handler) {
         this.handler = handler;
         this.app = handler.app;
-        this.logger = this.handler.logger.child({module: 'channel-subscriber'});
+        this.logger = require('../logger').child({ module: 'channel-subscriber' });
         this.redis = this.app.redis ? this.app.redis : null;
         this.active = false;
         this.telegram_chat_ids = [];

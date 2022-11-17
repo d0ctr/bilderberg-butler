@@ -4,7 +4,7 @@ const { getHTMLResponse } = require('./utils');
 
 class APIHandler {
     constructor(server) {
-        this.logger = server.logger.child({ module: 'api-handler' });
+        this.logger = require('../logger').child({ module: 'api-handler' });
         this.server = server;
         this.telegram_handler = new TelegramHandler(server);
     }
