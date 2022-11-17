@@ -385,7 +385,7 @@ class TelegramInteraction {
             }
         }
         catch (err) {
-            this.logger.error(`Error while processing command [${this.context.message.text}]: ${err.stack}`);
+            this.logger.error(`Error while processing [${JSON.stringify(this.context)}]: ${err.stack}`);
             this._reply(`Что-то случилось:\n<code>${err}</code>`);
         }
     }
@@ -739,6 +739,11 @@ class TelegramClient {
         }
 
         this.client = new Bot(process.env.TELEGRAM_TOKEN);
+
+        this.client.catch((err) => {
+            this.logger.error(`High level middleware error in bot: ${err && err.stack}`);
+        });
+
         this._registerCommands();
         this._filterServiceMessages();
         this._autoReplyToMisha();
