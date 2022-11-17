@@ -14,16 +14,39 @@ function formatGithubWebhook(request) {
 
     switch(request.get('X-GitHub-Event').toLowerCase()) {
         case 'pull_request':
-            text += `${payload.action[0].toUpperCase() + payload.action.substr(1)} PR <a href="${payload.pull_request.html_url}">#${payload.number}</a>\n`;
-            text += `<u>${payload.pull_request.tile}</u>\n`;
-            text += `<i>by <a href="${payload.pull_request.user.html_url}">@${payload.pull_request.user.login}</a></i>\n`;
+            text += `${payload.action[0].toUpperCase() + payload.action.substr(1)} PR <a href="${payload.pull_request?.html_url}">#${payload.number}</a>\n`;
+            text += `<u>${payload.pull_request?.title}</u>\n`;
+            text += `<i>by <a href="${payload.pull_request?.user?.html_url}">@${payload.pull_request?.user?.login}</a></i>\n`;
             break;
         case 'deplyment_status':
-            text += `Deployment status: <a href="${payload.deployment_status.deployment_url}">${payload.deployment_status.state}</a>\n`;
-            text += `Description: <i>${payload.deployment_status.description}</i>\n`;
-            text += `<i>by <a href="${payload.pull_request.user.html_url}">@${payload.pull_request.user.login}</a></i>\n`;
+            text += `Deployment status: <a href="${payload.deployment_status?.deployment_url}">${payload.deployment_status?.state}</a>\n`;
+            text += `Description: <i>${payload.deployment_status?.description}</i>\n`;
+            text += `<i>by <a href="${payload.pull_request?.user?.html_url}">@${payload.pull_request?.user?.login}</a></i>\n`;
+            break;
         default:
-            return '';
+            return `github\n<code>${JSON.stringify(payload, null, 2)}</code>`;
+    }
+
+    return text;
+}
+
+/**
+ * Handler for Webhook POST from another app
+ * @param {expressTypes.Request} request 
+ */
+function formatRailwayWebhook(request) {
+    let text = `<b>${request.params.app}</b>\n`;
+
+    let payload = request.body;
+
+    switch(payload.type.toLowerCase()) {
+        case 'deploy':
+            text += `Deployment: ${payload.project?.name}/${payload.service?.name}\n`;
+            text += `Commit message: <i>${payload.deployment?.meta?.commitMessage}</i>`;
+            text += `Status: <u>${payload.status}</u>\n`;
+            break;
+        default:
+            return `railway.app\n<code>${JSON.stringify(payload, null, 2)}</code>`;
     }
 
     return text;
@@ -31,7 +54,9 @@ function formatGithubWebhook(request) {
 
 
 const formaters = {
-    'github': formatGithubWebhook
+    'github': formatGithubWebhook,
+    'railway': formatRailwayWebhook,
+    'railway.app': formatRailwayWebhook
 }
 
 /**
