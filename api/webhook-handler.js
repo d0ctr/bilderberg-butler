@@ -42,7 +42,7 @@ function formatRailwayWebhook(request) {
     switch(payload.type.toLowerCase()) {
         case 'deploy':
             text += `Deployment: ${payload.project?.name}/${payload.service?.name}\n`;
-            text += `Commit message: <i>${payload.deployment?.meta?.commitMessage}</i>`;
+            text += `Commit message: <i>${payload.deployment?.meta?.commitMessage}</i>\n`;
             text += `Status: <u>${payload.status}</u>\n`;
             break;
         default:
