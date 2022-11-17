@@ -70,7 +70,7 @@ function handleWebhook(request, response) {
     response.sendStatus(200);
 
     let message_text = '';
-
+    
     if (request.params.app && formaters[request.params.app.toLowerCase()]) {
         message_text = formaters[request.params.app.toLowerCase()](request);
     }
