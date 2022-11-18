@@ -64,7 +64,7 @@ class ChannelSubscriber {
         if (parsed_state && this.telegram_chat_ids) {
             this.telegram_chat_ids.forEach((telegram_chat_id) => {
                 this.app.telegram_client.sendNotification(parsed_state, telegram_chat_id).catch(err => {
-                    this.logger.error(`Couldn't send notification for ${this._guild.name}:${this._channel.name}: ${err && err.stack}`);
+                    this.logger.error(`Couldn't send notification for ${this._guild.name}:${this._channel.name}: ${err || err.stack}`);
                 });
             });
         }

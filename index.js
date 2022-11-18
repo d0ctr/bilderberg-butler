@@ -63,7 +63,7 @@ function main() {
             app.currencies_list = result;
         }).catch(err => {
             if (err) {
-                app.logger.error(`Error while retrieving currencies list: ${err && err.stack}`);
+                app.logger.error(`Error while retrieving currencies list: ${err || err.stack}`);
             }
         });
     }

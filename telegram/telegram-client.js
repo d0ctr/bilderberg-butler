@@ -4,6 +4,7 @@ const config = require('../config.json');
 
 const inline_query_input_regex = /^\/.+.*/gm;
 const command_name_regex = /^\/[a-zA-Zа-яА-Я0-9_-]+/;
+const no_tags_regex = /<\/?[^>]+(>|$)/g;
 
 const media_types = [
     'audio',
@@ -358,25 +359,25 @@ class TelegramInteraction {
         this.handler[this.command_name](this.context, this).then(([err, response, _, overrides]) => {
             if (err) {
                 return this._reply(err, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
-                    this.logger.error(`Error while replying with an error message to [${this.context?.message?.text}]: ${err && err.stack}`);
-                    this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply dropped: ${err && err.stack}`));
+                    this.logger.error(`Error while replying with an error message to [${this.context?.message?.text}]: ${err || err.stack}`);
+                    this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply dropped: ${err || err.stack}`));
                 });
             }
             if (response instanceof String || typeof response === 'string') {
                 return this._reply(response, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
-                    this.logger.error(`Error while replying with response text to [${this.context?.message?.text}]: ${err && err.stack}`);
-                    this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply dropped: ${err && err.stack}`));
+                    this.logger.error(`Error while replying with response text to [${this.context?.message?.text}]: ${err || err.stack}`);
+                    this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply dropped: ${err || err.stack}`));
                 });
             }
             if (response instanceof Object) {
                 return this._replyWithMedia(response, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
-                    this.logger.error(`Error while replying with media to [${this.context?.message?.text}]: ${err && err.stack}`);
-                    this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply dropped: ${err && err.stack}`));
+                    this.logger.error(`Error while replying with media to [${this.context?.message?.text}]: ${err || err.stack}`);
+                    this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply dropped: ${err || err.stack}`));
                 });
             }
         }).catch((err) => {
-            this.logger.error(`Error while processing command [${this.context.message.text}]: ${err.stack}`);
-            this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply dropped: ${err && err.stack}`));
+            this.logger.error(`Error while processing command [${this.context.message.text}]: ${err || err.stack}`);
+            this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply dropped: ${err || err.stack}`));
         });
     }
 
@@ -434,7 +435,7 @@ class TelegramInteraction {
                 {
                     id: Date.now(),
                     type: 'article',
-                    title: text.split('\n')[0],
+                    title: text.split('\n')[0].replace(no_tags_regex, ''),
                     input_message_content: {
                         message_text: text,
                         ...this._getTextOptions(),
@@ -456,6 +457,8 @@ class TelegramInteraction {
     }
         
     async _answerQueryWithMedia(media, overrides) {
+        if (media.type === 'text') return this._answerQueryWithText(media.text, overrides);
+
         let answer = {
             results: [],
             other: {
@@ -495,6 +498,8 @@ class TelegramInteraction {
             result.title = ' ';
         }
 
+        answer.results.push(result);
+
         this.logger.info(`Responding to inline query with [${JSON.stringify(answer)}]`);
 
         return this.context.answerInlineQuery(answer.results, answer.other);
@@ -505,10 +510,11 @@ class TelegramInteraction {
             return;
         }
         this.logger.debug(`Received inline query [${this.context.inlineQuery.query}]`);
-        let command_input = this.context.inlineQuery.query.match(inline_query_input_regex)[0];
+        let input_matches = this.context.inlineQuery.query.match(inline_query_input_regex)
+        let command_input = input_matches && input_matches[0];
         if (!command_input) return;  
         
-        let command_name = command_input.split(' ')[0].substr(1);
+        let command_name = command_input.split(' ')[0].slice(1);
         if (!this.client.inline_commands.includes(command_name) || typeof this.handler[command_name] !== 'function') {
             return;
         }
@@ -527,25 +533,29 @@ class TelegramInteraction {
 
         this.handler[command_name](parsed_context, this).then(([err, response, _, overrides]) => {
             if (err) {
-                this.logger.error(`Handler for [${command_input}] from inline query responded with error: ${err && err.stack}`);
+                this.logger.error(`Handler for [${command_input}] from inline query responded with error: ${err || err.stack}`);
                 return;
             }
             if (response) {
-                if (response instanceof String || typeof response === 'string' || response.type === 'text') {
-                    this._answerQueryWithText(
-                        response && response.text,
+                if (response instanceof String || typeof response === 'string') {
+                    return this._answerQueryWithText(
+                        response,
                         overrides
                     ).catch(err => 
-                        this.logger.error(`Error while responsing to inline query [${command_input}] with text [${response && response.text}]`)
+                        this.logger.error(`Error while responsing to inline query [${command_input}] with text [${response && response.text}]: ${err || err.stack}`)
                     );
                 }
-                this._answerQueryWithMedia(
-                    response,
-                    overrides
-                ).catch(err =>
-                    this.logger.error(`Error while responding to inline query [${command_input}] with media [${JSON.stringify(response)}]`)    
-                );
+                if (response instanceof Object) {
+                    return this._answerQueryWithMedia(
+                        response,
+                        overrides
+                    ).catch(err =>
+                        this.logger.error(`Error while responding to inline query [${command_input}] with media [${JSON.stringify(response)}]: ${err || err.stack}`)    
+                    );
+                }
             }
+        }).catch(err => {
+            this.logger.error(`Error while processing command [${command_input}]: ${err || err.stack}`);   
         });
     }
 }
@@ -583,7 +593,7 @@ class TelegramClient {
      * @param {Boolean?} is_inline {false} if command should be available for inline querying
      * @param {String?} handle_function_name {command_name} which function from TelegramHandler handles this command
      */
-    _registerCommand(command_name, condition = true, is_inline = false, handle_function_name = command_name) {
+    _registerCommand(command_name, condition = false, is_inline = false, handle_function_name = command_name) {
         if (!command_name) {
             return;
         }
@@ -607,14 +617,14 @@ class TelegramClient {
         this.client.on('message:pinned_message', async (ctx) => {
             if (ctx.message?.pinned_message?.from?.is_bot) {
                 ctx.deleteMessage().catch((err) => {
-                    this.logger.error(`Error while deleting service [message: ${ctx.message.message_id}] in [chat: ${ctx.chat.id}] : ${err && err.stack}`);
+                    this.logger.error(`Error while deleting service [message: ${ctx.message.message_id}] in [chat: ${ctx.chat.id}] : ${err || err.stack}`);
                 });
             }
         });
     }
 
     _registerCommands() {
-        this._registerCommand('start');
+        this._registerCommand('start', true);
         this._registerCommand('help', true, true);
         this._registerCommand('calc', true, true);
         this._registerCommand('discord_notification');
@@ -661,12 +671,12 @@ class TelegramClient {
             this.logger.info('Long polling has ended');
             this.health = 'off';
         }).catch(err => {
-            this.logger.error(`Error while starting Telegram client: ${err && err.stack}`);
+            this.logger.error(`Error while starting Telegram client: ${err || err.stack}`);
             this.health = 'off';
         });
     }
 
-    async _setWebhook(webhookUrl = this._interruptedWebhookURL) {
+    async _setWebhook(webhookUrl) {
         if (!webhookUrl) {
             webhookUrl = `${process.env.DOMAIN}/telegram-${Date.now()}`;
         }
@@ -684,7 +694,7 @@ class TelegramClient {
             }
         }
         catch(err) {
-            this.logger.error(`Error while setting telegram webhook: ${err && err.stack}`);
+            this.logger.error(`Error while setting telegram webhook: ${err || err.stack}`);
             this.logger.info('Trying to start with polling');
             this._startPolling();
         };
@@ -699,7 +709,7 @@ class TelegramClient {
         this.client = new Bot(process.env.TELEGRAM_TOKEN);
 
         this.client.catch((err) => {
-            this.logger.error(`High level middleware error in bot: ${err && err.stack}`);
+            this.logger.error(`High level middleware error in bot: ${err || err.stack}`);
         });
 
         this._registerCommands();
@@ -713,6 +723,12 @@ class TelegramClient {
         }
     }
 
+    /**
+     * 
+     * @param {Object || DiscordNotification} notification_data 
+     * @param {String} chat_id 
+     * @returns {DiscordNotification}
+     */
     _getDiscordNotification(notification_data, chat_id) {
         if (notification_data instanceof DiscordNotification) {
             return notification_data;
@@ -733,7 +749,7 @@ class TelegramClient {
         const current_message_id = discord_notification.clear();
 
         return this.client.api.deleteMessage(discord_notification.chat_id, current_message_id).catch(err => {
-            this.logger.error(`Error while clearing notification [message: ${current_message_id}] about [channel_id: ${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}] : ${err && err.stack}`);
+            this.logger.error(`Error while clearing notification [message: ${current_message_id}] about [channel_id: ${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}] : ${err || err.stack}`);
         });
     }
 
@@ -748,9 +764,16 @@ class TelegramClient {
         }
         await this.client.api.deleteWebhook();
         await this.client.stop();
-        await this._setWebhook(); // restoring interrupted webhook if possible
+        if (this._interruptedWebhookURL) {
+            await this._setWebhook(this._interruptedWebhookURL); // restoring interrupted webhook if possible
+        }
     }
 
+    /**
+     * 
+     * @param {DiscordNotification} discord_notification 
+     * @returns {Promise<Message>}
+     */
     _pinNotificationMessage(discord_notification) {
         return this.client.api.pinChatMessage(
             discord_notification.chat_id, 
@@ -761,10 +784,15 @@ class TelegramClient {
         ).then(() => {
             this.logger.info(`Pinned [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`);
         }).catch((err) => {
-            this.logger.error(`Error while pinning [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]: ${err && err.stack}`);
+            this.logger.error(`Error while pinning [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]: ${err || err.stack}`);
         });
     }
 
+    /**
+     * 
+     * @param {DiscordNotification} discord_notification 
+     * @returns {Promise<Message>}
+     */
     _sendNotificationMessage(discord_notification) {
         return this.client.api.sendMessage(
             discord_notification.chat_id,
@@ -778,10 +806,15 @@ class TelegramClient {
             discord_notification.current_message_id = message.message_id;
             this._pinNotificationMessage(discord_notification);
         }).catch((err) => {
-            this.logger.error(`Error while sending [notification: ${discord_notification.getNotificationText(notification_data)}] about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}] : ${err && err.stack}`);
+            this.logger.error(`Error while sending [notification: ${discord_notification.getNotificationText(notification_data)}] about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}] : ${err || err.stack}`);
         });
     }
 
+    /**
+     * 
+     * @param {DiscordNotification} discord_notification 
+     * @returns {Promise<Message>}
+     */
     _editNotificationMessage(discord_notification) {
         return this.client.api.editMessageText(
             discord_notification.chat_id,
@@ -795,7 +828,7 @@ class TelegramClient {
             discord_notification.current_message_id = message.message_id;
             this.logger.info(`Edited [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}] with [notification: ${discord_notification.getNotificationText()}]`);
         }).catch((err) => {
-            this.logger.error(`Error while editing [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}] with [notification: ${discord_notification.getNotificationText()}]: ${err && err.stack}`);
+            this.logger.error(`Error while editing [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}] with [notification: ${discord_notification.getNotificationText()}]: ${err || err.stack}`);
         });
     }
 

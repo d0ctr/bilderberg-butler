@@ -132,7 +132,7 @@ class DiscordClient {
 
         for (let channel_id of channel_ids) {
             this.restoreChannelSubscriber(guild, channel_id).catch(err => {
-                this.logger.error(`Error while restoring channel subscriber: ${err && err.stack}`);
+                this.logger.error(`Error while restoring channel subscriber: ${err || err.stack}`);
             });
         }
     }

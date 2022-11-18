@@ -14,7 +14,7 @@ function formatGithubWebhook(request) {
 
     switch(request.get('X-GitHub-Event').toLowerCase()) {
         case 'pull_request':
-            text += `${payload.action[0].toUpperCase() + payload.action.substr(1)} PR <a href="${payload.pull_request.html_url}">#${payload.number}</a>\n`;
+            text += `${payload.action[0].toUpperCase() + payload.action.slice(1)} PR <a href="${payload.pull_request.html_url}">#${payload.number}</a>\n`;
             text += `<u>${payload.pull_request.title}</u>\n`;
             text += `<i>by <a href="${payload.pull_request.user.html_url}">@${payload.pull_request.user.login}</a></i>\n`;
             break;
@@ -93,7 +93,7 @@ function handleWebhook(request, response) {
             message_text = formatters[request.params.app.toLowerCase()](request);
         }
         catch(err) {
-            logger.error(`Error while formatting payload from [${request.method}: ${request.originalUrl}]: ${err && err.stack}`);
+            logger.error(`Error while formatting payload from [${request.method}: ${request.originalUrl}]: ${err || err.stack}`);
             logger.info(`Formatting [${request.method}: ${request.originalUrl}] with default formatter`);
             message_text = '';
         }
@@ -105,7 +105,7 @@ function handleWebhook(request, response) {
 
     new Bot(process.env.WEBHOOK_TELEGRAM_TOKEN).api.sendMessage(request.params.telegram_chat_id, message_text, { parse_mode: 'HTML' })
         .then(() => logger.info(`Sent webhook [${request.method}: ${request.originalUrl}] data [text: ${message_text}] to [chat: ${request.params.telegram_chat_id}]`))
-        .catch(err => logger.error(`Error while sending webhook [${request.method}: ${request.originalUrl}] data [text: ${message_text}] to [chat: ${request.params.telegram_chat_id}]: ${err && err.stack}`));
+        .catch(err => logger.error(`Error while sending webhook [${request.method}: ${request.originalUrl}] data [text: ${message_text}] to [chat: ${request.params.telegram_chat_id}]: ${err || err.stack}`));
 }
 
 module.exports = { handleWebhook };
