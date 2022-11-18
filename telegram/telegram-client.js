@@ -2,7 +2,7 @@ const { Bot, Context, webhookCallback, InputFile } = require('grammy');
 const TelegramHandler = require('./telegram-handler');
 const config = require('../config.json');
 
-const inline_template_regex = /\/.+.*/gm;
+const inline_query_input_regex = /^\/.+.*/gm;
 const command_name_regex = /^\/[a-zA-Zа-яА-Я0-9_-]+/;
 
 const media_types = [
@@ -23,7 +23,18 @@ const media_types = [
     'video_note',
     'voice',
     'text',
-]
+];
+
+const inline_answer_media_types = [
+    'animation',
+    'audio',
+    'video',
+    'document',
+    'voice',
+    'photo',
+    'gif',
+    'sticker'
+];
 
 class DiscordNotification {
     constructor(notification_data, chat_id) {
@@ -179,10 +190,10 @@ class TelegramInteraction {
         return this.client.client.api;
     }
 
-    _parseMessageMedia() {
-        const parsed_media = {};
+    _parseMessageMedia(message) {
+        if(!message) return;
 
-        const message = this.context.message.reply_to_message;
+        const parsed_media = {};
 
         parsed_media.text = message.text || message.caption;
 
@@ -221,45 +232,18 @@ class TelegramInteraction {
         return this.mediaToMethod[media_type];
     }
 
-    async sendNotification(notification_data, chat_id) {
-        this.notification_data = notification_data;
-        this.chat_id = chat_id;
-        if (this._isCooldown()) return;
-
-        let message = undefined;
-        if (this.notification_data.type === 'foreveralone') {
-            message = `Вы оставили ${this.notification_data.user_name} сидеть <a href="${this.notification_data.channel_url}">там</a> совсем одного, может он и выйдет сам, а может быть и нет`;
-        }
-        if (this.notification_data.type === 'new_stream') {
-            message = `${this.notification_data.user_name} начал стрим в канале <a href="${this.notification_data.channel_url}">${this.notification_data.channel_name}</a>, приходите посмотреть`;
-        }
-        if (this.notification_data.type === 'first_join') {
-            message = `${this.notification_data.user_name} уже сидит один в канале <a href="${this.notification_data.channel_url}">${this.notification_data.channel_name}</a>, составьте ему компанию чтоль`;
-        }
-
-        if (!message) return;
-        this.logger.info(`Sending message [${message}]`);
-        this.sent_message = await this.api.sendMessage(this.chat_id, message, { parse_mode: 'HTML', disable_web_page_preview: true });
-        this._cooldown();
-    }
-
     /**
      * Reply to message with text
      * @param {String} text text to send
-     * @return {Object}
+     * @return {Promise<Message>}
      */
-    async _reply(text, overrides) {
+    _reply(text, overrides) {
         this.logger.info(`Replying with [${text}]`);
-        try {
-            return await this.context.reply(text, {
-                ...this._getBasicMessageOptions(),
-                ...this._getTextOptions(),
-                ...overrides
-            });
-        } catch (err) {
-            this.logger.error(`Could not send message, got an error: ${err && err.stack}`);
-            return await this._reply(`Не смог отправить ответ, давай больше так не делать`);
-        }
+        return this.context.reply(text, {
+            ...this._getBasicMessageOptions(),
+            ...this._getTextOptions(),
+            ...overrides
+        });
     }
 
     /**
@@ -267,9 +251,9 @@ class TelegramInteraction {
      * 
      * @param {Object} message contains media group 
      * @param {Object | null} overrides 
-     * @returns 
+     * @returns {Promise<Message>}
      */
-    async _replyWithMediaGroup(message, overrides) {
+    _replyWithMediaGroup(message, overrides) {
         if (message.type === 'text') {
             return this._reply(message.text, overrides)
         }
@@ -286,7 +270,7 @@ class TelegramInteraction {
         });
 
         if (!media.length) {
-            this.logger.error(`No suitable media found in [${message}]`);
+            this.logger.error(`No suitable media found in [${JSON.stringify(message)}]`);
             return this._reply(message.text);
         }
 
@@ -308,9 +292,9 @@ class TelegramInteraction {
      * Reply to message with media file
      * 
      * @param {Object} message may contain text and an id of one of `[animation, audio, document, video, video_note, voice, sticker]`
-     * @return {Message | null}
+     * @return {Promise<Message>}
      */
-    async _replyWithMedia(message, overrides) {
+    _replyWithMedia(message, overrides) {
         if (message.type === 'text') {
             return this._reply(message.text, overrides);
         }
@@ -335,59 +319,65 @@ class TelegramInteraction {
             return replyMethod(media, message_options);
         }
 
-        this.logger.info(`Can't send message as media ${JSON.stringify(message)}`);
+        this.logger.info(`Can't send message as media [${JSON.stringify(message)}]`);
         return this._reply(message.text);
     }
 
-    async replyWithPlaceholder(placeholder_text) {
+    replyWithPlaceholder(placeholder_text) {
         if (this.context.message) {
-            this._placeholderMessage = await this._reply(placeholder_text);
+            this._reply(
+                placeholder_text
+            ).then(message => 
+                this._placeholderMessage = message
+            ).catch(err => 
+                this.logger.error(`Error while sending placeholder message [text: ${placeholder_text}] in reply to [message_id: ${this.context.message_id}] in [chat: ${this.context.chat.id}]`)
+            );
         }
     }
 
-    async deletePlaceholder() {
-        if (this._placeholderMessage) {
-            return this.api.deleteMessage(this.context.chat.id, this._placeholderMessage.message_id);
-        }
+    deletePlaceholder() {
+        if (!this._placeholderMessage) return;
+        this.api.deleteMessage(
+            this.context.chat.id,
+            this._placeholderMessage.message_id
+        ).then(() => 
+            delete this._placeholderMessage
+        ).catch(err => 
+            this.logger.error(`Error while deleting placeholder message [message_id: ${this._placeholderMessage.message_id}] in [chat: ${this._placeholderMessage.chat.id}]`)
+        );
     }
 
-    async reply() {
-        try {
-            if (typeof this.handler[this.command_name] === 'function') {
-                this.logger.info(`Received command: ${this.context.message.text}`);
+    reply() {
+        if (typeof this.handler[this.command_name] !== 'function') {
+            this.logger.warn(`Received nonsense, how did it get here???: ${this.context.message.text}`);
+            return;
+        }
+            
+        this.logger.info(`Received command: ${this.context.message.text}`);
 
-                this.handler[this.command_name](this.context, this).then(([err, response, _, overrides]) => {
-                    if (err) {
-                        return this._reply(err, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
-                            this.logger.error(`Error while replying with an error message to [${this.context.message.text}]: ${err.stack}`);
-                            this._reply(`Что-то случилось:\n<code>${err}</code>`);
-                        });
-                    }
-                    if (response instanceof String || typeof response === 'string') {
-                        return this._reply(response, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
-                            this.logger.error(`Error while replying with response text to [${this.context.message.text}]: ${err.stack}`);
-                            this._reply(`Что-то случилось:\n<code>${err}</code>`);
-                        });
-                    }
-                    if (response instanceof Object) {
-                        return this._replyWithMedia(response, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
-                            this.logger.error(`Error while replying with media to [${this.context.message.text}]: ${err.stack}`);
-                            this._reply(`Что-то случилось:\n<code>${err}</code>`);
-                        });
-                    }
-                }).catch((err) => {
-                    this.logger.error(`Error while processing command [${this.context.message.text}]: ${err.stack}`);
-                    this._reply(`Что-то случилось:\n<code>${err}</code>`);
+        this.handler[this.command_name](this.context, this).then(([err, response, _, overrides]) => {
+            if (err) {
+                return this._reply(err, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
+                    this.logger.error(`Error while replying with an error message to [${this.context?.message?.text}]: ${err && err.stack}`);
+                    this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply dropped: ${err && err.stack}`));
                 });
             }
-            else {
-                this.logger.info(`Received nonsense, how did it get here???: ${this.context.message.text}`);
+            if (response instanceof String || typeof response === 'string') {
+                return this._reply(response, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
+                    this.logger.error(`Error while replying with response text to [${this.context?.message?.text}]: ${err && err.stack}`);
+                    this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply dropped: ${err && err.stack}`));
+                });
             }
-        }
-        catch (err) {
-            this.logger.error(`Error while processing [${JSON.stringify(this.context)}]: ${err.stack}`);
-            this._reply(`Что-то случилось:\n<code>${err}</code>`);
-        }
+            if (response instanceof Object) {
+                return this._replyWithMedia(response, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
+                    this.logger.error(`Error while replying with media to [${this.context?.message?.text}]: ${err && err.stack}`);
+                    this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply dropped: ${err && err.stack}`));
+                });
+            }
+        }).catch((err) => {
+            this.logger.error(`Error while processing command [${this.context.message.text}]: ${err.stack}`);
+            this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply dropped: ${err && err.stack}`));
+        });
     }
 
     async redisGet(name) {
@@ -412,7 +402,7 @@ class TelegramInteraction {
         if (!Object.keys(data).length) {
             new Error('Cannot save empty data');
         }
-        await this._redis.hset(key, { data: JSON.stringify(data) });
+        return this._redis.hset(key, { data: JSON.stringify(data) });
     }
 
     async redisGetList() {
@@ -432,15 +422,21 @@ class TelegramInteraction {
         return this._currencies_list ? this._currencies_list[name] : null;
     }
 
-    async _answerQueryWithText(query, overrides) {
+    /**
+     * Answeres inline query with text ("article")
+     * @param {String} text 
+     * @param {Object} overrides 
+     * @returns {Promise}
+     */
+    async _answerQueryWithText(text, overrides) {
         let answer = {
             results: [
                 {
                     id: Date.now(),
                     type: 'article',
-                    title: query.replace(/ +/g, ' '),
+                    title: text.split('\n')[0],
                     input_message_content: {
-                        message_text: query,
+                        message_text: text,
                         ...this._getTextOptions(),
                         ...overrides,
                     },
@@ -449,136 +445,108 @@ class TelegramInteraction {
                 }
             ],
             other: {
-                cache_time: 0
+                cache_time: 0,
+                ...overrides,
+            }
+        };
+
+        this.logger.info(`Responding to inline query with text [${JSON.stringify(answer)}]`);
+
+        return this.context.answerInlineQuery(answer.results, answer.other);
+    }
+        
+    async _answerQueryWithMedia(media, overrides) {
+        let answer = {
+            results: [],
+            other: {
+                cache_time: 0,
+                ...overrides,
+            }
+        };
+
+        if (!inline_answer_media_types.includes(media.type)) {
+            this.logger.warn(`Can't answer inline query with [media: ${JSON.stringify(media)}]`);
+            return;
+        }
+
+        let suffix = media.url ? '_url' : '_file_id';
+        let data = media.url ? media.url : media.media || media[media.type];
+        let inline_type = media.type === 'animation' ? 'gif' : media.type;
+        let result = {
+            id: Date.now(),
+            type: inline_type,
+            title: media.text ? media.text.split('\n')[0] : ' ',
+            caption: media.text,
+            ...this._getTextOptions(),
+            ...overrides,
+        };
+        result[`${inline_type}${suffix}`] = data;
+        if (media.url) {
+            result['thumb_url'] = media.type !== 'video' ? media.url : config.VIDEO_THUMB_URL;
+        }
+
+        for (let key in result) {
+            if (!result[key]) {
+                delete result[key];
             }
         }
-        this.logger.info(`Responding to inline query with text [${JSON.stringify(answer)}]`);
-        try {
-            return await this.context.answerInlineQuery(answer.results, answer.other);
-        }
-        catch (err) {
-            this.logger.error(`Could not answer query, got an error: ${err && err.stack}`);
-        }
-    }
 
-    async _answerQueryWithArray(answer) {
+        if (!result.title) {
+            result.title = ' ';
+        }
+
         this.logger.info(`Responding to inline query with [${JSON.stringify(answer)}]`);
-        try {
-            return await this.context.answerInlineQuery(answer.results, answer.other);
-        }
-        catch (err) {
-            this.logger.error(`Could not answer query, got an error: ${err && err.stack}`);
-        }
+
+        return this.context.answerInlineQuery(answer.results, answer.other);
     }
 
-    async answer() {
+    answer() {
         if (!this.context.inlineQuery.query) {
             return;
         }
-        this.logger.info(`Received inline query [${this.context.inlineQuery.query}]`);
-        try {
-            let parsed_context = {
-                chat: {
-                    id: this.context.inlineQuery.from.id
-                },
-                from: this.context.inlineQuery.from
-            };
-
-            let query_result = {
-                results: [],
-                other: {
-                    cache_time: 0
-                }
-            }
-
-            let query = this.context.inlineQuery.query;
-
-            let template_matches = query.match(inline_template_regex);
-
-            if (!template_matches?.length) {
-                return await this._answerQueryWithText(this.context.inlineQuery.query);
-            }
-            this.logger.info(`Matched template commands [${JSON.stringify(template_matches)}]`);
-            let clean_query = query.replace(inline_template_regex, '').replace(/ +/g, ' ');
-
-            for (let match of template_matches) {
-                let command_name = match.match(command_name_regex)[0].slice(1);
-                if (this.client.inline_commands.includes(command_name) && typeof this.handler[command_name] === 'function') {
-                    let input = Object.assign({ message: { text: match } }, parsed_context)
-                    try {
-                        const [err, response, _, overrides] = await this.handler[command_name](input, this);
-                        if (err) {
-                            query = query.replace(match, 'ОШИБКА');
-
-                            return await this._answerQueryWithText(query, overrides);
-                        }
-                        else if (response) {
-                            if (response instanceof String || typeof response === 'string') {
-                                query = query.replace(match, response);
-
-                                return await this._answerQueryWithText(query, overrides);
-                            }
-                            else if (response.type === 'text') {
-                                let answer = {
-                                    id: Date.now(),
-                                    type: 'article',
-                                    title: match,
-                                    description: response.text,
-                                    input_message_content: {
-                                        message_text: response.text,
-                                        ...this._getTextOptions(),
-                                        ...overrides,
-                                    },
-                                    ...this._getTextOptions(),
-                                    ...overrides,
-                                }
-                                query_result.results.push(answer);
-
-                                return await this._answerQueryWithArray(query_result, overrides);
-                            }
-                            else if (['animation', 'audio', 'document', 'video', 'voice', 'photo', 'gif', 'sticker'].includes(response.type)) {
-                                query = query.replace(match, '');
-                                let suffix = response.url ? '_url' : '_file_id';
-                                let data = response.url ? response.url : response.media || response[response.type];
-                                let answer = {
-                                    id: Date.now(),
-                                    type: response.type === 'animation' ? 'gif' : response.type,
-                                    title: response.text ? response.text : clean_query,
-                                    caption: response.text ? response.text : clean_query,
-                                    ...this._getTextOptions(),
-                                };
-                                answer[`${response.type === 'animation' ? 'gif' : response.type}${suffix}`] = data;
-                                if (response.url) {
-                                    answer['thumb_url'] = response.type !== 'video' ? response.url : config.VIDEO_THUMB_URL;
-                                }
-
-                                for (let key in answer) {
-                                    if (!answer[key]) {
-                                        delete answer[key];
-                                    }
-                                }
-
-                                if (!answer.title) {
-                                    answer.title = ' ';
-                                }
-
-                                this.logger.info(`Pushing answer [${JSON.stringify(answer)}]`);
-                                query_result.results.push(answer);
-
-                                return await this._answerQueryWithArray(query_result, overrides);
-                            }
-                        }
-                    }
-                    catch (err) {
-                        this.logger.error(`Error while processing command [${command_text}] from inline query[${this.context.inlineQuery.query}]: ${err && err.stack}`);
-                        query = query.replace(command_text, 'ОШИБКА');
-                    }
-                }
-            }
+        this.logger.debug(`Received inline query [${this.context.inlineQuery.query}]`);
+        let command_input = this.context.inlineQuery.query.match(inline_query_input_regex)[0];
+        if (!command_input) return;  
+        
+        let command_name = command_input.split(' ')[0].substr(1);
+        if (!this.client.inline_commands.includes(command_name) || typeof this.handler[command_name] !== 'function') {
+            return;
         }
-        catch (err) {
-            this.logger.error(`Error while processing inline query [${this.context.inlineQuery.query}]: ${err && err.stack}`);
-        }
+        
+        let parsed_context = {
+            chat: {
+                id: this.context.inlineQuery.from.id
+            },
+            from: this.context.inlineQuery.from,
+            message: {
+                text: command_input
+            }
+        };
+        
+        this.logger.info(`Received eligible inline query with input [${command_input}], parsed context [${JSON.stringify(parsed_context)}]`);
+
+        this.handler[command_name](parsed_context, this).then(([err, response, _, overrides]) => {
+            if (err) {
+                this.logger.error(`Handler for [${command_input}] from inline query responded with error: ${err && err.stack}`);
+                return;
+            }
+            if (response) {
+                if (response instanceof String || typeof response === 'string' || response.type === 'text') {
+                    this._answerQueryWithText(
+                        response && response.text,
+                        overrides
+                    ).catch(err => 
+                        this.logger.error(`Error while responsing to inline query [${command_input}] with text [${response && response.text}]`)
+                    );
+                }
+                this._answerQueryWithMedia(
+                    response,
+                    overrides
+                ).catch(err =>
+                    this.logger.error(`Error while responding to inline query [${command_input}] with media [${JSON.stringify(response)}]`)    
+                );
+            }
+        });
     }
 }
 
@@ -632,16 +600,6 @@ class TelegramClient {
 
         if (is_inline) {
             this.inline_commands.push(command_name);
-        }
-    }
-
-    _autoReplyToMisha() {
-        if (process.env.MISHA_KUPI_KOLDU) {
-            this.client.on('msg', async (ctx) => {
-                if (ctx.message?.from?.id === Number(process.env.MISHA_KUPI_KOLDU)) {
-                    ctx.reply('Миша купи колду', { reply_to_message_id: ctx.message.message_id });
-                }
-            })
         }
     }
 
@@ -746,7 +704,6 @@ class TelegramClient {
 
         this._registerCommands();
         this._filterServiceMessages();
-        this._autoReplyToMisha();
 
         if (process.env.ENV.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
             this._startPolling();

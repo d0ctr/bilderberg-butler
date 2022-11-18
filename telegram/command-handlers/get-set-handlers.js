@@ -47,7 +47,7 @@ async function set(input, interaction) {
         return ['Чтобы сохранить гет, ответьте на какое-нибудь сообщение с помощью <code>/set {название гета}</code>'];
     }
 
-    const parsed_data = interaction._parseMessageMedia();
+    const parsed_data = interaction._parseMessageMedia(input.message.reply_to_message);
 
     if (!parsed_data.type) {
         return [`Такое сохранить не получится, сейчас поддерживаются только следующие форматы:
