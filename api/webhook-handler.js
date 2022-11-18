@@ -18,10 +18,11 @@ function formatGithubWebhook(request) {
             text += `<u>${payload.pull_request.title}</u>\n`;
             text += `<i>by <a href="${payload.pull_request.user.html_url}">@${payload.pull_request.user.login}</a></i>\n`;
             break;
-        case 'deplyment_status':
-            text += `Deployment status: <a href="${payload.deployment_status.deployment_url}">${payload.deployment_status.state}</a>\n`;
-            text += `Description: <i>${payload.deployment_status.description}</i>\n`;
-            text += `<i>by <a href="${payload.pull_request.user.html_url}">@${payload.pull_request.user.login}</a></i>\n`;
+        case 'deployment_status':
+            text += `Deployment: ${payload.repository.full_name}:${payload.deployment.environment}\n`;
+            text += `Description: <i>${payload.deployment_status.description || ' '}</i>\n`;
+            text += `State: <u>${payload.deployment_status.state.toUpperCase()}</u>\n`;
+            text += `<i>by @<a href="${payload.deployment_status.creator.html_url}">${payload.deployment_status.creator.login}</a></i>\n`;
             break;
         default:
             return `github\n<code>${JSON.stringify(payload, null, 2)}</code>`;
@@ -41,7 +42,7 @@ function formatRailwayWebhook(request) {
 
     switch(payload.type.toLowerCase()) {
         case 'deploy':
-            text += `Deployment: ${payload.project.name}/${payload.service.name}\n`;
+            text += `Deployment: ${payload.project.name}:${payload.service.name}\n`;
             text += `Commit message: <i>${payload.deployment.meta.commitMessage}</i>\n`;
             text += `Status: <u>${payload.status}</u>\n`;
             break;
