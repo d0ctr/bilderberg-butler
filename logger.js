@@ -27,6 +27,7 @@ if (ENABLE_LOKI) {
     } = process.env;
 
     const VERSION = require('./package.json').version;
+    console.log(JSON.stringify(process.env));
 
     logger_options.transports.push(
         new LokiTransport({
