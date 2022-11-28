@@ -1,7 +1,13 @@
 const { createLogger, format, transports } = require('winston');
 const LokiTransport = require('winston-loki');
 
-const ENABLE_LOKI = process.env.ENABLE_LOKI === 'true' || (process.env.ENV && process.env.ENV.toLowerCase()) === 'prod';
+require('dotenv-vault-core').config();
+
+if (process.env.ENV !== 'prod') {
+    require('dotenv').config();
+}
+
+const ENABLE_LOKI = process.env.ENABLE_LOKI === 'true';
 
 const logger_options = {
     transports: [
