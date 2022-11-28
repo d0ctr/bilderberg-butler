@@ -1,7 +1,7 @@
 const { createLogger, format, transports } = require('winston');
 const LokiTransport = require('winston-loki');
 
-const ENABLE_LOKI = process.env.ENABLE_LOKI === 'true' || (process.env.ENV && process.env.ENV.toLowerCase()) === 'prod';
+const ENABLE_LOKI = process.env.ENABLE_LOKI === 'true';
 
 const logger_options = {
     transports: [
@@ -27,7 +27,6 @@ if (ENABLE_LOKI) {
     } = process.env;
 
     const VERSION = require('./package.json').version;
-    console.log(JSON.stringify(process.env));
 
     logger_options.transports.push(
         new LokiTransport({
