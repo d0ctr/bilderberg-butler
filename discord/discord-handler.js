@@ -16,7 +16,7 @@ class DiscordHandler {
     }
 
     async reply(interaction, message) {
-        this.logger.info(`Responding with [${message.replace(/\n/gm, '\\n')}].`)
+        this.logger.info(`Responding with [${message.replace(/\n/gm, '\\n')}].`, { interaction: interaction.parsed_interaction, response: message })
         return await interaction.reply(message);
     }
 

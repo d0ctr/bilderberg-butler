@@ -18,7 +18,7 @@ async function curl(input) {
         result = await axios.get(arg/**, { responseType: 'arraybuffer' } */);
     }
     catch (err) {
-        this.logger.error(`Error while curling ${arg}: ${err.stack}`);
+        this.logger.error(`Error while curling ${arg}: ${err.stack || err}`, { args: [arg], error: err.stack || err });
     }
     if (!result) {
         arg = arg.replace(url_start_regex, 'http://');
@@ -26,7 +26,7 @@ async function curl(input) {
             result = await axios.get(arg);
         }
         catch (err) {
-            this.logger.error(`Error while curling ${arg}: ${err.stack}`);
+            this.logger.error(`Error while curling ${arg}: ${err.stack || err}`, { args: [arg], error: err.stack || err });
             return [`Что-то пошло не так\nНе могу получить данные по этой ссылке`];
         }
     }

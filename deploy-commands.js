@@ -1,9 +1,12 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { REST } = require('@discordjs/rest');
 const { Routes, ChannelType } = require('discord-api-types/v10');
-const dotenv = require('dotenv-vault-core');
 
-dotenv.config();
+require('dotenv').config();
+
+if ((process.env.ENV && process.env.ENV.toLowerCase()) === 'prod') {
+    require('dotenv-vault-core').config();
+}
 
 const commands = [
 	new SlashCommandBuilder() // ping

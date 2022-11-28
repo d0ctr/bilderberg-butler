@@ -19,7 +19,6 @@ class APIHandler {
     }
 
     _fakeTelegramContext(command, req, res) {
-        this.logger.info(`${JSON.stringify(req.query)}`);
         let fakeContext = {
             message: {
                 text: `${command} ${req.query.args.replace(/,/g, ' ')}`,
@@ -29,7 +28,10 @@ class APIHandler {
     }
 
     _respond(res, message, type) {
-        this.logger.info(`Responding with ${type ? `[${type}] ` : ''}[${JSON.stringify(message)}]`);
+        this.logger.info(
+            `Responding with ${type ? `[${type}] ` : ''}[${JSON.stringify(message)}]`, 
+            { response: message, response_type: type || 'HTML' }
+        );
         switch(type) {
             case 'HTML': 
                 return res.send(getHTMLResponse(message));
@@ -100,7 +102,7 @@ class APIHandler {
         const fakeInteraction = this._fakeTelegramInteraction(req, res);
         const [err, message] = await this.telegram_handler.cur(fakeContext, fakeInteraction);
         if (err) {
-            this.logger.info(`Received error message [${err}]`);
+            this.logger.info(`Received error message [${err}]`, { error: err.stack || err });
             return this._respond(res, '/command/help', 'REDIRECT');
         }
         if (message) {
@@ -125,7 +127,7 @@ class APIHandler {
 
         const [err, message] = await this.telegram_handler.calc(fakeContext);
         if (err) {
-            this.logger.info(`Received error message [${err}]`);
+            this.logger.info(`Received error message [${err}]`, { error: err.stack || err });
             return this._respond(res, '/command/help', 'REDIRECT');
         }
         if (message) {
@@ -146,7 +148,7 @@ class APIHandler {
     async ahegao(req, res) {
         const [err, message] = await this.telegram_handler.ahegao();
         if (err) {
-            this.logger.info(`Received error message [${err}]`);
+            this.logger.info(`Received error message [${err}]`, { errror: err });
             return this._respond(res, '/command/help', 'REDIRECT');
         }
         if (message) {

@@ -14,7 +14,10 @@ class APIServer {
         this.api_handler = new APIHandler(this);
 
         this.express.use((req, res, next) => {
-            this.logger.info(`Received [${req.method} : ${req.url}]${Object.keys(req.params).length ? ` [${JSON.stringify(req.params)}]` : ''}${Object.keys(req.query).length ? ` [${JSON.stringify(req.query)}]` : ''}`);
+            this.logger.info(
+                `Received [${req.method} : ${req.originalUrl}]`,
+                { method: req.method, uri: req.originalUrl }
+            );
             next();
         });
 
@@ -87,7 +90,7 @@ class APIServer {
         this.logger.info('Gracefully shutdowning API');
         this._server.close(err => {
             if (err) {
-                this.logger.error(`Error while shutdowning API: ${err.stack}`);
+                this.logger.error(`Error while shutdowning API: ${err.stack || err}`, { error: err.stack || err });
             }
             this.health = 'off';
         });

@@ -1,4 +1,4 @@
-const dotenv = require('dotenv-vault-core');
+require('dotenv').config();
 const Redis = require('ioredis');
 const DiscordClient = require('./discord');
 const TelegramClient = require('./telegram');
@@ -6,7 +6,9 @@ const APIServer = require('./api');
 const config = require('./config.json');
 const { get_currencies_list } = require('./utils');
 
-dotenv.config();
+if ((process.env.ENV && process.env.ENV.toLowerCase()) === 'prod') {
+    require('dotenv-vault-core').config();
+}
 
 const logger = require('./logger');
 
@@ -37,7 +39,7 @@ function main() {
         });
 
         app.redis.on('error', error => {
-            redis_logger.error(`${error}`);
+            redis_logger.error(`${error}`, { error: error.stack || error });
         });
 
         app.redis.on('reconnecting', time_to => {
@@ -63,7 +65,7 @@ function main() {
             app.currencies_list = result;
         }).catch(err => {
             if (err) {
-                app.logger.error(`Error while retrieving currencies list: ${err || err.stack}`);
+                app.logger.error(`Error while retrieving currencies list: ${err.stack || err}`);
             }
         });
     }

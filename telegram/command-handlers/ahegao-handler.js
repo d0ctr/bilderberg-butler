@@ -28,7 +28,7 @@ async function ahegaoHandler() {
         ahegao_url = await getAhegaoUrl();
     }
     catch (err) {
-        this.logger.error(`Error while getting ahegao url: ${err.stack}`);
+        this.logger.error(`Error while getting ahegao url: ${err.stack || err}`, { error: err.stack });
         return [`Пока без ахегао, получил следующую ошибку:\n<code>${err}</code>`];
     }
     if (!ahegao_url) {

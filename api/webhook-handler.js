@@ -85,7 +85,10 @@ function handleWebhook(request, response) {
 
     response.sendStatus(200);
 
-    logger.info(`Received payload [${request.method}: ${request.originalUrl}] [headers: ${JSON.stringify(request.headers)}] [body: ${JSON.stringify(request.body)}]`);
+    logger.info(
+        `Received payload [${request.method}: ${request.originalUrl}] [headers: ${JSON.stringify(request.headers)}] [body: ${JSON.stringify(request.body)}]`,
+        { method: request.method, uri: request.originalUrl, body: request.body }
+    );
 
     let message_text = '';
     
@@ -94,8 +97,14 @@ function handleWebhook(request, response) {
             message_text = formatters[request.params.app.toLowerCase()](request);
         }
         catch(err) {
-            logger.error(`Error while formatting payload from [${request.method}: ${request.originalUrl}]: ${err || err.stack}`);
-            logger.info(`Formatting [${request.method}: ${request.originalUrl}] with default formatter`);
+            logger.error(
+                `Error while formatting payload from [${request.method}: ${request.originalUrl}]: ${err.stack || err}`, 
+                { error, method: request.method, uri: request.originalUrl }
+            );
+            logger.info(
+                `Formatting [${request.method}: ${request.originalUrl}] with default formatter`,
+                { method: request.method, uri: request.originalUrl }
+            );
             message_text = '';
         }
     }
@@ -105,8 +114,14 @@ function handleWebhook(request, response) {
     }
 
     new Bot(process.env.WEBHOOK_TELEGRAM_TOKEN).api.sendMessage(request.params.telegram_chat_id, message_text, { parse_mode: 'HTML' })
-        .then(() => logger.info(`Sent webhook [${request.method}: ${request.originalUrl}] data [text: ${message_text}] to [chat: ${request.params.telegram_chat_id}]`))
-        .catch(err => logger.error(`Error while sending webhook [${request.method}: ${request.originalUrl}] data [text: ${message_text}] to [chat: ${request.params.telegram_chat_id}]: ${err || err.stack}`));
+        .then(() => logger.info(
+            `Sent webhook [${request.method}: ${request.originalUrl}] data [text: ${message_text}] to [chat: ${request.params.telegram_chat_id}]`,
+            { method: request.method, uri: request.originalUrl, telegram_chat_id: request.params.telegram_chat_id, response: message_text }
+            ))
+        .catch(err => logger.error(
+            `Error while sending webhook [${request.method}: ${request.originalUrl}] data [text: ${message_text}] to [chat: ${request.params.telegram_chat_id}]: ${err.stack || err}`,
+            { method: request.method, uri: request.originalUrl, telegram_chat_id: request.params.telegram_chat_id, response: message_text, error: err.stack || err }
+            ));
 }
 
 module.exports = { handleWebhook };

@@ -17,7 +17,7 @@ async function calc(input) {
         result = `${math_line} = ${mathjs.evaluate(math_line).toLocaleString({ nu: 'arab' })}`;
     }
     catch (err) {
-        this.logger.error('Error while calculating:', err);
+        this.logger.error(`Error while calculating: ${err.stack || err}`, { args: [math_line], error: err.stack || err });
         return ['Что-то ты не то написал, этой командой можно считать только математические выражения'];
     }
     return [null, result, mathjs.evaluate(math_line).toString()];
