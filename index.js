@@ -1,15 +1,13 @@
-require('dotenv').config();
+require('dotenv-vault-core').config();
+if (process.env.ENV !== 'prod') {
+    require('dotenv').config();
+}
 const Redis = require('ioredis');
 const DiscordClient = require('./discord');
 const TelegramClient = require('./telegram');
 const APIServer = require('./api');
 const config = require('./config.json');
 const { get_currencies_list } = require('./utils');
-
-if ((process.env.ENV && process.env.ENV.toLowerCase()) === 'prod') {
-    require('dotenv-vault-core').config();
-}
-
 const logger = require('./logger');
 
 function main() {

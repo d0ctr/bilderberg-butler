@@ -2,10 +2,10 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 const { REST } = require('@discordjs/rest');
 const { Routes, ChannelType } = require('discord-api-types/v10');
 
-require('dotenv').config();
+require('dotenv-vault-core').config();
 
-if ((process.env.ENV && process.env.ENV.toLowerCase()) === 'prod') {
-    require('dotenv-vault-core').config();
+if (process.env.ENV !== 'prod') {
+    require('dotenv').config();
 }
 
 const commands = [
