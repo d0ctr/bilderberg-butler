@@ -37,8 +37,8 @@ jobs:
         id: version-bump
         uses: 'phips28/gh-action-bump-version@master'
         with:
-          patch-wording: 'fix'
-          minor-wording: 'improvment'
+          patch-wording: 'fix,patch,fixing,patching'
+          minor-wording: 'improvement,'
           default: 'minor'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
