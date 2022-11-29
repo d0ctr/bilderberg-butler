@@ -37,7 +37,7 @@ async function generateImage(input, interaction) {
         return [null, { type: 'photo', media: output_url, url: output_url, text: arg }];
     } catch (err) {
         this.logger.error(`Error while deep-aiing: ${err.stack || err}`, { error: err.stack || err, args: [arg] })
-        return [`i'm dead fr bruh :\n<code>${err}</code>`];
+        return [`i'm dead fr bruh :\n<code>${err.stack || err}</code>`];
     }
 }
 

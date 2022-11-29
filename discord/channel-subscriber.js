@@ -105,11 +105,14 @@ class ChannelSubscriber {
         parsed_state.channel_name = channel.name;
         parsed_state.channel_url = channel.url;
         parsed_state.channel_type = channel.type;
+        parsed_state.guild_id = channel.guild.id;
+        parsed_state.guild_name = channel.guild.guild_name;
 
-        parsed_state.members = new Map();
+
+        parsed_state.members = [];
         
-        channel.members.forEach((member, key) => {
-            parsed_state.members.set(key, {
+        channel.members.forEach((member) => {
+            parsed_state.members.push({
                     user_id: member.user.id,
                     user_name: member.user.username,
                     streaming: member.voice.streaming,
@@ -182,7 +185,7 @@ class ChannelSubscriber {
             return;
         }
         if (!guild && !this._guild && !channel_id) {
-            this.logger.error('Not enough input values to restore data.', { ...this.log_meta });
+            this.logger.warn('Not enough input values to restore data.', { ...this.log_meta });
             return;
         }
         else if (!this._guild && guild) {

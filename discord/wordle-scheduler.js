@@ -105,7 +105,7 @@ class WordleScheduler {
             return;
         }
         if (!guild && !this._guild) {
-            this.logger.error('No guild to restore data for');
+            this.logger.warn('No guild to restore data for');
             return;
         }
         else if (!this._guild && guild) {

@@ -18,7 +18,8 @@ const logger_options = {
                 format.printf(options => {
                     return `${options.timestamp} - ${options.module} - ${options.level} - ${options.level === 'error' ? options.message : options.message.replace(/\n/gm, '\\n').replace(/ +/gm, ' ')}`;
                 })
-            )
+            ),
+            level: 'debug',
         }),
     ]
 };
@@ -41,10 +42,11 @@ if (ENABLE_LOKI) {
             labels: {
                 ...JSON.parse(LOKI_LABELS),
                 version: VERSION,
-                last_commit: LAST_COMMIT
+                last_commit: LAST_COMMIT,
             },
             basicAuth: `${LOKI_USER}:${LOKI_PASS}`,
-            format: format.json()
+            format: format.json(),
+            level: 'debug',
         })
     )
 }
