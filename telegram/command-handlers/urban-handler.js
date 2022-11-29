@@ -1,5 +1,5 @@
 const GrammyTypes = require('grammy');
-const {default: axios} = require("axios");
+const axios = require("axios");
 const config = require("../../config.json");
 
 /**
