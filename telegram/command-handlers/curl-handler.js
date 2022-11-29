@@ -1,5 +1,5 @@
 const {url_start_regex} = require("./utils");
-const axios = require('axios').default;
+const axios = require('axios');
 
 /**
  * `/curl` command handler
