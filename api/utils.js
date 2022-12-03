@@ -23,7 +23,7 @@ thead {
 </html>`;
 
 function getHTMLResponse(body) {
-    return HTML_BODY.replace("{{body}}", body);
+    return HTML_BODY.replace('{{body}}', body);
 }
 
 module.exports = { getHTMLResponse };

@@ -1,9 +1,10 @@
 const { createLogger, format, transports } = require('winston');
 const LokiTransport = require('winston-loki');
 
-require('dotenv-vault-core').config();
-
-if (process.env.ENV !== 'prod') {
+if (process.env.ENV === 'prod') {
+    require('dotenv-vault-core').config();
+}
+else {
     require('dotenv').config();
 }
 

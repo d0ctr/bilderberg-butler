@@ -6,7 +6,7 @@ class WordleScheduler {
         this.log_meta = { module: 'wordle-scheduler' };
         this.logger = require('../logger').child(this.log_meta);
         this.wordle_url = 'https://www.nytimes.com/games/wordle/index.html';
-        this.event_name = "Угадывай слово";
+        this.event_name = 'Угадывай слово';
         this.event_selector = '#wordle'
         this.start_hour = 21;
         this.start_min = 0;

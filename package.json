@@ -19,6 +19,7 @@
   "homepage": "https://github.com/d0ctr/bilderberg_butler#readme",
   "dependencies": {
     "@discordjs/rest": "^1.3.0",
+    "@notionhq/client": "^2.2.2",
     "axios": "1.1.3",
     "discord-api-types": "^0.37.20",
     "discord.js": "^14.0.3",

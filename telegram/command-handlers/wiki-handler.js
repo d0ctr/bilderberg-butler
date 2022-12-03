@@ -1,7 +1,7 @@
 const axios = require('axios');
 const config = require('../../config.json');
 const GrammyTypes = require('grammy');
-const {russianAlphabetRegex} = require("./utils");
+const {russianAlphabetRegex} = require('./utils');
 
 async function getWikipediaSummary(queryResult, locale) {
     let result = null;
@@ -80,7 +80,7 @@ async function wiki(input) {
 
     let wikisearch = await searchWikipedia(arg);
     if (!wikisearch) {
-        return ["Я не смог справится с поиском, видимо спасёт только гугл"];
+        return ['Я не смог справится с поиском, видимо спасёт только гугл'];
     }
     return [null, wikisearch, null, { disable_web_page_preview: false }];
 }

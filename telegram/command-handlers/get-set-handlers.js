@@ -1,4 +1,4 @@
-const {getRegex} = require("./utils");
+const {getRegex} = require('./utils');
 
 /**
  * `/get` command handler

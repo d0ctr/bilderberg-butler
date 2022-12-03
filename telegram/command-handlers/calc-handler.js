@@ -1,4 +1,4 @@
-const mathjs = require("mathjs");
+const mathjs = require('mathjs');
 const GrammyTypes = require('grammy');
 
 /**

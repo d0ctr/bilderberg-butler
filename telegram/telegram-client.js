@@ -233,7 +233,7 @@ class TelegramInteraction {
             parsed_media.media = message.photo[0].file_id;
         }
         else if (parsed_media.type !== 'text') {
-            parsed_media.media = message[type].file_id;
+            parsed_media.media = message[parsed_media.type].file_id;
         }
 
         return parsed_media;
@@ -387,7 +387,7 @@ class TelegramInteraction {
 
         this.logger.info(`Received command: ${this.context.message.text}`);
 
-        this.handler[this.command_name](this.context, this).then(([err, response, _, overrides]) => {
+        this.handler[this.command_name](this.context, this).then(([err, response, , overrides]) => {
             if (err) {
                 return this._reply(err, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
                     this.logger.error(`Error while replying with an error message to [${this.context?.message?.text}]: ${err.stack || err}`, { error: err.stack || err });
@@ -562,7 +562,7 @@ class TelegramInteraction {
 
         this.logger.info(`Received eligible inline query with input [${command_input}], parsed context [${JSON.stringify(parsed_context)}]`);
 
-        this.handler[command_name](parsed_context, this).then(([err, response, _, overrides]) => {
+        this.handler[command_name](parsed_context, this).then(([err, response, , overrides]) => {
             if (err) {
                 this.logger.error(`Handler for [${command_input}] from inline query responded with error: ${err.stack || err}`, { error: err.stack || err });
                 return;
@@ -673,6 +673,7 @@ class TelegramClient {
         this._registerCommand('deep', config.DEEP_AI_API);
         this._registerCommand('wiki', config.WIKIPEDIA_SEARCH_URL, true);
         this._registerCommand('cur', process.env.COINMARKETCAP_TOKEN && config.COINMARKETCAP_API, true);
+        this._registerCommand('notion', process.env.NOTION_TOKEN, false);
 
         this.client.on('inline_query', async (ctx) => new TelegramInteraction(this, 'inline_query', ctx).answer());
     }
@@ -729,7 +730,7 @@ class TelegramClient {
             this.logger.error(`Error while setting telegram webhook: ${err.stack || err}`, { error: err.stack || err });
             this.logger.info('Trying to start with polling');
             this._startPolling();
-        };
+        }
     }
 
     async start() {
@@ -812,10 +813,10 @@ class TelegramClient {
         this.logger.info('Gracefully shutdowning Telegram client.');
 
         for (let discord_notification of Object.values(this._discord_notification_map)) {
-            await this._clearNotification(discord_notification);
+            this._clearNotification(discord_notification);
         }
-        await this.client.api.deleteWebhook();
-        await this.client.stop();
+        this.client.api.deleteWebhook();
+        this.client.stop();
         if (this._interruptedWebhookURL) {
             await this._setWebhook(this._interruptedWebhookURL); // restoring interrupted webhook if possible
         }

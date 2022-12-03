@@ -1,4 +1,4 @@
-const {url_start_regex} = require("./utils");
+const {url_start_regex} = require('./utils');
 const axios = require('axios');
 
 /**

@@ -1,6 +1,6 @@
 const GrammyTypes = require('grammy');
-const axios = require("axios");
-const config = require("../../config.json");
+const axios = require('axios');
+const config = require('../../config.json');
 
 /**
  * Convert definition by urban dictionary API to text HTML

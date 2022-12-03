@@ -2,9 +2,10 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 const { REST } = require('@discordjs/rest');
 const { Routes, ChannelType } = require('discord-api-types/v10');
 
-require('dotenv-vault-core').config();
-
-if (process.env.ENV !== 'prod') {
+if (process.env.ENV === 'prod') {
+    require('dotenv-vault-core').config();
+}
+else {
     require('dotenv').config();
 }
 
@@ -27,7 +28,7 @@ const commands = [
     new SlashCommandBuilder() // subscribe
         .setName('subscribe')
         .setDMPermission(false)
-        .setDescription("Subscribe for events in server's voice channel")
+        .setDescription('Subscribe for events in server's voice channel')
         .addChannelOption(input => 
             input.setName('channel')
                 .setDescription('Voice Channel to subscribe to')
@@ -41,7 +42,7 @@ const commands = [
     new SlashCommandBuilder() // unsubscribe
         .setName('unsubscribe')
         .setDMPermission(false)
-        .setDescription("Unsubscribe from events in server's voice channel")
+        .setDescription('Unsubscribe from events in server's voice channel')
         .addChannelOption(input => 
             input.setName('channel')
                 .setDescription('Voice Channel to unsubscribe from')

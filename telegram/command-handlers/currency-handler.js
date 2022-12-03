@@ -1,5 +1,5 @@
-const axios = require("axios");
-const config = require("../../config.json");
+const axios = require('axios');
+const config = require('../../config.json');
 
 async function getConversion(amount, from_id, to_id) {
     let result = null;

@@ -27,7 +27,7 @@ class APIServer {
 
         this.express.get('/health', (req, res) => {
             res.json(this.app.health);
-        })
+        });
 
         this.express.get('/health/:name', (req, res) => {
             if (req.params.name && Object.keys(this.app.health).includes(req.params.name)) {
@@ -45,7 +45,17 @@ class APIServer {
                 return;
             }
             res.sendStatus(404);
-        })
+        });
+
+        if (process.env.TELEGRAM_TOKEN) {
+            this.express.get('/telegramfile/:path', (req, res) => {
+                if(req.params.path) {
+                    res.redirect(`https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/${req.params.path}`);
+                    return;
+                }
+                res.sendStatus(404);
+            });
+        }
 
         if (process.env.WEBHOOK_TELEGRAM_TOKEN) {
             this.setWebhookMiddleware('/webhook/:app/:telegram_chat_id', handleWebhook);
