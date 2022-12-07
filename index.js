@@ -4,59 +4,20 @@ if (process.env.ENV === 'prod') {
 else {
     require('dotenv').config();
 }
-const Redis = require('ioredis');
 const DiscordClient = require('./discord');
 const TelegramClient = require('./telegram');
 const APIServer = require('./api');
 const config = require('./config.json');
 const { get_currencies_list } = require('./utils');
 const logger = require('./logger');
+const { start: startRedis, redis } = require('./redis');
 
 function main() {
     let app = {};
 
-    app.health = {
-        discord: 'off',
-        telegram: 'off',
-        redis: 'off',
-        api: 'off'
-    };
-
     app.logger = require('./logger').child({ module: 'index' });
-
-    app.redis = process.env.REDISCLOUD_URL ? new Redis(process.env.REDISCLOUD_URL) : null;
-    if (app.redis) {
-        let redis_logger = require('./logger').child({ module: 'redis' });
-
-        app.redis.on('connect', () => {
-            redis_logger.info('Redis is connected');
-            app.health.redis = 'connect';
-        })
-
-        app.redis.on('ready', () => {
-            redis_logger.info('Redis is ready');
-            app.health.redis = 'ready';
-        });
-
-        app.redis.on('error', error => {
-            redis_logger.error(`${error}`, { error: error.stack || error });
-        });
-
-        app.redis.on('reconnecting', time_to => {
-            redis_logger.info(`Redis is reconnecting in ${time_to}`);
-            app.health.redis = 'reconnecting';
-        });
-
-        app.redis.on('close', () => {
-            redis_logger.info('Redis connection closed');
-            app.health.redis = 'close';
-        });
-
-        app.redis.on('end', () => {
-            redis_logger.info('Redis ends connection');
-            app.health.redis = 'off';
-        });
-    }
+    startRedis();
+    app.redis = redis();
 
     if (process.env.COINMARKETCAP_TOKEN && config.COINMARKETCAP_API) {
         app.logger.info('Retrieving currencies list...');

@@ -20,7 +20,7 @@ const logger_options = {
                     return `${options.timestamp} - ${options.module} - ${options.level} - ${options.level === 'error' ? options.message : options.message.replace(/\n/gm, '\\n').replace(/ +/gm, ' ')}`;
                 })
             ),
-            level: 'debug',
+            level: process.env.DEFAULT_LOGLEVEL || 'debug',
         }),
     ]
 };
@@ -47,7 +47,7 @@ if (ENABLE_LOKI) {
             },
             basicAuth: `${LOKI_USER}:${LOKI_PASS}`,
             format: format.json(),
-            level: 'debug',
+            level: process.env.LOKI_LOGLEVEL || process.env.DEFAULT_LOGLEVEL || 'debug',
         })
     )
 }

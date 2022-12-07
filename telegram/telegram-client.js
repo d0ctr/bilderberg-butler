@@ -1,6 +1,7 @@
 const { Bot, Context, webhookCallback, InputFile } = require('grammy');
 const TelegramHandler = require('./telegram-handler');
 const config = require('../config.json');
+const { updateComponentHealth, COMPONENT, STATE } = require('../health');
 
 const inline_query_input_regex = /^\/.+.*/gm;
 const command_name_regex = /^\/[a-zA-Zа-яА-Я0-9_-]+/;
@@ -187,7 +188,7 @@ class TelegramInteraction {
         this.context = context;
         this.handler = client.handler;
         this._redis = client.redis;
-        this._currencies_list = client.currencies_list
+        this._currencies_list = client.currencies_list;
 
         if (context) {
             this.mediaToMethod = {
@@ -604,14 +605,7 @@ class TelegramClient {
         this.handler = new TelegramHandler(this);
         this.inline_commands = [];
         this._discord_notification_map = {};
-    }
-
-    set health(value) {
-        this.app.health.telegram = value;
-    }
-
-    get health() {
-        return this.app.health.telegram;
+        updateComponentHealth(COMPONENT.TELEGRAM, STATE.OFF);
     }
 
     get currencies_list() {
@@ -698,14 +692,14 @@ class TelegramClient {
         this.client.start({
             onStart: () => {
                 this.logger.info('Long polling is starting');
-                this.health = 'ready';
+                updateComponentHealth(COMPONENT.TELEGRAM, STATE.ON);
             }
         }).then(() => {
             this.logger.info('Long polling has ended');
-            this.health = 'off';
+            updateComponentHealth(COMPONENT.TELEGRAM, STATE.OFF);
         }).catch(err => {
             this.logger.error(`Error while starting Telegram client: ${err.stack || err}`, { error: err.stack || err });
-            this.health = 'off';
+            updateComponentHealth(COMPONENT.TELEGRAM, STATE.OFF);
         });
     }
 
@@ -722,7 +716,7 @@ class TelegramClient {
             }
             else {
                 this.logger.info('Telegram webhook is set.');
-                this.health = 'set';
+                updateComponentHealth(COMPONENT.TELEGRAM, STATE.READY);
                 this.app.api_server.setWebhookMiddleware(`/${webhookUrl.split('/').slice(-1)[0]}`, webhookCallback(this.client, 'express'));
             }
         }
@@ -743,6 +737,7 @@ class TelegramClient {
 
         this.client.catch((err) => {
             this.logger.error(`High level middleware error in bot: ${err.stack || err}`, { error: err.stack || err });
+            updateComponentHealth(COMPONENT.TELEGRAM, STATE.DEGRADED);
         });
 
         this._registerCommands();

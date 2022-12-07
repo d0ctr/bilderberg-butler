@@ -2,6 +2,7 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const Handler = require('./discord-handler');
 const WordleScheduler = require('./wordle-scheduler');
 const ChannelSubscriber = require('./channel-subscriber');
+const { updateComponentHealth, COMPONENT, STATE } = require('../health');
 
 class DiscordClient {
     constructor(app) {
@@ -14,6 +15,7 @@ class DiscordClient {
         this.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
         this.guild_to_wordle = {};
         this.channel_to_subscriber = {};
+        updateComponentHealth(COMPONENT.DISCORD, STATE.OFF);
 
 
         this.client.on('ready', () => {
@@ -21,13 +23,13 @@ class DiscordClient {
             this.log_meta.discord_bot = this.client.application.name;
 
             this.logger.info('Discord Client is ready.');
-            this.health = 'ready';
+            updateComponentHealth(COMPONENT.DISCORD, STATE.ON);
             this.restoreData();
         });
 
         this.client.on('invalidated', () => {
             this.logger.warn('Discord Client is invalidated.');
-            this.health = 'invalidated';
+            updateComponentHealth(COMPONENT.DISCORD, STATE.DEGRADED);
         })
 
         this.client.on('debug', info => {
@@ -69,14 +71,6 @@ class DiscordClient {
                 })
             }
         });
-    }
-
-    set health(value) {
-        this.app.health.discord = value;
-    }
-
-    get health() {
-        return this.app.health.discord;
     }
 
     async start() {

@@ -3,11 +3,13 @@ const express = require('express');
 const config = require('../config.json')
 const APIHandler = require('./api-handler');
 const { handleWebhook } = require('./webhook-handler');
+const { updateComponentHealth, getComponentHealth, getAllComponentsHealth, COMPONENT, STATE } = require('../health');
 
 class APIServer {
     constructor (app) {
         this.app = app;
         this.logger = require('../logger').child({ module: 'api-server' });
+        updateComponentHealth(COMPONENT.API, STATE.OFF);
 
         this.express = express();
 
@@ -26,17 +28,14 @@ class APIServer {
         });
 
         this.express.get('/health', (req, res) => {
-            res.json(this.app.health);
+            res.json(getAllComponentsHealth());
         });
 
         this.express.get('/health/:name', (req, res) => {
-            if (req.params.name && Object.keys(this.app.health).includes(req.params.name)) {
-                res.json({
-                    [req.params.name]: this.app.health[req.params.name]
-                });
-                return;
-            }
-            res.json(this.app.health);
+            const component_health = getComponentHealth(req.params.name.toLowerCase());
+            res.json({
+                [req.params.name]: component_health
+            });
         });
 
         this.express.get('/discordredirect/:prefix/:serverid/:channelid', (req, res) => {
@@ -70,14 +69,6 @@ class APIServer {
         }
     }
 
-    set health(value) {
-        this.app.health.api = value;
-    }
-
-    get health() {
-        return this.app.health.api;
-    }
-
     get currencies_list() {
         return this.app.currencies_list;
     }
@@ -89,7 +80,7 @@ class APIServer {
         }
         this._server = this.express.listen(process.env.PORT, () => {
             this.logger.info('API is ready');
-            this.health = 'ready';
+            updateComponentHealth(COMPONENT.API, STATE.READY);
         })
     }
 
@@ -102,7 +93,7 @@ class APIServer {
             if (err) {
                 this.logger.error(`Error while shutdowning API: ${err.stack || err}`, { error: err.stack || err });
             }
-            this.health = 'off';
+            updateComponentHealth(COMPONENT.API, STATE.OFF);
         });
     }
 
