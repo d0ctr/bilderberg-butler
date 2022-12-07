@@ -1,4 +1,4 @@
-const { Bot, Context, webhookCallback, InputFile } = require('grammy');
+const { Bot, Context, webhookCallback, InputFile, InlineKeyboard } = require('grammy');
 const TelegramHandler = require('./telegram-handler');
 const config = require('../config.json');
 
@@ -108,8 +108,23 @@ class DiscordNotification {
         return current_message_id;
     }
 
-    getNotificationText(notification_data = this) {
-        let text = `Канал <a href="${process.env.DOMAIN ? `${process.env.DOMAIN}/discordredirect/${notification_data.channel_url.replace(/.*discord.com\//, '')}` : notification_data.channel_url}">${notification_data.channel_name}</a> в Discord:`;
+    getChannelUrl(notification_data) {
+        if(!notification_data) {
+            return null;
+        }
+        if (process.env.DOMAIN) {
+            return `${process.env.DOMAIN}/discordredirect/${notification_data.channel_url.replace(/.*discord.com\//, '')}`;
+        }
+        else {
+            return notification_data.channel_url;
+        }
+    }
+
+    generateNotificationTextFrom(notification_data) {
+        if (!notification_data) {
+            return null;
+        }
+        let text = `Канал <a href="${this.getChannelUrl(notification_data)}">${notification_data.channel_name}</a> в Discord:`;
 
         notification_data.members.forEach((member) => {
             text += `\n${member.user_name}\t\
@@ -119,6 +134,21 @@ ${member.streaming && '🎥' || ' '}`;
         });
 
         return text;
+    }
+
+    getNotificationText() {
+        return this.generateNotificationTextFrom(this.current_notification_data);
+    }
+
+    getPendingNotificationText() {
+        return this.generateNotificationTextFrom(this.pending_notification_data);
+    }
+
+    getNotificationKeyboard() {
+        return new InlineKeyboard().url(
+            'Присоединится',
+            this.getChannelUrl(this.current_notification_data)
+        );
     }
 
     suspendNotification(notification_data, callback) {
@@ -858,6 +888,7 @@ class TelegramClient {
             {
                 disable_web_page_preview: true,
                 parse_mode: 'HTML',
+                reply_markup: discord_notification.getNotificationKeyboard()
             }
         ).then((message) => {
             discord_notification.current_message_id = message.message_id;
@@ -868,7 +899,7 @@ class TelegramClient {
             this._pinNotificationMessage(discord_notification);
         }).catch((err) => {
             this.logger.error(
-                `Error while sending [notification: ${discord_notification.getNotificationText(notification_data)}] about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}] : ${err.stack || err}`,
+                `Error while sending [notification: ${discord_notification.getNotificationText()}] about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}] : ${err.stack || err}`,
                 { error: err.stack || err, ...discord_notification.getLogMeta() }
             );
         });
@@ -887,6 +918,7 @@ class TelegramClient {
             {
                 disable_web_page_preview: true,
                 parse_mode: 'HTML',
+                reply_markup: discord_notification.getNotificationKeyboard()
             }
         ).then((message) => {
             discord_notification.current_message_id = message.message_id;
@@ -907,7 +939,7 @@ class TelegramClient {
 
         if (discord_notification.isNotified() && discord_notification.isCooldownActive()) {
             this.logger.debug(
-                `Suspending [notification: ${discord_notification.getNotificationText(notification_data)}] about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}]`,
+                `Suspending [notification: ${discord_notification.getPendingNotificationText(notification_data)}] about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}]`,
                 { ...discord_notification.getLogMeta() }
             );
             discord_notification.suspendNotification(notification_data, this._editNotificationMessage.bind(this));
