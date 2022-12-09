@@ -51,31 +51,6 @@ const commands = [
             input.setName('telegram_chat_id')
                 .setDescription('ID of the Telegram Chat, that will receive notifications')
                 .setRequired(false)),
-
-    new SlashCommandBuilder() // wordle
-        .setName('wordle')
-        .setDMPermission(false)
-        .setDescription('Wordle scheduler')
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('start')
-                .setDescription('Start Wordle Scheduler'))
-        .addSubcommand(subcommand => 
-            subcommand
-                .setName('stop')
-                .setDescription('Stop Wordle Scheduler'))
-        .addSubcommand(subcommand => 
-            subcommand
-                .setName('status')
-                .setDescription('Show info about Wordle Scheduler'))
-        .addSubcommand(subcommand => 
-            subcommand
-                .setName('clearall')
-                .setDescription('WARNING!!! Will clear all scheduled events'))
-        .addSubcommand(subcommand => 
-            subcommand
-                .setName('whitelist')
-                .setDescription('WARNING!!! Will clear all scheduled events and schedulers'))
         
 ].map(command => command.toJSON());
 

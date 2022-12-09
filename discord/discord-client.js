@@ -1,6 +1,5 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const Handler = require('./discord-handler');
-const WordleScheduler = require('./wordle-scheduler');
 const ChannelSubscriber = require('./channel-subscriber');
 
 class DiscordClient {
@@ -12,7 +11,6 @@ class DiscordClient {
         this.redis = app.redis;
         this.handler = new Handler(this);
         this.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
-        this.guild_to_wordle = {};
         this.channel_to_subscriber = {};
 
 
@@ -95,20 +93,6 @@ class DiscordClient {
         this.client.destroy();
     }
 
-    async restoreWordle(guild) {
-        if (this.guild_to_wordle[guild.id]) {
-            this.logger.info(`There is an active Wordle instance for ${guild.id}, no need for restoration`);
-            return;
-        }
-        if (!this.redis) {
-            this.logger.info("Hey! I can't revive without redis instance!");
-            return;
-        }
-    
-        this.guild_to_wordle[guild.id] = new WordleScheduler(this);
-        this.guild_to_wordle[guild.id].restore(guild);
-    }
-
     async restoreChannelSubscriber(guild, channel_id) {
         if (!guild && !channel_id) {
             this.logger.info(`Not enough input to restore data.`);
@@ -162,9 +146,7 @@ class DiscordClient {
 
     async restoreData () {
         this.client.guilds.cache.map((guild) => {
-            this.logger.info(`Found myself in ${guild.name}:${guild.id}`);
-            this.logger.info('Reviving database for ^^^')
-            this.restoreWordle(guild);
+            this.logger.info(`Reviving data from redis for [guild:${guild.id}]`, { discord_guild: guild.name, discord_guild_id: guild.id });
             this.restoreChannelIds(guild);
         });
     }

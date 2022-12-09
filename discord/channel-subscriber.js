@@ -3,7 +3,7 @@ function isDifferent(obj1, obj2) {
         return true;
     }
 
-    for(const [k, v] of Object.entries(old_state)) {
+    for(const k of Object.keys(obj1)) {
         if (typeof obj1[k] === 'object' && typeof obj2[k] === 'object') {
             if(isDifferent(obj1[k], obj2[k])) return true;
         }
@@ -12,27 +12,6 @@ function isDifferent(obj1, obj2) {
         }
     }
     return false;
-}
-
-function replacer(key, value) {
-    if (value instanceof Map) {
-        return {
-            dataType: 'Map',
-            value: Array.from(value.entries()), // or with spread: value: [...value]
-        };
-    }
-    else {
-        return value;
-    }
-}
-
-function reviver(key, value) {
-    if (typeof value === 'object' && value !== null) {
-        if (value.dataType === 'Map') {
-            return new Map(value.value);
-        }
-    }
-    return value;
 }
 
 class ChannelSubscriber {
@@ -78,6 +57,8 @@ class ChannelSubscriber {
         if (this.last_state && (!isDifferent(parsed_state, this.last_state) || !isDifferent(this.last_state, parsed_state))) {
             return;
         }
+
+        this.last_state = parsed_state;
 
         this.logger.info(
             `Catched updated voice channel state: ${JSON.stringify(parsed_state, replacer)}`,
@@ -161,7 +142,7 @@ class ChannelSubscriber {
         this.redis.hmset(`${this._guild.id}:channel_subscriber:${this._channel.id}`, {
             active: this.active,
             telegram_chat_ids: JSON.stringify(this.telegram_chat_ids),
-            last_state: JSON.stringify(this.last_state, replacer)
+            last_state: JSON.stringify(this.last_state)
         }).catch(err => {
             this.logger.error(`Error while dumping data for ${this._guild.id}:channel_subscriber: ${err.stack || err}`, { error: err.stack || err });
             if (this._dump_retries < 15) {
@@ -221,7 +202,7 @@ class ChannelSubscriber {
 
         this.active = data.active === 'true';
         this.telegram_chat_ids = data.telegram_chat_ids && JSON.parse(data.telegram_chat_ids);
-        this.last_state = data.last_state && JSON.parse(data.last_state, reviver);
+        this.last_state = data.last_state && JSON.parse(data.last_state);
         
         this.logger.info(`Parsed data: ${JSON.stringify({ active: this.active, telegram_chat_ids: this.telegram_chat_ids, last_state: this.last_state }, replacer)}`, { parsed_data: JSON.stringify({ active: this.active, telegram_chat_ids: this.telegram_chat_ids, last_state: this.last_state }, replacer), ...this.log_meta });
     }
