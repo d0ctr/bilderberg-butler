@@ -263,7 +263,7 @@ class TelegramInteraction {
             parsed_media.media = message.photo[0].file_id;
         }
         else if (parsed_media.type !== 'text') {
-            parsed_media.media = message[type].file_id;
+            parsed_media.media = message[parsed_media.type].file_id;
         }
 
         return parsed_media;
