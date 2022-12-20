@@ -146,7 +146,7 @@ ${member.streaming && '🎥' || ' '}`;
 
     getNotificationKeyboard() {
         return new InlineKeyboard().url(
-            'Присоединится',
+            'Присоединиться',
             this.getChannelUrl(this.current_notification_data)
         );
     }
