@@ -98,7 +98,7 @@ function handleWebhook(request, response) {
         }
         catch(err) {
             logger.error(
-                `Error while formatting payload from [${request.method}: ${request.originalUrl}]: ${err.stack || err}`, 
+                `Error while formatting payload from [${request.method}: ${request.originalUrl}]`, 
                 { error: err.stack || err, method: request.method, uri: request.originalUrl }
             );
             logger.info(
@@ -119,7 +119,7 @@ function handleWebhook(request, response) {
             { method: request.method, uri: request.originalUrl, telegram_chat_id: request.params.telegram_chat_id, response: message_text }
             ))
         .catch(err => logger.error(
-            `Error while sending webhook [${request.method}: ${request.originalUrl}] data [text: ${message_text}] to [chat: ${request.params.telegram_chat_id}]: ${err.stack || err}`,
+            `Error while sending webhook [${request.method}: ${request.originalUrl}] data [text: ${message_text}] to [chat: ${request.params.telegram_chat_id}]`,
             { method: request.method, uri: request.originalUrl, telegram_chat_id: request.params.telegram_chat_id, response: message_text, error: err.stack || err }
             ));
 }

@@ -1,7 +1,6 @@
 const axios = require('axios');
 const config = require('../../config.json');
-const GrammyTypes = require('grammy');
-const {russianAlphabetRegex} = require("./utils");
+const { russianAlphabetRegex } = require('../utils');
 
 async function getWikipediaSummary(queryResult, locale) {
     let result = null;
@@ -22,7 +21,7 @@ async function getWikipediaSummary(queryResult, locale) {
         return result;
     }
 
-    result = `<a href="${queryResult[1]}">${queryResult[0]}</a>\n\n${res.data.extract}`;
+    result = `<a href="${encodeURI(queryResult[1])}">${encodeURI(queryResult[0])}</a>\n\n${res.data.extract}`;
 
     return result;
 }
@@ -64,27 +63,58 @@ async function searchWikipedia(query, locale = null) {
 
     result = [result[1], result[3]];
 
-    return await getWikipediaSummary(result, locale);
+    return getWikipediaSummary(result, locale);
 }
+
+const definition = {
+    command_name: 'wiki',
+    args: [
+        {
+            name: 'phrase',
+            type: 'string',
+            description: 'Название искомой статьи в Википедии.'
+        }
+    ],
+    limit: 1,
+    description: 'Возвращает выдержку из искомоый стоатье в Википедии.',
+    is_inline: true,
+};
+
+const condition = (
+    config.WIKIPEDIA_SEARCH_URL
+    && config.WIKIPEDIA_SUMMARY_URL
+) || false;
 
 /**
  * `/wiki` command handler
- * @param {GrammyTypes.Context | Object} input
- * @returns {[null, Object | null, null, Object | null]} [null, answer, null, overrides]
+ * @param {Object} interaction
+ * @returns {Object}
  */
-async function wiki(input) {
-    let arg = this._parseArgs(input, 1)[1];
+async function handler(interaction) {
+    let arg = interaction.args && interaction.args[0];
     if (!arg) {
-        return ['Напиши что искать, например <code>/wiki Википедия</code>'];
+        return {
+            type: 'error',
+            text: 'Напиши что искать, например <code>/wiki Википедия</code>'
+        };
     }
 
     let wikisearch = await searchWikipedia(arg);
     if (!wikisearch) {
-        return ["Я не смог справится с поиском, видимо спасёт только гугл"];
+        return {
+            type: 'error',
+            text: "Я не смог справится с поиском, видимо спасёт только гугл"
+        };
     }
-    return [null, wikisearch, null, { disable_web_page_preview: false }];
+    return {
+        type: 'text',
+        text: wikisearch,
+        overrides: { disable_web_page_preview: false }
+    };
 }
 
 module.exports = {
-    wiki,
+    handler,
+    definition,
+    condition
 }

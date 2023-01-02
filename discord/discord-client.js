@@ -1,7 +1,121 @@
-const { Client, GatewayIntentBits } = require('discord.js');
-const Handler = require('./discord-handler');
-const WordleScheduler = require('./wordle-scheduler');
-const ChannelSubscriber = require('./channel-subscriber');
+const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+const DiscordHandler = require('./discord-handler');
+const { 
+    isActive: isChannelSubscriberActive,
+    update: updateChannelSubscriberState,
+    restore: restoreChannelSubscriber,
+} = require('./channel-subscriber');
+const {
+    isActive: isPresenceSubscriberActive,
+    update: updatePresenceSubscriberState,
+    restore: restorePresenceSubscriber,
+} = require('./presence-subscriber');
+const { setHealth } = require('../services/health');
+const { commands, conditions, definitions, handlers } = require('../commands/handlers-exporter');
+const { handleCommand } = require('./common-interface');
+
+class DiscordInteraction {
+    constructor(interaction, handler) {
+        this.log_meta = {
+            module: 'discord-interaction',
+            command_name: interaction.commandName,
+            discord_guild_id: interaction.guild?.id,
+            discord_guild: interaction.guild?.name,
+            discord_channel_id: interaction.channel?.id,
+            discord_channel: interaction.channel?.name,
+            discord_user_id: interaction.user?.id,
+            discord_user: interaction.user?.username,
+            discord_member_id: interaction.member?.id,
+            discord_member: interaction.member?.displayName,
+        };
+        this.logger = require('../logger').child(this.log_meta);
+        this.interaction = interaction;
+        this.handler = handler;
+        this.command_name = interaction.commandName;
+        this.interaction = interaction;
+        this.aborted = false;
+        // this.deferred = false;
+        // this.interaction.deferReply().then(() => {
+        //     this.deferred = true;
+        // }).catch((err) => {
+        //     this.logger.error('Error while acknowlodging interaction', { error: err.stack || err });
+        //     this.aborted = true;
+        // });
+    }
+
+    /**
+     * Response to command with some media content
+     * @param {*} response 
+     */
+    _replyWithEmbed(response) {
+        const payload = {};
+
+        const embed = new EmbedBuilder();
+
+        if (response.text) {
+            payload.content = response.text;
+        }
+
+        if (response.filename) {
+            payload.files = [response.media];
+        }
+        else {
+            embed.setImage(response.media);
+            payload.embeds = [embed];
+        }
+        return this.interaction.reply(payload);
+    }
+
+    /**
+     * Reply to command with some response
+     * @param {*} response 
+     */
+    _reply(response) {        
+        if (!['text', 'error'].includes(response.type)) {
+            return this._replyWithEmbed(response.text);
+        }
+
+        this.logger.info(`Replying with ${response.text}`);
+        return this.interaction.reply(response.text);
+    }
+
+    reply() {
+        if (typeof this.handler[this.command_name] !== 'function') {
+            this.logger.warn(`Received nonsense, how did it get here???: ${this.interaction}`);
+            return;
+        }
+
+        if (this.aborted) {
+            this.logger.warn(`Aborted interaction, not replying`);
+            return;
+        }
+
+        this.logger.info(`Received command: ${this.interaction}`);
+
+        this.handler[this.command_name](this.interaction).then(response => {
+            this._reply(response).then(() => {
+                this.logger.debug('Replied!');
+            }).catch(err => {
+                this.logger.error(`Error while replying`, { error: err.stack || err});
+                this._reply({
+                    type: 'error',
+                    text: `Что-то случилось:\n\`\`\`${err}\`\`\``
+                }).then(() => {
+                    this.logger.debug('Safe reply succeeded');
+                }).catch(err => {
+                    this.logger.error(`Safe reply failed`, { error: err.stack || err});
+                    
+                    
+                    // .then(() => {
+                    //     this.logger.debug('Deleted reply');
+                    // }).catch(err => {
+                    //     this.logger.error(`Error while deleting reply`, { error: err.stack || err});
+                    // });
+                });
+            });
+        });
+    }
+}
 
 class DiscordClient {
     constructor(app) {
@@ -10,28 +124,26 @@ class DiscordClient {
         this.logger = require('../logger').child(this.log_meta);
         this.discordjs_logger = require('../logger').child({ module: 'discordjs' });
         this.redis = app.redis;
-        this.handler = new Handler(this);
-        this.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
-        this.guild_to_wordle = {};
-        this.channel_to_subscriber = {};
-
+        this.handler = new DiscordHandler(this);
+        this.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates /**, GatewayIntentBits.GuildPresences */] });
 
         this.client.on('ready', () => {
             this.log_meta.discord_bot_id = this.client.application.id;
             this.log_meta.discord_bot = this.client.application.name;
 
             this.logger.info('Discord Client is ready.');
-            this.health = 'ready';
+            setHealth('discord', 'ready');
             this.restoreData();
+            this.registerCommands();
         });
 
         this.client.on('invalidated', () => {
             this.logger.warn('Discord Client is invalidated.');
-            this.health = 'invalidated';
+            setHealth('discord', 'invalidated');
         })
 
         this.client.on('debug', info => {
-            this.discordjs_logger.debug(`${info}`);
+            this.discordjs_logger.silly(`${info}`);
         });
 
         this.client.on('warn', info => {
@@ -43,40 +155,45 @@ class DiscordClient {
         })
 
         this.client.on('interactionCreate', async interaction => {
-            this.logger.info(`Discord client received: ${JSON.stringify(this.parseInteractionInfo(interaction))}`, { event: 'interactionCreate', interaction: this.parseInteractionInfo(interaction) });
-            
-            interaction.parsed_interaction = this.parseInteractionInfo(interaction);
-
             if (!interaction.isChatInputCommand()) return;
-            try {
-                await this.handler.handleCommand(interaction);
+
+            // Handling for common commands
+            if (commands.indexOf(interaction.commandName) !== -1) {
+                let index = commands.indexOf(interaction.commandName);
+                if (typeof conditions[index] === 'function') {
+                    if (!conditions[index]()) {
+                        return;
+                    }
+                }
+                else if (!conditions[index]) {
+                    return;
+                }
+
+                return handleCommand(interaction, handlers[index]);
             }
-            catch (err) {
-                this.logger.error(`Error while processing discord command: ${err.stack || err}`, { error : err, event: 'interactionCreate', interaction: this.parseInteractionInfo(interaction) });
-                await interaction.editReply('Opps! Something broke on my side.');
-            }
+
+
+            return new DiscordInteraction(interaction, this.handler).reply();
         });
 
         this.client.on('voiceStateUpdate', async (prev_state, new_state) => {
-            if(this.channel_to_subscriber[new_state.channelId]) {
+            if(isChannelSubscriberActive(new_state.channel)) {
                 new_state.channel.fetch().then(channel => {
-                    this.channel_to_subscriber[new_state.channelId].update(channel);
+                    updateChannelSubscriberState(channel);
                 });
             }
-            if (new_state.channelId !== prev_state.channelId && this.channel_to_subscriber[prev_state.channelId]) {
+            if (new_state.channelId !== prev_state.channelId && isChannelSubscriberActive(prev_state.channel)) {
                 prev_state.channel.fetch().then(channel => {
-                    this.channel_to_subscriber[prev_state.channelId].update(channel);
+                    updateChannelSubscriberState(channel);
                 })
             }
         });
-    }
 
-    set health(value) {
-        this.app.health.discord = value;
-    }
-
-    get health() {
-        return this.app.health.discord;
+        // this.client.on('presenceUpdate', async (prev_state, new_state) => {
+        //     if (isPresenceSubscriberActive(new_state.member)) {
+        //         updatePresenceSubscriberState(new_state.member);
+        //     }
+        // });
     }
 
     async start() {
@@ -95,77 +212,80 @@ class DiscordClient {
         this.client.destroy();
     }
 
-    async restoreWordle(guild) {
-        if (this.guild_to_wordle[guild.id]) {
-            this.logger.info(`There is an active Wordle instance for ${guild.id}, no need for restoration`);
-            return;
-        }
-        if (!this.redis) {
-            this.logger.info("Hey! I can't revive without redis instance!");
-            return;
-        }
-    
-        this.guild_to_wordle[guild.id] = new WordleScheduler(this);
-        this.guild_to_wordle[guild.id].restore(guild);
-    }
-
-    async restoreChannelSubscriber(guild, channel_id) {
-        if (!guild && !channel_id) {
+    async restorePresenceSubscribers(guild) {
+        if (!guild) {
             this.logger.info(`Not enough input to restore data.`);
             return;
         }
-        if (this.channel_to_subscriber[channel_id]) {
-            this.logger.info(`There is an active channel subscriber for ${channel_id}, no need for restoration`);
-            return;
-        }
-        if (!this.redis) {
-            this.logger.info("Hey! I can't revive without redis instance!");
-            return;
-        }
-        this.channel_to_subscriber[channel_id] = new ChannelSubscriber(this);
-        this.channel_to_subscriber[channel_id].restore(guild, channel_id);
-        try {
-            this.client.guilds.cache.get(guild.id).channels.cache.get(channel_id).fetch().then(channel => {
-                this.channel_to_subscriber[channel_id].update(channel);
-            });
-        }
-        catch (err) {
-            this.logger.error(`Error while getting current state of [channel:${channel_id}] in [guild:${guild.id}]: ${err.stack || err}`);
-        }
-    }
 
-    async restoreChannelIds(guild) {
+        let member_id_keys;
+        try {
+            member_id_keys = await this.redis.keys(`${guild.id}:presence_subscriber:*`);
+        }
+        catch (err) {
+            this.logger.error(`Error while getting member ids from ${guild.id}:presence_subscriber`, { error: err.stack || err });
+            setTimeout(this.restorePresenceSubscribers.bind(this), 15000, guild);
+            return;
+        }
+
+        member_id_keys.forEach(member_id_key => {
+            const member_id = member_id_key.split(':')[2];
+            const member = guild.members.resolve(member_id);
+            if (isActivePresenceSubscriber(member)) {
+                this.logger.info(`There is an active presence subscriber for ${member_id}, no need for restoration`);
+                return;
+            }
+
+            restorePresenceSubscriber(member);
+
+            member.presence.fetch().then(presence => {
+                updatePresenceSubscriberState(presence);
+            }).catch(err => {
+                this.logger.error(`Error while fetching presence for ${member_id}`, { error: err.stack || err });
+            });
+        });
+    }
+        
+
+    async restoreChannelSubscribers(guild) {
         if (!this.redis) {
             this.logger.info("Hey! I can't revive without redis instance!");
             return;
         }
-        let channel_ids;
+        let channel_id_keys;
         try {
-            channel_ids = await this.redis.keys(`${guild.id}:channel_subscriber:*`);
+            channel_id_keys = await this.redis.keys(`${guild.id}:channel_subscriber:*`);
         }
         catch (err) {
-            this.logger.error(`Error while getting channel ids for ${guild.id}:channel_subscriber: ${err.stack || err}`, { error: err.stack || err });
+            this.logger.error(`Error while getting channel ids for ${guild.id}:channel_subscriber`, { error: err.stack || err });
             setTimeout(this.restoreChannelIds.bind(this), 15000, guild);
             return;
         };
 
-        for (let i in channel_ids) {
-            channel_ids[i] = channel_ids[i].split(':')[2];
-        }
+        channel_id_keys.forEach(channel_id_key => {
+            const channel_id = channel_id_key.split(':')[2];
+            const channel = guild.channels.resolve(channel_id);
 
-        for (let channel_id of channel_ids) {
-            this.restoreChannelSubscriber(guild, channel_id).catch(err => {
-                this.logger.error(`Error while restoring channel subscriber: ${err.stack || err}`, { error: err.stack || err });
+            if (isChannelSubscriberActive(channel)) {
+                this.logger.info(`There is an active channel subscriber for ${channel_id}, no need for restoration`);
+                return;
+            }
+
+            restoreChannelSubscriber(channel);
+
+            channel.fetch().then(channel => {
+                updateChannelSubscriberState(channel);
+            }).catch(err => {
+                this.logger.error(`Error while fetching channel ${channel_id}`, { error: err.stack || err });
             });
-        }
+        });
     }
 
     async restoreData () {
         this.client.guilds.cache.map((guild) => {
-            this.logger.info(`Found myself in ${guild.name}:${guild.id}`);
-            this.logger.info('Reviving database for ^^^')
-            this.restoreWordle(guild);
-            this.restoreChannelIds(guild);
+            this.logger.info(`Reviving data from redis for [guild:${guild.id}]`, { discord_guild: guild.name, discord_guild_id: guild.id });
+            this.restoreChannelSubscribers(guild);
+            // this.restorePresenceSubscribers(guild);
         });
     }
     
@@ -216,6 +336,92 @@ class DiscordClient {
         }
         
         return result;
+    }
+
+    registerCommands() {
+        const { SlashCommandBuilder } = require('@discordjs/builders');
+        const { REST } = require('@discordjs/rest');
+        const { Routes, ChannelType } = require('discord-api-types/v10');
+
+        const commands_list = [
+            new SlashCommandBuilder() // server
+                .setName('server')
+                .setDMPermission(false)
+                .setDescription('Получить информацию о сервере.'),
+
+            new SlashCommandBuilder() // user
+                .setName('user')
+                .setDMPermission(true)
+                .setDescription('Получить информацию о пользователе.'),
+            
+            new SlashCommandBuilder() // subscribe
+                .setName('subscribe')
+                .setDMPermission(false)
+                .setDescription(`Подписаться на события в голосовом канале сервера`)
+                .addChannelOption(input => 
+                    input.setName('channel')
+                        .setDescription('Голосовой канал.')
+                        .addChannelTypes(ChannelType.GuildVoice)
+                        .setRequired(true))
+                .addStringOption(input => 
+                    input.setName('telegram_chat_id')
+                        .setDescription('ID чата в Telegram, который будет получать уведомления.')
+                        .setRequired(true)),
+            
+            new SlashCommandBuilder() // unsubscribe
+                .setName('unsubscribe')
+                .setDMPermission(false)
+                .setDescription(`Отписаться от событий в голосовом канале сервера.`)
+                .addChannelOption(input => 
+                    input.setName('channel')
+                        .setDescription('Голосовой канал.')
+                        .addChannelTypes(ChannelType.GuildVoice)
+                        .setRequired(true))
+                .addStringOption(input =>
+                    input.setName('telegram_chat_id')
+                        .setDescription('ID чата в Telegram.')
+                        .setRequired(false)),
+        ];
+
+        definitions.forEach((definition) => {
+            const slashCommand = new SlashCommandBuilder()
+
+            slashCommand.setName(definition.command_name);
+
+            if (definition.description) {
+                slashCommand.setDescription(definition.description);
+            }
+
+            if (definition.args) {
+                definition.args.forEach((arg) => {
+                    switch (arg.type) {
+                        case 'string':
+                            slashCommand.addStringOption(option => {
+                                option.setName(arg.name);
+                                option.setDescription(arg.description);
+                                option.setRequired(arg.optional === true ? false : true);
+                                if (arg.optional) {
+                                    option.setRequired(false);
+                                }
+                                return option;
+                            });
+                            break;
+                        default:
+                            return;
+                    }
+                });
+            }
+
+            commands_list.push(slashCommand);
+        });
+
+        const json = commands_list.map(command => command.toJSON());
+
+        new REST({ version: '9' })
+        .setToken(process.env.DISCORD_TOKEN)
+        .put(Routes.applicationCommands(process.env.APP_ID), { body: json })
+        .then(() => this.logger.info('Successfully registered application commands.'))
+        .catch(err => this.logger.error('Error while registering application commands.', { error: err.stack || err }));
     }
 }
 
