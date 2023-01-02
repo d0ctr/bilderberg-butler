@@ -1,4 +1,4 @@
-const {getRegex} = require("./utils");
+const {getRegex} = require("../../commands/utils");
 
 /**
  * `/get` command handler
@@ -19,7 +19,7 @@ async function get(input, interaction) {
         result = await interaction.redisGet(name);
     }
     catch (err) {
-        this.logger.error(`Error while saving content to redis: ${err.stack || err}`, { error: err, args: [name] });
+        this.logger.error(`Error while saving content to redis`, { error: err, args: [name] });
         return [`Что-то случилось во время получения гета:\n<code>${err}</code>`];
     }
     if (!result) {
@@ -58,7 +58,7 @@ async function set(input, interaction) {
         await interaction.redisSet(name, parsed_data);
     }
     catch (err) {
-        this.logger.error(`Error while saving content to redis: ${err.stack || err}`,{ error: err.stack || err, args: [name], parsed_data });
+        this.logger.error(`Error while saving content to redis`,{ error: err.stack || err, args: [name], parsed_data });
         return [`Что-то случилось во время сохранения гета:\n<code>${err}</code>`];
     }
 

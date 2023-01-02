@@ -1,19 +1,11 @@
-const GrammyTypes = require('grammy');
-
-const { ahegaoHandler } = require("./command-handlers/ahegao-handler");
-const { wiki } = require("./command-handlers/wiki-handler");
-const { calc } = require("./command-handlers/calc-handler");
-const { curl } = require("./command-handlers/curl-handler");
-const { convertCurrency } = require("./command-handlers/currency-handler");
 const { sendDiscordNotification } = require("./command-handlers/discord-handler");
 const { fizzbuzz } = require("./command-handlers/fizzbuzz-handler");
 const { get, set, getList } = require("./command-handlers/get-set-handlers");
-const { urban } = require("./command-handlers/urban-handler");
 const { gh } = require("./command-handlers/github-handler");
 const { help } = require("./command-handlers/help-handler");
 const { html } = require("./command-handlers/html-handler");
-const { ping } = require("./command-handlers/ping-handler");
 const { generateImage } = require("./command-handlers/deep-handler");
+const { info } = require("./command-handlers/info-handler");
 
 class TelegramHandler {
     constructor() {
@@ -21,11 +13,11 @@ class TelegramHandler {
     }
 
     /**
-     * Parse command line
-     * @param {GrammyTypes.Context | Object} input
-     * @param {Integer} limit number of parsable args
-     * @return {Array<String>} [0] is always a command name
-     */
+         * Parse command line
+         * @param {GrammyTypes.Context | Object} input
+         * @param {Integer} limit number of parsable args
+         * @return {Array<String>} [0] is always a command name
+         */
     _parseArgs(input, limit) {
         let args = [];
         // split all words by <space>
@@ -39,7 +31,7 @@ class TelegramHandler {
         }
         return args;
     }
-
+    
     /**
      * `/start` command handler
      * @returns {[null, String]}
@@ -48,16 +40,6 @@ class TelegramHandler {
         let message = 'Этот бот что-то может, чтобы узнать что, воспользуйся командой /help';
         return [null, message];
     }
-
-    wiki = wiki.bind(this);
-
-    calc = calc.bind(this);
-
-    ahegao = ahegaoHandler.bind(this);
-
-    curl = curl.bind(this);
-
-    cur = convertCurrency.bind(this);
 
     discord_notification = sendDiscordNotification.bind(this);
 
@@ -69,17 +51,15 @@ class TelegramHandler {
 
     get_list = getList.bind(this);
 
-    urban = urban.bind(this);
-
     gh = gh.bind(this);
 
     help = help;
 
     html = html.bind(this);
 
-    ping = ping;
-
     deep = generateImage.bind(this);
+
+    info = info.bind(this);
 
 }
 

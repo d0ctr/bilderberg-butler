@@ -1,5 +1,8 @@
-const WordleScheduler = require('./wordle-scheduler');
 const ChannelSubscriber = require('./channel-subscriber');
+const PresenceSubscriber = require('./presence-subscriber');
+const { server, user } = require('./command-handlers/info-handlers');
+const { subscribe, unsubscribe } = require('./command-handlers/channel-subscriber-handler');
+const { presence, unpresence } = require('./command-handlers/presence-subscriber-handler');
 
 class DiscordHandler {
     constructor(client) {
@@ -8,76 +11,24 @@ class DiscordHandler {
         this.logger = require('../logger').child({module: 'discord-handler'});
     }
 
-    async handleCommand(interaction) {
-        if (!this['_' + interaction.commandName]) {
-            return this.reply(interaction, 'There is no such command.');
+    async ping() {
+        return {
+            type: 'text',
+            text: 'Pong!'
         }
-        return this['_' + interaction.commandName](interaction);
     }
 
-    async reply(interaction, message) {
-        this.logger.info(`Responding with [${message.replace(/\n/gm, '\\n')}].`, { interaction: interaction.parsed_interaction, response: message })
-        return await interaction.reply(message);
-    }
+    server = server.bind(this);
 
-    async _ping(interaction) {
-        return this.reply(interaction, 'pong');
-    }
+    user = user.bind(this);
 
-    async _server(interaction) {
-        return this.reply(interaction, `Server name: ${interaction.guild.name}\nTotal members: ${interaction.guild.memberCount}`);
-    }
+    subscribe = subscribe.bind(this);
 
-    async _user(interaction) {
-        return this.reply(interaction, `Your username: ${interaction.user.username}\nYour ID: ${interaction.user.id}`);
-    }
+    unsubscribe = unsubscribe.bind(this);
 
-    async _subscribe (interaction) {
-        if (!interaction.guild) {
-            return this.reply(interaction, `You can only subscribe for events in server's channels.`);
-        }
-        if (!interaction.options.getChannel('channel')) {
-            return this.reply(interaction, `You can't subscribe if you don't provide a channel for that.`);
-        }
-        if (!interaction.options.getString('telegram_chat_id')) {
-            return this.reply(interaction, `You can't subscribe if you don't provide a telegram chat to notify.`);
-        }
-        
-        let channel = interaction.guild.channels.resolve(interaction.options.get('channel').value);
-        let telegram_chat_id = interaction.options.getString('telegram_chat_id');
-        if (this.client.channel_to_subscriber[channel.id] 
-            && this.client.channel_to_subscriber[channel.id].active
-            && this.client.channel_to_subscriber[channel.id].telegram_chat_ids?.includes(telegram_chat_id)) {
-            return this.reply(interaction, `There is an active subscriber for channel ${channel.name} that notifies ${telegram_chat_id}.`)
-        }
-        if (!this.client.channel_to_subscriber[channel.id]) {
-            this.client.channel_to_subscriber[channel.id] = new ChannelSubscriber(this);
-        }
-        this.client.channel_to_subscriber[channel.id].start(channel, telegram_chat_id);
+    // presence = presence.bind(this);
 
-        return this.reply(interaction, `Subscribed for events in channel ${channel.name} and will notify ${telegram_chat_id}.`);
-    }
-
-    async _unsubscribe(interaction) {
-        if (!interaction.guild) {
-            return this.reply(interaction, `You can only subscribe from events in server's channels.`);
-        }
-        if (!interaction.options.getChannel('channel')) {
-            return this.reply(interaction, `You can't unsubscribe if you don't provide a channel for that.`);
-        }
-        
-        let channel = interaction.options.getChannel('channel');
-        if (!(this.client.channel_to_subscriber[channel.id] && this.client.channel_to_subscriber[channel.id].active)) {
-            return this.reply(interaction, `There is no active subscriber for channel ${channel.name}.`)
-        }
-        let telegram_chat_id = interaction.options.getString('telegram_chat_id');
-        if (telegram_chat_id) {
-            this.client.channel_to_subscriber[channel.id].stop(telegram_chat_id);
-            return this.reply(interaction, `You have unsubscribed telegram chat ${telegram_chat_id} from events in ${channel.name}.`);
-        }
-        this.client.channel_to_subscriber[channel.id].stop();
-        return this.reply(interaction, `You have unsubscribed from events in ${channel.name}.`);
-    }
+    // unpresence = unpresence.bind(this);
 }
 
 module.exports = DiscordHandler;

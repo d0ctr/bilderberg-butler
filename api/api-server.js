@@ -3,6 +3,7 @@ const express = require('express');
 const config = require('../config.json')
 const APIHandler = require('./api-handler');
 const { handleWebhook } = require('./webhook-handler');
+const { setHealth, getHealth } = require('../services/health');
 
 class APIServer {
     constructor (app) {
@@ -26,17 +27,17 @@ class APIServer {
         });
 
         this.express.get('/health', (req, res) => {
-            res.json(this.app.health);
+            res.json(getHealth());
         })
 
         this.express.get('/health/:name', (req, res) => {
             if (req.params.name && Object.keys(this.app.health).includes(req.params.name)) {
                 res.json({
-                    [req.params.name]: this.app.health[req.params.name]
+                    [req.params.name]: getHealth(req.params.name)
                 });
                 return;
             }
-            res.json(this.app.health);
+            res.json(getHealth());
         });
 
         this.express.get('/discordredirect/:prefix/:serverid/:channelid', (req, res) => {
@@ -51,21 +52,14 @@ class APIServer {
             this.setWebhookMiddleware('/webhook/:app/:telegram_chat_id', handleWebhook);
         }
 
-        this.registerEndpoint('help');
-        this.registerEndpoint('calc');
-        this.registerEndpoint('ahegao');
+        // This will need to be reworked
+        // this.registerEndpoint('help');
+        // this.registerEndpoint('calc');
+        // this.registerEndpoint('ahegao');
 
-        if (process.env.COINMARKETCAP_TOKEN && config.COINMARKETCAP_API) {
-            this.registerEndpoint('cur');
-        }
-    }
-
-    set health(value) {
-        this.app.health.api = value;
-    }
-
-    get health() {
-        return this.app.health.api;
+        // if (process.env.COINMARKETCAP_TOKEN && config.COINMARKETCAP_API) {
+        //     this.registerEndpoint('cur');
+        // }
     }
 
     get currencies_list() {
@@ -79,7 +73,7 @@ class APIServer {
         }
         this._server = this.express.listen(process.env.PORT, () => {
             this.logger.info('API is ready');
-            this.health = 'ready';
+            setHealth('api', 'ready');
         })
     }
 
@@ -90,9 +84,9 @@ class APIServer {
         this.logger.info('Gracefully shutdowning API');
         this._server.close(err => {
             if (err) {
-                this.logger.error(`Error while shutdowning API: ${err.stack || err}`, { error: err.stack || err });
+                this.logger.error(`Error while shutdowning API`, { error: err.stack || err });
             }
-            this.health = 'off';
+            setHealth('api', 'off');
         });
     }
 

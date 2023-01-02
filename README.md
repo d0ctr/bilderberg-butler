@@ -49,12 +49,6 @@ This bot talks with you in English and have a number of interesting (and not so 
   - /ping — pong
   - /user — prints the name and the id of the user who sent the command
   - /server — print the name and the id of the server where the command was sent
-  - /wordle
-    - start — starts the scheduler that daily creates new event on the server with link to wordle (new event starts at 21:00:00 UTC)
-    - stop — stops the scheduler
-    - status — prints the status of the wordle scheduler
-    - clearall — deletes all events on the server
-    - whitelist — deletes all events and stops the scheduler
   - /subscribe — {voice channel} {telegram chat id} — will send (and edit afterwards) to `telegram chat id` a message containing the list of current users and their statuses in `voice channel` . It will be pinned and updated on any change. When channel becomes empty the message will be deleted. 
   - /unsubscribe {voice channel} {telegram chat id?} — will turn off the feature for selected `voice channel` and won't send messages to `telegram chat id` or (if empty) to all previously configured `telegram chat id`s.
 
@@ -66,18 +60,12 @@ This bot talks with you in Russian (because I've decided so, fill free to add tr
 
   - /start — start bot in private chat
   - /help — list of commands
-  - /ping — pong
-  - /calc {math eq} — result of math equation
   - /discord_notification —  returns current chat id for Discord intergration
   - /set {name} — saving content of a message that was replied with this command
   - /get {name} — getting content that was saved by `/set`
   - /get_list — getting a list of possible /get
-  - /ahegao — getting a random ahegao
-  - /urban {phrase?} — get the random or the phrase (if specified) definition from urban dictionary
   - /html {HTML text} — return submitted text as HTML formatted
-  - /cur {amount} {from} {to} — convert amount from one currency to another
   - /gh {link} — convert GitHub link to a GitHub link with Instant View
-  - /wiki {query} — returns a summary from wikipedia
   - /deep {prompt} — generates an image based on prompt with DeepAI
 
 ### Inline Query
@@ -98,20 +86,17 @@ Here is the list of supported inline commands:
   - /curl
   - /wiki
 
-## API
+## Common commands
 
-Small API for utilities and webhooks.
+Some commands are both available in Discord and Telegram:
 
-### Endpoints
+  - /ping — pong
+  - /calc {math eq} — result of math equation
+  - /ahegao — getting a random ahegao
+  - /urban {phrase?} — get the random or the phrase (if specified) definition from urban dictionary
+  - /cur {amount} {from} {to} — convert amount from one currency to another
+  - /wiki {query} — returns a summary from wikipedia
 
-  - / — go to project page
-  - /health — fetch components health (from "off" to "ready")
-    - /:name — fetch health only of one of the components (redis, discord, telegram, api (ironic))
-  - /command — telegram-like commands. Arguments are passed as `args=` query parameter converted to URL string.
-    - /help — will return HTML page with help message
-    - /cur?args=amount,from,to — will return only the resulting amount as JSON
-    - /calc?args=math_expression — will return only the result of the equation as JSON
-    - /ahegao — returns random ahegao
 
 # Using or altering code
 
@@ -127,7 +112,7 @@ You can use this code to start your own bot/s or you may also contribute somethi
     - You may also not do it, if you only intend to use Discord bot.
   - Create a Redis instance. I use Redis Add-on in Heroku (which is basically click-and-ready), search the web if you want to do it the other way.
     - You may create an empty application in Heroku and add Redis to it (but I am not sure if that's the best way).
-    - You may ignore that if you like, most of the Telegram side features are available without it. It is necessary only for Telegram commands `/get`, `/set`, `/get_list` and Discord `/wordle`, `/subscribe`, `/unsubscribe`.
+    - You may ignore that if you like, most of the Telegram side features are available without it. It is necessary only for Telegram commands `/get`, `/set`, `/get_list` and Discord `/subscribe`, `/unsubscribe`.
       - It is also possible to use above Discord commands without Redis, but only if you are sure that your application won't be restarted at any point (if that happends application will lose data about wordle schedulers and voice channel subscriptions).
 
 ### Required tools
