@@ -4,6 +4,13 @@ const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const turndownService = new TurndownService({
     codeBlockStyle: 'fenced',
 });
+turndownService.addRule('a', {
+    filter: ['a'],
+    replacement: (content, node) => {
+        const href = node.getAttribute('href');
+        return `[${content}](<${href}>)`;
+    }
+});
 
 function commonizeInteraction(interaction) {
     let common_interaction = {

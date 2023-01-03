@@ -2,7 +2,9 @@ const { Bot } = require('grammy');
 const logger = require('../logger').child({ module: 'telegram-presence-subscriber' });
 
 let bot = null;
-bot = new Bot(process.env.TELEGRAM_TOKEN);
+if (process.env.TELEGRAM_TOKEN) {
+    bot = new Bot(process.env.TELEGRAM_TOKEN);
+}
 
 function checkTitleLength(title) {
     if (title.length > 16) {
