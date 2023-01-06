@@ -457,7 +457,7 @@ class TelegramInteraction {
                 return this.handler[command_name](parsed_context, this);
             }
             if (handlers[commands.indexOf(command_name)]) {
-                return getLegacyResponse(parsed_context, handlers[commands.indexOf(command_name)]);
+                return getLegacyResponse(parsed_context, handlers[commands.indexOf(command_name)], definitions[commands.indexOf(command_name)]);
             }
         })().then(([err, response, _, overrides]) => {
             if (err) {
@@ -565,7 +565,7 @@ class TelegramClient {
                 return;
             }
 
-            this.client.command(command_name, async (ctx) => handleCommand(ctx, handlers[index]));
+            this.client.command(command_name, async (ctx) => handleCommand(ctx, handlers[index], definitions[index]));
 
             if (definitions[index].is_inline) {
                 this.inline_commands.push(command_name);

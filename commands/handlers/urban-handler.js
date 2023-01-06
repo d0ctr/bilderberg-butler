@@ -33,7 +33,7 @@ function replaceWithLink(line) {
     let result = line;
     let matches = line.match(/\[[^\[\]]+\]/gm);
     for (let match of matches) {
-        result = result.replace(match, `<a href="${encodeURI(`https://www.urbandictionary.com/define.php?term=${match.replace(/\[|\]/gm, '')}`)}">${match.replace(/\[|\]/gm, '')}</a>`);
+        result = result.replace(match, `<a href="https://www.urbandictionary.com/define.php?term=${match.replace(/\[|\]/gm, '')}">${match.replace(/\[|\]/gm, '')}</a>`);
     }
     return result;
 }
@@ -93,14 +93,14 @@ async function handler(interaction) {
         interaction.logger.error(`Error while getting definiton from Urban Dictionary`, { error: err.stack || err });
         return {
             type: 'error',
-            text: `Турбулентность по пути в Urban Disctionary, попробуйте сами: <a href="${encodeURI(`https://www.urbandictionary.com/define.php?term=${phrase}`)}">ссылка</a>`
+            text: `Турбулентность по пути в Urban Disctionary, попробуйте сами: <a href="https://www.urbandictionary.com/define.php?term=${phrase}">ссылка</a>`
         };
     }
 
     if (!urban_definition) {
         return {
             type: 'error',
-            text: `Не может быть, Urban Dictionary не знает что это за слово\nМожешь проверить сам: <a href="${encodeURI(`https://www.urbandictionary.com/define.php?term=${phrase}`)}">ссылка</a>`
+            text: `Не может быть, Urban Dictionary не знает что это за слово\nМожешь проверить сам: <a href="https://www.urbandictionary.com/define.php?term=${phrase}">ссылка</a>`
         };
     }
 

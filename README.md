@@ -11,7 +11,6 @@
     <a href="https://www.npmjs.com/package/discord.js/v/14.0.3"><img src="https://img.shields.io/github/package-json/dependency-version/d0ctr/bilderberg-butler/discord.js" /></a>
     <a href="https://www.npmjs.com/package/grammy/v/1.11.2"><img alt="GitHub package.json dependency version (prod)" src="https://img.shields.io/github/package-json/dependency-version/d0ctr/bilderberg-butler/grammy" /></a>
     <a href="https://www.npmjs.com/package/ioredis/v/4.28.3"><img alt="GitHub package.json dependency version (prod)" src="https://img.shields.io/github/package-json/dependency-version/d0ctr/bilderberg-butler/ioredis" /></a>
-    <a><img src="https://heroku-shields.herokuapp.com/bilderberg-butler" /></a>
     <a href="https://vault.dotenv.org/project/vlt_7b9007f3078ad4bddb4f05ddba592d88ca09adf1d1fda7b5e5c1231595dbcb76/example"><img alt="fork with dotenv-vault" src="https://badge.dotenv.org/fork.svg?r=1" /></a>
     </p>
 </div>

@@ -169,7 +169,7 @@ class DiscordClient {
                     return;
                 }
 
-                return handleCommand(interaction, handlers[index]);
+                return handleCommand(interaction, handlers[index], definitions[index]);
             }
 
 
