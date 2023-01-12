@@ -1,8 +1,6 @@
 const express = require('express');
 
 const config = require('../config.json')
-const APIHandler = require('./api-handler');
-const { handleWebhook } = require('./webhook-handler');
 const { setHealth, getHealth } = require('../services/health');
 
 class APIServer {
@@ -11,8 +9,6 @@ class APIServer {
         this.logger = require('../logger').child({ module: 'api-server' });
 
         this.express = express();
-
-        this.api_handler = new APIHandler(this);
 
         this.express.use((req, res, next) => {
             this.logger.info(
@@ -51,19 +47,6 @@ class APIServer {
         if (process.env.WEBHOOK_TELEGRAM_TOKEN) {
             this.setWebhookMiddleware('/webhook/:app/:telegram_chat_id', handleWebhook);
         }
-
-        // This will need to be reworked
-        // this.registerEndpoint('help');
-        // this.registerEndpoint('calc');
-        // this.registerEndpoint('ahegao');
-
-        // if (process.env.COINMARKETCAP_TOKEN && config.COINMARKETCAP_API) {
-        //     this.registerEndpoint('cur');
-        // }
-    }
-
-    get currencies_list() {
-        return this.app.currencies_list;
     }
 
     async start() {
@@ -93,12 +76,6 @@ class APIServer {
     setWebhookMiddleware(uri, middleware) {
         this.express.use(uri, express.json());
         this.express.use(uri, middleware);
-    }
-
-    registerEndpoint(name) {
-        if (typeof this.api_handler[name] === 'function') {
-            this.express.get(`/command/${name}`, async (req, res) => this.api_handler[name](req, res))
-        }
     }
 }
 

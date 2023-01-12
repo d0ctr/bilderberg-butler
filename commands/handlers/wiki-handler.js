@@ -21,7 +21,7 @@ async function getWikipediaSummary(queryResult, locale) {
         return result;
     }
 
-    result = `<a href="${encodeURI(queryResult[1])}">${encodeURI(queryResult[0])}</a>\n\n${res.data.extract}`;
+    result = `<a href="${queryResult[1]}">${queryResult[0]}</a>\n\n${res.data.extract}`;
 
     return result;
 }

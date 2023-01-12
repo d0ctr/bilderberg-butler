@@ -17,8 +17,10 @@ function main() {
     app.redis = startRedis();
 
     fetchCurrenciesList().then(currencies_list => {
-        app.currencies_list = currencies_list;
-    })
+        if (currencies_list !== null) {
+            app.currencies_list = currencies_list;
+        }
+    });
 
     app.discord_client = new DiscordClient(app);
 

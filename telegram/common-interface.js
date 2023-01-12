@@ -165,8 +165,8 @@ function reply(ctx, response, logger) {
  * @param {*} ctx 
  * @param {*} handler
  */
-function handleCommand(ctx, handler) {
-    const common_interaction = commonizeContext(ctx);
+function handleCommand(ctx, handler, definition) {
+    const common_interaction = commonizeContext(ctx, definition?.limit);
     const log_meta = {
         module: 'telegram-common-interface-handler',
         command_name: common_interaction.command_name,
@@ -196,8 +196,8 @@ function handleCommand(ctx, handler) {
     });
 }
 
-async function getLegacyResponse(ctx, handler) {
-    const common_interaction = commonizeContext(ctx);
+async function getLegacyResponse(ctx, handler, definition) {
+    const common_interaction = commonizeContext(ctx, definition?.limit);
     const log_meta = {
         module: 'telegram-common-interface-handler',
         command_name: common_interaction.command_name,

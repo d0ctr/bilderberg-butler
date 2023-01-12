@@ -1,11 +1,18 @@
 const TurndownService = require('turndown');
-const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 
 const turndownService = new TurndownService({
     codeBlockStyle: 'fenced',
 });
+turndownService.addRule('a', {
+    filter: ['a'],
+    replacement: (content, node) => {
+        const href = node.getAttribute('href');
+        return `[${content}](<${href}>)`;
+    }
+});
 
-function commonizeInteraction(interaction) {
+function commonizeInteraction(interaction, definition) {
     let common_interaction = {
         platform: 'discord',
         command_name: interaction.commandName,
@@ -13,10 +20,11 @@ function commonizeInteraction(interaction) {
     }
 
     // Parse args
-    let args = common_interaction.text.replace(/ +/g, ' ').split(' ');
-
-    if (args.length > 1) {
-        common_interaction.args = args.slice(1).map( arg => arg.split(':').slice(1).join(':') );
+    if (definition?.args) {
+        common_interaction.args = [];
+        definition.args.forEach(arg => {
+            common_interaction.args.push(interaction.options.get(arg.name)?.value);
+        });
     }
 
     if (interaction.user) {
@@ -136,8 +144,8 @@ function reply(interaction, response, logger) {
     );
 }
 
-function handleCommand(interaction, handler) {
-    const common_interaction = commonizeInteraction(interaction);
+function handleCommand(interaction, handler ,definition) {
+    const common_interaction = commonizeInteraction(interaction, definition);
     const log_meta = {
         module: 'discord-common-interface-handler',
         command_name: common_interaction.command_name,
