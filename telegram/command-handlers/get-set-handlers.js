@@ -1,9 +1,10 @@
-const redis = require('../../services/redis').getRedis();
+
 
 const getRegex = /^[a-zA-Zа-яА-Я0-9_-]+$/g;
 
 
 async function redisGet(ctx, name) {
+    const redis = require('../../services/redis').getRedis();
     if (!redis) {
         throw new Error('Storage is offline');
     }
@@ -13,6 +14,7 @@ async function redisGet(ctx, name) {
 }
 
 async function redisSet(ctx, name, data) {
+    const redis = require('../../services/redis').getRedis();
     if (!redis) {
         throw new Error('Storage is offline');
     }
@@ -40,6 +42,7 @@ async function redisSet(ctx, name, data) {
 }
 
 async function redisGetList(ctx) {
+    const redis = require('../../services/redis').getRedis();
     if (!redis) {
         throw new Error('Storage is offline');
     }
@@ -53,6 +56,7 @@ async function redisGetList(ctx) {
 }
 
 async function redisDel(ctx, name) {
+    const redis = require('../../services/redis').getRedis();
     if (!redis) {
         throw new Error('Storage is offline');
     }
@@ -63,9 +67,9 @@ async function redisDel(ctx, name) {
         throw new Error('No such key');
     }
 
-    let owner_id = await redis.hget(key, owner);
+    let owner_id = await redis.hget(key, 'owner');
 
-    if (owner_id !== ctx.from.id) {
+    if (owner_id && `${owner_id}` !== `${ctx.from.id}`) {
         throw new Error('Can be deleted only by the owner');
     }
 
@@ -134,7 +138,7 @@ async function set(ctx, interaction) {
     }
 
     return [null, `Гет был сохранён, теперь его можно вызвать командой:\n<code>/get ${name}</code>${
-        input.chat.id === input.from.id ? `\nТак же можешь вызвать этот гет написав <code>@BilderbergButler_bot /get ${name}</code> в поле ввода сообщения` : ''}`];
+        ctx.chat.id === ctx.from.id ? `\nТак же можешь вызвать этот гет написав <code>@BilderbergButler_bot /get ${name}</code> в поле ввода сообщения` : ''}`];
 }
 
 /**
@@ -149,7 +153,7 @@ async function getList(ctx) {
         gets = await redisGetList(ctx);
     }
     catch (err) {
-        this.logger.error(`Error while getting list from redis`,{ error: err.stack || err, args: [name], parsed_data });
+        this.logger.error(`Error while getting list from redis`,{ error: err.stack || err });
         return [`Что-то случилось во время получения списка гетов:\n<code>${err}</code>`];
     }
     if (!gets?.length) {

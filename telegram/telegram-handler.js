@@ -1,6 +1,6 @@
 const { sendDiscordNotification } = require("./command-handlers/discord-handler");
 const { fizzbuzz } = require("./command-handlers/fizzbuzz-handler");
-const { get, set, getList } = require("./command-handlers/get-set-handlers");
+const { get, set, getList, del } = require("./command-handlers/get-set-handlers");
 const { gh } = require("./command-handlers/github-handler");
 const { help } = require("./command-handlers/help-handler");
 const { html } = require("./command-handlers/html-handler");
@@ -51,6 +51,8 @@ class TelegramHandler {
 
     get_list = getList.bind(this);
 
+    del = del.bind(this);
+    
     gh = gh.bind(this);
 
     help = help;
