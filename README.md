@@ -63,6 +63,7 @@ This bot talks with you in Russian (because I've decided so, fill free to add tr
   - /set {name} — saving content of a message that was replied with this command
   - /get {name} — getting content that was saved by `/set`
   - /get_list — getting a list of possible /get
+  - /del {name} — deleting the content saved by `/set` (in group chats can only be done by the person that previously used `/set`)
   - /html {HTML text} — return submitted text as HTML formatted
   - /gh {link} — convert GitHub link to a GitHub link with Instant View
   - /deep {prompt} — generates an image based on prompt with DeepAI

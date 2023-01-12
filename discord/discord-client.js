@@ -34,13 +34,6 @@ class DiscordInteraction {
         this.command_name = interaction.commandName;
         this.interaction = interaction;
         this.aborted = false;
-        // this.deferred = false;
-        // this.interaction.deferReply().then(() => {
-        //     this.deferred = true;
-        // }).catch((err) => {
-        //     this.logger.error('Error while acknowlodging interaction', { error: err.stack || err });
-        //     this.aborted = true;
-        // });
     }
 
     /**
@@ -104,13 +97,6 @@ class DiscordInteraction {
                     this.logger.debug('Safe reply succeeded');
                 }).catch(err => {
                     this.logger.error(`Safe reply failed`, { error: err.stack || err});
-                    
-                    
-                    // .then(() => {
-                    //     this.logger.debug('Deleted reply');
-                    // }).catch(err => {
-                    //     this.logger.error(`Error while deleting reply`, { error: err.stack || err});
-                    // });
                 });
             });
         });

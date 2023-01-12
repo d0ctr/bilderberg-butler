@@ -305,44 +305,6 @@ class TelegramInteraction {
         });
     }
 
-    async redisGet(name) {
-        if (!this._redis) {
-            throw new Error('Storage is offline');
-        }
-        let key = `${this.context.chat?.id || this.context.from.id}:get:${name}`;
-        let result = await this._redis.hgetall(key);
-        return result.data ? JSON.parse(result.data) : result; // legacy support for not stringified get-s
-    }
-
-    async redisSet(name, data) {
-        if (!this._redis) {
-            throw new Error('Storage is offline');
-        }
-        let key = `${this.context.chat.id || this.context.from.id}:get:${name}`;
-        for (let i in data) {
-            if (!data[i]) {
-                delete data[i];
-            }
-        }
-        if (!Object.keys(data).length) {
-            new Error('Cannot save empty data');
-        }
-        return this._redis.hset(key, { data: JSON.stringify(data) });
-    }
-
-    async redisGetList() {
-        if (!this._redis) {
-            throw new Error('Storage is offline');
-        }
-        let key = `${this.context.chat?.id || this.context.from.id}:get:*`;
-        let r_keys = await this._redis.keys(key);
-        let keys = [];
-        for (let r_key of r_keys) {
-            keys.push(r_key.split(':').slice(-1)[0]);
-        }
-        return keys;
-    }
-
     /**
      * Answeres inline query with text ("article")
      * @param {String} text 
@@ -456,8 +418,9 @@ class TelegramInteraction {
             if (this.handler[command_name]) {
                 return this.handler[command_name](parsed_context, this);
             }
-            if (handlers[commands.indexOf(command_name)]) {
-                return getLegacyResponse(parsed_context, handlers[commands.indexOf(command_name)], definitions[commands.indexOf(command_name)]);
+            const common_command_index = commands.indexOf(command_name);
+            if (common_command_index >= 0) {
+                return getLegacyResponse(parsed_context, handlers[common_command_index], definitions[common_command_index]);
             }
         })().then(([err, response, _, overrides]) => {
             if (err) {
@@ -551,6 +514,7 @@ class TelegramClient {
         this._registerTelegramCommand('set', this.app && this.app.redis);
         this._registerTelegramCommand('get', this.app && this.app.redis, true);
         this._registerTelegramCommand('get_list', this.app && this.app.redis, true);
+        this._registerTelegramCommand('del', this.app && this.app.redis);
         this._registerTelegramCommand('deep', config.DEEP_AI_API && process.env.DEEP_AI_TOKEN);
         this._registerTelegramCommand('info', true);
 

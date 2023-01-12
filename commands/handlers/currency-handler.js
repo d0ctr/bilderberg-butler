@@ -38,7 +38,7 @@ const condition = (
 
 async function handler(interaction) {
     const args = interaction.args && interaction.args.slice(0, 3);
-    if (!args.length) {
+    if (args?.length !== 3) {
         return {
             type: 'error',
             text: `А где аргументы?\nПример использования <code>/cur 1 USD TRY</code>`
