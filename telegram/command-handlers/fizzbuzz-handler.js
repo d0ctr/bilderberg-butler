@@ -5,7 +5,6 @@ const GrammyTypes = require('grammy');
  * @param {GrammyTypes.Context | Object} input
  * @returns {[String | null, String | null]}
  */
-
 async function fizzbuzz(input) {
     let args = this._parseArgs(input).slice(1);
     let dict = {};
