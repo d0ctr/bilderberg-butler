@@ -517,7 +517,8 @@ class TelegramClient {
         this._registerTelegramCommand('del', this.app && this.app.redis);
         this._registerTelegramCommand('deep', config.DEEP_AI_API && process.env.DEEP_AI_TOKEN);
         this._registerTelegramCommand('info', true);
-
+        this._registerTelegramCommand('ytdl', process.env.YTDL_URL, false);
+        
         // Registering common commands
         commands.forEach((command_name, index) => {
             if (typeof conditions[index] === 'function') {

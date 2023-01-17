@@ -63,6 +63,7 @@ class TelegramHandler {
 
     info = info.bind(this);
 
+    ytdl = require('./command-handlers/ytdl-handler').ytdl.bind(this);
 }
 
 module.exports = TelegramHandler;
