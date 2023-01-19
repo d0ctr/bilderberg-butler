@@ -507,7 +507,7 @@ class TelegramClient {
         // Registering commands specific to Telegram
         this._registerTelegramCommand('start', true);
         this._registerTelegramCommand('help', true, true);
-        this._registerTelegramCommand('discord_notification');
+        this._registerTelegramCommand('discord_notification', true);
         this._registerTelegramCommand('html', true, true);
         this._registerTelegramCommand('fizzbuzz', true, true);
         this._registerTelegramCommand('gh', true, true);
