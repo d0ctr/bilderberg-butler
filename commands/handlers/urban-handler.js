@@ -70,6 +70,7 @@ const definition = {
         }
     ],
     limit: 1,
+    is_inline: true,
     description: 'Возвращает определение для фразы из Urban Dictionary.'
 };
 

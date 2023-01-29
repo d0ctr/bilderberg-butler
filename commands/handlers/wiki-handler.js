@@ -76,8 +76,8 @@ const definition = {
         }
     ],
     limit: 1,
-    description: 'Возвращает выдержку из искомоый стоатье в Википедии.',
-    is_inline: true,
+    description: 'Возвращает выдержку из искомой статьи в Википедии.',
+    is_inline: true
 };
 
 const condition = (
