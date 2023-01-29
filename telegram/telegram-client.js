@@ -414,15 +414,16 @@ class TelegramInteraction {
         const query = this.context.inlineQuery.query;
         const first_word = ((a) => a.length ? a[0] : '/')(query.split(' '));
         const matching_command_names = this.inline_commands.filter((command_name) => `/${command_name}`.startsWith(first_word));
-        this.logger.silly(`List of mathich commands: [${JSON.stringify(matching_command_names)}] for first word ${first_word}`);
+        const command_name = first_word.slice(1);
+        this.logger.silly(`List of matching commands: [${JSON.stringify(matching_command_names)}] for first word ${first_word}`);
 
         // if multiple commands are matching, answer with help
-        if (matching_command_names.length > 1 || matching_command_names.length === 1 && !this.inline_commands.includes(first_word.slice(1))) {
+        if (matching_command_names.length > 0 && !this.inline_commands.includes(command_name)) {
             let results = [];
-            for (const command_name of matching_command_names) {
-                if (commands.includes(command_name)) {
-                    const index = commands.indexOf(command_name);
-                    let line = `/${command_name} `;
+            for (const matching_command_name of matching_command_names) {
+                if (commands.includes(matching_command_name)) {
+                    const index = commands.indexOf(matching_command_name);
+                    let line = `/${matching_command_name} `;
                     if (definitions[index].args && definitions[index].args.length) {
                         for (const arg of definitions[index].args) {
                             line += `{${arg.name}${arg.optional ? '?' : ''}} `;
@@ -433,8 +434,8 @@ class TelegramInteraction {
                             line,
                             {
                                 description: definitions[index].description,
-                                id: `${command_name}${require('../package.json').version}${process.env.ENV}`,
-                                message_text: `<code>@BilderbergButler_bot ${line}</code>\n<i>${definitions[index].description}</i>`,
+                                id: `${matching_command_name}${require('../package.json').version}${process.env.ENV}`,
+                                message_text: `<code>@${this.context.me.username} ${line}</code>\n<i>${definitions[index].description}</i>`,
                             }
                         )
                     );
@@ -450,8 +451,6 @@ class TelegramInteraction {
                 this.logger.error(`Error while answering the inline query [${query}]`, { error: err.stack || err });
             });
         }
-
-        const command_name = first_word.slice(1);
 
         // nothing matches, exit
         if (!matching_command_names.length || !this.inline_commands.includes(command_name)) {

@@ -13,7 +13,7 @@ const definition = {
     ],
     limit: 1,
     description: 'Возвращает результат GET запроса к заданному ресурсу.',
-    is_inline: true,
+    is_inline: false,
 };
 
 const condition = true;
@@ -28,7 +28,10 @@ async function handler(interaction) {
     let arg = interaction.args && interaction.args[0];
 
     if (!arg) {
-        return [`Не хватает URL`];
+        return {
+            type: 'error',
+            text: `Не хватает URL`
+        };
     }
 
     arg = arg.replace(url_start_regex, 'https://');
