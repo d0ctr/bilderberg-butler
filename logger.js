@@ -8,6 +8,15 @@ if (process.env.ENV !== 'prod') {
 }
 
 const ENABLE_LOKI = process.env.ENABLE_LOKI === 'true';
+const LOGLEVEL = [
+    'silly',
+    'debug',
+    'verbose',
+    'http',
+    'info',
+    'warn',
+    'error',
+].includes(process.env.DEFAULT_LOGLEVEL) ? process.env.DEFAULT_LOGLEVEL : 'info';
 
 const logger_options = {
     transports: [
@@ -19,18 +28,19 @@ const logger_options = {
                     return `${options.timestamp} - ${options.module} - ${options.level} - ${options.level === 'error' ? options.message : options.message.replace(/\n/gm, '\\n')}${options.error ? ` : ${options.error}` : ''}`;
                 })
             ),
-            level: 'debug',
+            level: LOGLEVEL,
         }),
     ]
 };
 
 if (ENABLE_LOKI) {
     const { 
-        LOKI_HOST: LOKI_HOST,
-        LOKI_LABELS: LOKI_LABELS,
+        LOKI_HOST = '',
+        LOKI_LABELS = '',
+        LOKI_USER = '',
+        LOKI_PASS = '',
         RAILWAY_GIT_COMMIT_MESSAGE: LAST_COMMIT,
-        LOKI_USER: LOKI_USER,
-        LOKI_PASS: LOKI_PASS
+        LOKI_LOGLEVEL = LOGLEVEL
     } = process.env;
 
     const VERSION = require('./package.json').version;
@@ -46,7 +56,7 @@ if (ENABLE_LOKI) {
             },
             basicAuth: `${LOKI_USER}:${LOKI_PASS}`,
             format: format.json(),
-            level: 'debug',
+            level: LOKI_LOGLEVEL,
         })
     )
 }
