@@ -153,7 +153,7 @@ function handleCommand(interaction, handler ,definition) {
         interaction: common_interaction
     };
     const logger = require('../logger').child(log_meta);
-    common_interaction.logger = logger;
+    common_interaction.logger = logger.child({ ...log_meta, module: `common-handler-${common_interaction.command_name}` });
 
     logger.info(`Received command: ${common_interaction.text}`);
 

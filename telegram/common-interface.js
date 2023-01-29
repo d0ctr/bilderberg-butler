@@ -174,14 +174,11 @@ function handleCommand(ctx, handler, definition) {
         interaction: common_interaction
     }
     const logger = require('../logger').child(log_meta);
-    common_interaction.logger = logger;
+    common_interaction.logger = logger.child({ ...log_meta, module: `common-handler-${common_interaction.command_name}` });
 
     logger.info(`Received command: ${common_interaction.text}`);
     handler(common_interaction)
     .then(response => {
-        if (response.text) {
-            response.text = response.text.replace(/<br ?\/>/gm, '\n');
-        }
         reply(ctx, response, logger);
     }).catch((err) => {
         logger.error(`Error while handling`, { error: err.stack || err });
@@ -205,11 +202,16 @@ async function getLegacyResponse(ctx, handler, definition) {
         interaction: common_interaction
     }
     const logger = require('../logger').child(log_meta);
-    common_interaction.logger = logger;
+    common_interaction.logger = logger.child({ ...log_meta, module: `common-handler-${common_interaction.command_name}` });
 
     logger.info(`Received command: ${common_interaction.text}`);
     let response = await handler(common_interaction);
-    return [response.error, response, null, response.overrides];
+    return [
+        response.type === 'error' ? response.text : null,
+        response.type === 'text' ? response.text : response,
+        null,
+        response.overrides
+    ];
 }
 
 module.exports = {
