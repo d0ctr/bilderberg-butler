@@ -8,7 +8,7 @@ const GrammyTypes = require('grammy');
 
 async function sendDiscordNotification(input) {
     let message = `Отлично, можно начать работать
-Теперь подпишись на канал в дискорде, указав id этого чата в команде: ${input.chat.id}`;
+Теперь подпишись на канал в дискорде, указав id этого чата в команде: <code>${input.chat.id}</code>`;
     return [null, message];
 }
 
