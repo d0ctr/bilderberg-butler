@@ -5,8 +5,6 @@ const { setHealth } = require('../services/health');
 const { handleCommand, getLegacyResponse } = require('./common-interface');
 const { commands, conditions, definitions, handlers } = require('../commands/handlers-exporter');
 
-const inline_query_input_regex = /^\/.+.*/gm;
-const command_name_regex = /^\/[a-zA-Zа-яА-Я0-9_-]+/;
 const no_tags_regex = /<\/?[^>]+(>|$)/g;
 
 const media_types = [
@@ -72,7 +70,7 @@ class TelegramInteraction {
         this.context = context;
         this.handler = client.handler;
         this._redis = client.redis;
-        this._currencies_list = client.currencies_list
+        this._currencies_list = client.currencies_list;
 
         if (context) {
             this.mediaToMethod = {
@@ -95,6 +93,10 @@ class TelegramInteraction {
                 'voice': this.context.replyWithVoice.bind(this.context),
             };
         }
+    }
+
+    get inline_commands() {
+        return this.client.inline_commands;
     }
 
     /**
@@ -228,7 +230,7 @@ class TelegramInteraction {
 
         if (message.filename) {
             this.logger.info(`Replying with file [${JSON.stringify({ ...message, media: '...' })}]`, { response: { ...message, media: '...' } });
-            media = new InputFile(response.media, response.filename);
+            media = new InputFile(message.media, message.filename);
         }
         else {
             this.logger.info(`Replying with [${JSON.stringify(message)}]`, { response: message });
@@ -272,6 +274,11 @@ class TelegramInteraction {
         );
     }
 
+    /**
+     * High level function for replying to Telegram-specific commands
+     * Returns undefined or promise for reply request
+     * @returns {undefined | Promise}
+     */
     reply() {
         if (typeof this.handler[this.command_name] !== 'function') {
             this.logger.warn(`Received nonsense, how did it get here???: ${this.context.message.text}`);
@@ -306,48 +313,36 @@ class TelegramInteraction {
     }
 
     /**
-     * Answeres inline query with text ("article")
+     * Generate inline query result from text ("article")
      * @param {String} text 
      * @param {Object} overrides 
-     * @returns {Promise}
+     * @returns {Object}
      */
-    async _answerQueryWithText(text, overrides) {
-        let answer = {
-            results: [
-                {
-                    id: Date.now(),
-                    type: 'article',
-                    title: text.split('\n')[0].replace(no_tags_regex, ''),
-                    input_message_content: {
-                        message_text: text,
-                        ...this._getTextOptions(),
-                        ...overrides,
-                    },
-                    ...this._getTextOptions(),
-                    ...overrides,
-                }
-            ],
-            other: {
-                cache_time: 0,
+    _generateInlineText(text, overrides) {
+        let result = {
+            id: Date.now(),
+            type: 'article',
+            title: text.split('\n')[0].replace(no_tags_regex, ''),
+            input_message_content: {
+                message_text: text,
+                ...this._getTextOptions(),
                 ...overrides,
-            }
+            },
+            ...this._getTextOptions(),
+            ...overrides,
         };
 
-        this.logger.info(`Responding to inline query with text [${JSON.stringify(answer)}]`);
-
-        return this.context.answerInlineQuery(answer.results, answer.other);
+        return result;
     }
 
-    async _answerQueryWithMedia(media, overrides) {
-        if (media.type === 'text') return this._answerQueryWithText(media.text, overrides);
-
-        let answer = {
-            results: [],
-            other: {
-                cache_time: 0,
-                ...overrides,
-            }
-        };
+    /**
+     * Generate inline query result from media
+     * @param {Object} media 
+     * @param {Object?} overrides 
+     * @returns {Object}
+     */
+    _generateInlineMedia(media, overrides) {
+        if (media.type === 'text') return this._generateInlineText(media.text, overrides);
 
         if (!inline_answer_media_types.includes(media.type)) {
             this.logger.warn(`Can't answer inline query with [media: ${JSON.stringify(media)}]`);
@@ -380,41 +375,107 @@ class TelegramInteraction {
             result.title = ' ';
         }
 
-        answer.results.push(result);
+        return result;
+    }
+
+    /**
+     * Asnweres inline query accroding to passed results
+     * @param {Object[]} results_array 
+     * @param {Object?} overrides 
+     * @returns {undefined | Promise}
+     */
+    async _answerQuery(results_array, overrides) {
+        if (!results_array) {
+            return;
+        }
+
+        const answer = {
+            results: results_array,
+            other: {
+                cache_time: 0,
+                ...overrides
+            }
+        }
 
         this.logger.info(`Responding to inline query with [${JSON.stringify(answer)}]`);
 
         return this.context.answerInlineQuery(answer.results, answer.other);
     }
 
+    /**
+     * High level command for answering inline query
+     * Returns nothing or the promise for answerInlineQuery
+     * @returns {undefined | Promise}
+     */
     async answer() {
-        if (!this.context.inlineQuery.query) {
-            return;
-        }
         this.logger.debug(`Received inline query [${this.context.inlineQuery.query}]`);
-        let input_matches = this.context.inlineQuery.query.match(inline_query_input_regex)
-        let command_input = input_matches && input_matches[0];
-        if (!command_input) return;
 
-        let command_name = command_input.split(' ')[0].slice(1);
-        if (!this.client.inline_commands.includes(command_name)) {
-            return;
+        // fist stage, getting command mathes
+        const query = this.context.inlineQuery.query;
+        const first_word = ((a) => a.length ? a[0] : '/')(query.split(' '));
+        const matching_command_names = this.inline_commands.filter((command_name) => `/${command_name}`.startsWith(first_word));
+        const command_name = first_word.slice(1);
+        this.logger.silly(`List of matching commands: [${JSON.stringify(matching_command_names)}] for first word ${first_word}`);
+
+        // if multiple commands are matching, answer with help
+        if (matching_command_names.length > 0 && !this.inline_commands.includes(command_name)) {
+            let results = [];
+            for (const matching_command_name of matching_command_names) {
+                if (commands.includes(matching_command_name)) {
+                    const index = commands.indexOf(matching_command_name);
+                    let line = `/${matching_command_name} `;
+                    if (definitions[index].args && definitions[index].args.length) {
+                        for (const arg of definitions[index].args) {
+                            line += `{${arg.name}${arg.optional ? '?' : ''}} `;
+                        }
+                    }
+                    results.push(
+                        this._generateInlineText(
+                            line,
+                            {
+                                description: definitions[index].description,
+                                id: `${matching_command_name}${require('../package.json').version}${process.env.ENV}`,
+                                message_text: `<code>@${this.context.me.username} ${line}</code>\n<i>${definitions[index].description}</i>`,
+                            }
+                        )
+                    );
+                }
+            }
+
+            if (!results.length) {
+                this.logger.silly(`No help is generated for the inline query [${query}], exiting`);
+                return;
+            }
+
+            return this._answerQuery(results).catch((err) => {
+                this.logger.error(`Error while answering the inline query [${query}]`, { error: err.stack || err });
+            });
         }
 
+        // nothing matches, exit
+        if (!matching_command_names.length || !this.inline_commands.includes(command_name)) {
+            this.logger.silly(`Inline query [${query}] doesn't match any command, sending empty answer`);
+            return this._answerQuery([], { cache_time: 0 }).catch(err => {
+                this.logger.error(`Error while sending empty response for inline query`, { error: err.stack || err });
+            });
+        }
+
+
+        // second stage, when this is a command
         let parsed_context = {
             chat: {
                 id: this.context.inlineQuery.from.id
             },
             from: this.context.inlineQuery.from,
             message: {
-                text: command_input
+                text: query
             },
             type: 'private'
         };
 
-        this.logger.info(`Received eligible inline query with input [${command_input}], parsed context [${JSON.stringify(parsed_context)}]`);
+        this.logger.info(`Received eligible inline query with input [${query}], parsed context [${JSON.stringify(parsed_context)}]`);
 
-        ;(async () => {
+        (async () => {
             if (this.handler[command_name]) {
                 return this.handler[command_name](parsed_context, this);
             }
@@ -424,29 +485,34 @@ class TelegramInteraction {
             }
         })().then(([err, response, _, overrides]) => {
             if (err) {
-                this.logger.error(`Handler for [${command_input}] from inline query responded with error`, { error: err.stack || err });
+                this.logger.debug(`Handler for [${command_name}] from inline query responded with error`, { error: err.stack || err });
                 return;
             }
             if (response) {
-                if (response instanceof String || typeof response === 'string') {
-                    return this._answerQueryWithText(
-                        response,
-                        overrides
-                    ).catch(err =>
-                        this.logger.error(`Error while responsing to inline query [${command_input}] with text [${response && response.text}]`, { error: err.stack || err })
-                    );
+                try {
+                    if (response instanceof String || typeof response === 'string') {
+                        return this._answerQuery([this._generateInlineText(
+                            response,
+                            overrides
+                        )]).catch(err =>
+                            this.logger.error(`Error while responsing to inline query [${query}] with text [${response && response.text}]`, { error: err.stack || err })
+                        );
+                    }
+                    if (response instanceof Object) {
+                        return this._answerQuery([this._generateInlineMedia(
+                            response,
+                            overrides
+                        )]).catch(err =>
+                            this.logger.error(`Error while responding to inline query [${query}] with media [${JSON.stringify(response)}]`, { error: err.stack || err })
+                        );
+                    }
                 }
-                if (response instanceof Object) {
-                    return this._answerQueryWithMedia(
-                        response,
-                        overrides
-                    ).catch(err =>
-                        this.logger.error(`Error while responding to inline query [${command_input}] with media [${JSON.stringify(response)}]`, { error: err.stack || err })
-                    );
+                catch (err) {
+                    this.logger.error(`Error when generating inline query [${query}]`, { error: err.stack || err });
                 }
             }
         }).catch(err => {
-            this.logger.error(`Error while processing command [${command_input}]`, { error: err.stack || err });
+            this.logger.error(`Error while processing inline query [${query}]`, { error: err.stack || err });
         });
     }
 }

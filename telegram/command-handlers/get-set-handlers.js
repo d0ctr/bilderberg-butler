@@ -138,7 +138,7 @@ async function set(ctx, interaction) {
     }
 
     return [null, `Гет был сохранён, теперь его можно вызвать командой:\n<code>/get ${name}</code>${
-        ctx.chat.id === ctx.from.id ? `\nТак же можешь вызвать этот гет написав <code>@BilderbergButler_bot /get ${name}</code> в поле ввода сообщения` : ''}`];
+        ctx.chat.id === ctx.from.id ? `\nТак же можешь вызвать этот гет написав <code>@${ctx.me.username} /get ${name}</code> в поле ввода сообщения` : ''}`];
 }
 
 /**

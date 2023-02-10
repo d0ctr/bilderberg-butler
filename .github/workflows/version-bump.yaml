@@ -2,6 +2,8 @@ name: 'Update version'
 
 on: 
   pull_request:
+    types:
+      - opened
     branches:
       - main
 
@@ -10,7 +12,7 @@ permissions:
 
 jobs:
   major_version:
-    if: startsWith(github.event.pull_request.title, 'FREEZE')
+    if: github.event.pull_request.merged == true && ${{ startsWith(github.event.pull_request.title, 'FREEZE') }}
     runs-on: ubuntu-latest
     steps:
       - name: 'Checkout source code'
@@ -26,7 +28,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
   minor_version:
-    if: ${{ !startsWith(github.event.pull_request.title, 'FREEZE') }}
+    if: github.event.pull_request.merged == true && ${{ !startsWith(github.event.pull_request.title, 'FREEZE') }}
     runs-on: ubuntu-latest
     steps:
       - name: 'Checkout source code'

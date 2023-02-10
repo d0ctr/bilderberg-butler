@@ -102,10 +102,12 @@ class ChannelSubscriber {
                     user_name: member.user.username,
                     streaming: member.voice.streaming,
                     member_id: member.id,
+                    member_name: member.displayName,
                     muted: member.voice.mute,
                     deafened: member.voice.deaf,
-                    server_muted: member.voice.serverMute,
-                    server_deafened: member.voice.serverDeaf
+                    // server_muted: member.voice.serverMute,
+                    // server_deafened: member.voice.serverDeaf,
+                    camera: member.voice.selfVideo
                 });
         });
 
