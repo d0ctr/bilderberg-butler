@@ -24,6 +24,7 @@ jobs:
         uses: 'phips28/gh-action-bump-version@master'
         with:
           version-type: 'major'
+          skip-tag:  'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
@@ -42,6 +43,7 @@ jobs:
           patch-wording: 'fix,patch,fixing,patching'
           minor-wording: 'improvement,'
           default: 'minor'
+          skip-tag:  'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   
