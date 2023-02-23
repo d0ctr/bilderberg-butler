@@ -1,0 +1,13 @@
+name: 'Autotag'
+
+on: 
+  push:
+    branches:
+      - main
+
+jobs:
+  tag:
+    steps:
+      - name: Create Tag
+        id: create_tag
+        uses: jaywcjlove/create-tag-action@main
