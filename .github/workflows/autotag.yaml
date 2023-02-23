@@ -13,3 +13,5 @@ jobs:
       - name: Create Tag
         id: create_tag
         uses: jaywcjlove/create-tag-action@main
+        with:
+          package-path: ./package.json
