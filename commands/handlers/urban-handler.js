@@ -2,6 +2,8 @@ const axios = require('axios');
 
 const config = require('../../config.json');
 
+const URBAN_DEFINITION_URL = "https://www.urbandictionary.com/define.php?term=";
+
 /**
  * Convert urban_definition by urban dictionary API to text HTML
  * @param {Object} urban_definition
@@ -31,9 +33,9 @@ ${urban_definition.thumbs_up} 👍|👎 ${urban_definition.thumbs_down}`;
  */
 function replaceWithLink(line) {
     let result = line;
-    let matches = line.match(/\[[^\[\]]+\]/gm);
-    for (let match of matches) {
-        result = result.replace(match, `<a href="https://www.urbandictionary.com/define.php?term=${match.replace(/\[|\]/gm, '')}">${match.replace(/\[|\]/gm, '')}</a>`);
+    let matches = line.matchAll(/\[(?<term>[^\[\]]+)\]/gm);
+    for (const [match, term] of matches) {
+        result = result.replace(match, `<a href="${URBAN_DEFINITION_URL}${term}">${term}</a>`);
     }
     return result;
 }
