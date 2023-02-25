@@ -143,16 +143,7 @@ Config file is used to share some non-secret variables
   - `API_HOMEPAGE` — URL to which redirect home (`/`) endpoint to
   - `URBAN_API` — API for definitions from urban dictionary
   - `COINMARKETCAP_API` — API for CoinMarketCap
-  - `VIDEO_THUMB_URL` — placeholder for video thumbnail in inline query results
-
-## Discord Slash Commands Registration
-
-Before using Discord bot you need to specify slash commands that it can accept, there is additional script for that [`deploy-commands.js`](/deploy-commands.js).
-To use it just run this in your command line:
-
-```powershell
-npm run deploy
-```
+  - `VIDEO_THUMB_URL` — placeholder for video thumbnail in inline query 
 
 ## Running Bots
 
