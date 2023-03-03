@@ -57,11 +57,9 @@ class ContextTree {
         let last_node = this.getNode(message_id);
 
         while (last_node && context.length <= limit) {
-            context.push(last_node.getContextMessage());
+            context.unshift(last_node.getContextMessage());
             last_node = last_node.prev_node;
         }
-
-        context = context.reverse();
 
         if (context.length === limit) {
             context.unshift(this.root_node.getContextMessage())
