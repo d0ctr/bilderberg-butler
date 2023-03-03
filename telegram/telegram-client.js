@@ -4,6 +4,7 @@ const config = require('../config.json');
 const { setHealth } = require('../services/health');
 const { handleCommand, getLegacyResponse } = require('./common-interface');
 const { commands, conditions, definitions, handlers } = require('../commands/handlers-exporter');
+const { ChatGPTHandler } = require('./gpt-handler');
 
 const no_tags_regex = /<\/?[^>]+(>|$)/g;
 
@@ -661,6 +662,20 @@ class TelegramClient {
         };
     }
 
+    _registerGPTAnswers() {
+        if (!process.env.TELEGRAM_TOKEN) {
+            return;
+        }
+
+        this.chatgpt_handler = new ChatGPTHandler();
+
+        this.client.on('message', async (ctx) => {
+            if (!ctx?.from?.is_bot && ctx?.message?.reply_to_message?.from?.is_bot) {
+                this.chatgpt_handler.answerQuestion(new TelegramInteraction(this.client, null, ctx));
+            }
+        });
+    }
+
     async start() {
         if (!process.env.TELEGRAM_TOKEN) {
             this.logger.warn(`Token for Telegram wasn't specified, client is not started.`);
@@ -675,6 +690,7 @@ class TelegramClient {
 
         this._registerCommands();
         this._filterServiceMessages();
+        this._registerGPTAnswers();
 
         if (process.env.ENV.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
             this._startPolling();
