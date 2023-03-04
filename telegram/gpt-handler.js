@@ -267,7 +267,7 @@ class ChatGPTHandler{
         const new_system_prompt = interaction.context.message.text.split(' ').slice(1).join(' ');
         
         if (!new_system_prompt) {
-            interaction._reply(`Нужен не пустой системный промпт.\nПо умолчанию: <code>${DEFAULT_SYSTEM_PROMPT}</code>\nСейчас: <code>${this.context_tree.root_node.content}</code>`);
+            return interaction._reply(`Нужен не пустой системный промпт.\nПо умолчанию: <code>${DEFAULT_SYSTEM_PROMPT}</code>\nСейчас: <code>${this.context_tree.root_node.content}</code>`);
         }
 
         this.context_tree.root_node.content = new_system_prompt;
