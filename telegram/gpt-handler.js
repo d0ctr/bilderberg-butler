@@ -30,8 +30,11 @@ class ContextNode {
 }
 
 class ContextTree {
-    constructor({ role, content } = {}) {
-        this.root_node = new ContextNode({ role, content });
+    constructor() {
+        this.root_node = new ContextNode({
+            role: 'system',
+            content: DEFAULT_SYSTEM_PROMPT
+        });
 
         this.nodes = new Map();
     }
@@ -97,7 +100,6 @@ class ContextTree {
     }
 }
 
-
 class ChatGPTHandler{
     constructor() {
         this.logger = require('../logger').child({ module: 'chatgpt-handler' })
@@ -107,15 +109,22 @@ class ChatGPTHandler{
         });
         this.openAIApi = new OpenAIApi(api_configuration);
 
-        const system_prompt = {
-            role: 'system',
-            content: DEFAULT_SYSTEM_PROMPT
-        };
-
-        this.context_tree = new ContextTree(system_prompt);
+        this.context_trees_map = new Map();
     }
 
-    _replyFromContext(interaction, context, prev_message_id) {
+    _getContextTree(chat_id) {
+        if (!chat_id) {
+            throw new Error('No chat_id specified to get context tree');
+        }
+        if (!this.context_trees_map.has(chat_id)) {
+            this.context_trees_map.set(chat_id, new ContextTree());
+        }
+        return this.context_trees_map.get(chat_id);
+    }
+
+    _replyFromContext(interaction, context, context_tree, prev_message_id) {
+        interaction.context.replyWithChatAction('typing');
+
         this.openAIApi.createChatCompletion({
             model: CHAT_MODEL_NAME,
             messages: context
@@ -133,7 +142,7 @@ class ChatGPTHandler{
                 data.choices[0].message.content,
                 { reply_to_message_id: prev_message_id }
             ).then(({ message_id: new_message_id, text }) => {
-                this.context_tree.appendNode({
+                context_tree.appendNode({
                     role: 'assistant',
                     content: text,
                     message_id: new_message_id,
@@ -153,17 +162,24 @@ class ChatGPTHandler{
         });
     }
 
-    answerQuestion(interaction) {
+    answerReply(interaction) {
         if (!interaction?.context?.message?.reply_to_message && !(interaction?.context?.message?.text || interaction?.context?.message?.caption)) {
             return;
         }
 
-        const prev_message_id = interaction.context.message.reply_to_message.message_id;
+        const context_tree = this._getContextTree(interaction.context.chat.id);
+
+        let prev_message_id = interaction.context.message.reply_to_message.message_id;
         
-        if (!this.context_tree.isNodeExisting({ message_id: prev_message_id })) {
+        if (!context_tree.isNodeExisting({ message_id: prev_message_id })) {
             const text = interaction.context.message.reply_to_message.text || interaction.context.message.reply_to_message.caption;
 
-            this.context_tree.appendNode({ role: 'assistant', content: text, message_id: prev_message_id });
+            if (text) {
+                context_tree.appendNode({ role: 'assistant', content: text, message_id: prev_message_id });
+            }
+            else {
+                prev_message_id = null;
+            }
         }
 
         const message_id = interaction.context.message.message_id;
@@ -172,12 +188,12 @@ class ChatGPTHandler{
         {
             const text = interaction.context.message.text || interaction.context.message.caption;
     
-            this.context_tree.appendNode({ role: 'user', content: text, message_id, prev_message_id });
+            context_tree.appendNode({ role: 'user', content: text, message_id, prev_message_id });
         }
 
-        const context = this.context_tree.getContext(message_id);
+        const context = context_tree.getContext(message_id);
 
-        this._replyFromContext(interaction, context, message_id)
+        this._replyFromContext(interaction, context, context_tree, message_id)
     }
 
     handleContextRequest(interaction) {
@@ -185,9 +201,11 @@ class ChatGPTHandler{
             return interaction._reply('Эта команда работает только при реплае на сообщение');
         }
 
+        const context_tree = this._getContextTree(interaction.context.chat.id);
+
         const message_id = interaction.context.message.reply_to_message.message_id;
 
-        const context = this.context_tree.getRawContext(message_id);
+        const context = context_tree.getRawContext(message_id);
 
         if (!context.length) {
             return interaction._reply('Для этого сообщения нет контекста');
@@ -200,20 +218,24 @@ class ChatGPTHandler{
             text: 'Контекст'
         };
 
-        return interaction._replyWithMedia(context_message, { reply_to_message_id: interaction.context.message.message_id })
-        .catch(err => {
+        return interaction._replyWithMedia(
+            context_message,
+            { reply_to_message_id: interaction.context.message.message_id }
+        ).catch(err => {
             this.logger.error('Error while sending context', { error: err.stack || err });
             interaction._reply(`Ошибка во время отправки контекста:\n<code>${err.message}</code>`);
         });
     }
 
     handleTreeRequest(interaction) {
-        if (!this.context_tree.nodes.size) {
+        const context_tree = this._getContextTree(interaction.context.chat.id);
+        
+        if (!context_tree.nodes.size) {
             return interaction._reply('Пока дерево пустое.');
         }
 
         try {
-            const nodes = [...this.context_tree.nodes.values()];
+            const nodes = [...context_tree.nodes.values()];
 
             const nodes_message = {
                 type: 'document',
@@ -239,11 +261,17 @@ class ChatGPTHandler{
             return interaction._reply('Эта команда работает только при реплае на сообщение');
         }
 
+        if (!interaction.context.message.reply_to_message.text || !interaction.context.message.reply_to_message.caption) {
+            return interaction._reply('В отвеченном сообщении нет текста, без текста никуда');
+        }
+
+        const context_tree = this._getContextTree(interaction.context.chat.id);
+
         const message_id = interaction.context.message.reply_to_message.message_id;
 
-        if (!this.context_tree.isNodeExisting({ message_id })) {
+        if (!context_tree.isNodeExisting({ message_id })) {
             const text = interaction.context.message.reply_to_message.text || interaction.context.message.reply_to_message.caption;
-            this.context_tree.appendNode({
+            context_tree.appendNode({
                 role: 'user',
                 content: text,
                 message_id: message_id
@@ -252,10 +280,10 @@ class ChatGPTHandler{
 
         const context = [
             {
-                ...this.context_tree.root_node.getContextMessage()
+                ...context_tree.root_node.getContextMessage()
             },
             {
-                ...this.context_tree.getNode(message_id).getContextMessage(),
+                ...context_tree.getNode(message_id).getContextMessage(),
                 role: 'user'
             }
         ];
@@ -270,9 +298,31 @@ class ChatGPTHandler{
             return interaction._reply(`Нужен не пустой системный промпт.\nПо умолчанию: <code>${DEFAULT_SYSTEM_PROMPT}</code>\nСейчас: <code>${this.context_tree.root_node.content}</code>`);
         }
 
-        this.context_tree.root_node.content = new_system_prompt;
+        const context_tree = this._getContextTree(interaction.context.message.id);
+
+        context_tree.root_node.content = new_system_prompt;
 
         interaction._reply('Обновил');
+    }
+
+    answerQuestion(interaction) {
+        if (!interaction.context.message.text && !interaction.context.message.caption) {
+            return;
+        }
+
+        const context_tree = this._getContextTree(interaction.context.chat.id);
+
+        const message_id = interaction.context.message.message_id;
+
+        if (!context_tree.isNodeExisting({ message_id })) {
+            const text = interaction.context.message.text || interaction.context.message.caption;
+
+            context_tree.appendNode({ role: 'user', content: text, message_id });
+        }
+
+        const context = context_tree.getContext(message_id);
+
+        this._replyFromContext(interaction, context, context_tree, message_id);
     }
 }
 

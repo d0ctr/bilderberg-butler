@@ -118,7 +118,7 @@ async function set(ctx, interaction) {
     if (!name.match(getRegex)) {
         return ['Название гета может состоять только из букв латинского, русского алфавитов, цифр и символов -, _'];
     }
-    if(!ctx.message.reply_to_message) {
+    if (!ctx.message.reply_to_message) {
         return ['Чтобы сохранить гет, ответьте на какое-нибудь сообщение с помощью <code>/set {название гета}</code>'];
     }
 
