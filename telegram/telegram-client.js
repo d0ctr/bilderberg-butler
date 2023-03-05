@@ -690,10 +690,14 @@ class TelegramClient {
         });
 
         this.client.on('message', (ctx) => {
-            if (!ctx?.from?.is_bot && ctx?.message?.reply_to_message?.from?.is_bot) {
+            if (!ctx?.from?.is_bot && ctx?.message?.reply_to_message?.from?.id === this.client.botInfo.id) {
                 this.chatgpt_handler.answerReply(new TelegramInteraction(this.client, null, ctx));
             }
+            else if (ctx.chat.id === ctx.from.id) {
+                this.chatgpt_handler.answerQuestion(new TelegramInteraction(this.client, null, ctx));
+            }
         });
+
     }
 
     async start() {
