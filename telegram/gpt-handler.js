@@ -288,7 +288,7 @@ class ChatGPTHandler{
             }
         ];
 
-        this._replyFromContext(interaction, context, message_id);
+        this._replyFromContext(interaction, context, context_tree, message_id);
     }
 
     handleAdjustSystemPrompt(interaction) {
