@@ -235,7 +235,7 @@ class TelegramInteraction {
         }
         else {
             this.logger.info(`Replying with [${JSON.stringify(message)}]`, { response: message });
-            media = message.media;
+            media = message.media || message[message.type];
         }
 
         const replyMethod = this._getReplyMethod(message.type);
@@ -691,7 +691,7 @@ class TelegramClient {
 
         this.client.on('message', (ctx) => {
             if (!ctx?.from?.is_bot && ctx?.message?.reply_to_message?.from?.is_bot) {
-                this.chatgpt_handler.answerQuestion(new TelegramInteraction(this.client, null, ctx));
+                this.chatgpt_handler.answerReply(new TelegramInteraction(this.client, null, ctx));
             }
         });
     }

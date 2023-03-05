@@ -153,17 +153,22 @@ class ChatGPTHandler{
         });
     }
 
-    answerQuestion(interaction) {
+    answerReply(interaction) {
         if (!interaction?.context?.message?.reply_to_message && !(interaction?.context?.message?.text || interaction?.context?.message?.caption)) {
             return;
         }
 
-        const prev_message_id = interaction.context.message.reply_to_message.message_id;
+        let prev_message_id = interaction.context.message.reply_to_message.message_id;
         
         if (!this.context_tree.isNodeExisting({ message_id: prev_message_id })) {
             const text = interaction.context.message.reply_to_message.text || interaction.context.message.reply_to_message.caption;
 
-            this.context_tree.appendNode({ role: 'assistant', content: text, message_id: prev_message_id });
+            if (text) {
+                this.context_tree.appendNode({ role: 'assistant', content: text, message_id: prev_message_id });
+            }
+            else {
+                prev_message_id = null;
+            }
         }
 
         const message_id = interaction.context.message.message_id;
@@ -273,6 +278,18 @@ class ChatGPTHandler{
         this.context_tree.root_node.content = new_system_prompt;
 
         interaction._reply('Обновил');
+    }
+
+    answerQuestion(interaction) {
+        const message_id = interaction.context.message.message_id;
+
+        if (!this.context_tree.isNodeExisting({ message_id })) {
+            const text = interaction.context.message.text || interaction.context.message.caption;
+
+            this.context_tree.appendNode({ role: 'user', content: text, message_id });
+        }
+
+
     }
 }
 
