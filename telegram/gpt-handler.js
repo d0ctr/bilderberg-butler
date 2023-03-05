@@ -261,7 +261,7 @@ class ChatGPTHandler{
             return interaction._reply('Эта команда работает только при реплае на сообщение');
         }
 
-        if (!interaction.context.message.reply_to_message.text || !interaction.context.message.reply_to_message.caption) {
+        if (!interaction.context.message.reply_to_message.text && !interaction.context.message.reply_to_message.caption) {
             return interaction._reply('В отвеченном сообщении нет текста, без текста никуда');
         }
 
