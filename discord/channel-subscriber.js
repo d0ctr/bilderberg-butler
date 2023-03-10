@@ -65,7 +65,7 @@ class ChannelSubscriber {
         this.last_state = parsed_state;
 
         this.logger.info(
-            `Catched updated voice channel state: ${JSON.stringify(parsed_state)}`,
+            `Cought updated voice channel state: ${JSON.stringify(parsed_state)}`,
             { state: parsed_state }
         );
         

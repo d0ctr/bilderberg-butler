@@ -669,27 +669,27 @@ class TelegramClient {
 
         this.chatgpt_handler = new ChatGPTHandler();
 
-        this.client.command('tree', (ctx) => {
+        this.client.command('tree', async (ctx) => {
             this.chatgpt_handler.handleTreeRequest(new TelegramInteraction(this.client, 'tree', ctx));
         });
 
-        this.client.command('answer', (ctx) => {
+        this.client.command('answer', async (ctx) => {
             if (ctx?.message?.reply_to_message) {
                 this.chatgpt_handler.handleAnswerCommand(new TelegramInteraction(this.client, 'answer', ctx));
             }
         });
 
-        this.client.command('context', (ctx) => {
+        this.client.command('context', async (ctx) => {
             if (ctx?.message?.reply_to_message) {
                 this.chatgpt_handler.handleContextRequest(new TelegramInteraction(this.client, 'context', ctx));
             }
         });
 
-        this.client.command('new_system_prompt', (ctx) => {
+        this.client.command('new_system_prompt', async (ctx) => {
             this.chatgpt_handler.handleAdjustSystemPrompt(new TelegramInteraction(this.client, 'new_system_prompt', ctx));
         });
 
-        this.client.on('message', (ctx) => {
+        this.client.on('message', async (ctx) => {
             if (!ctx?.from?.is_bot && ctx?.message?.reply_to_message?.from?.id === this.client.botInfo.id) {
                 this.chatgpt_handler.answerReply(new TelegramInteraction(this.client, null, ctx));
             }

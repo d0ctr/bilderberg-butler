@@ -167,6 +167,10 @@ class ChatGPTHandler{
             return;
         }
 
+        const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
+
+        logger.info(`Processing ChatGPT request received with a reply`);
+
         const context_tree = this._getContextTree(interaction.context.chat.id);
 
         let prev_message_id = interaction.context.message.reply_to_message.message_id;
@@ -197,6 +201,10 @@ class ChatGPTHandler{
     }
 
     handleContextRequest(interaction) {
+        const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
+        
+        logger.info(`Received command: ${interaction.context.message.text}`);
+
         if (!interaction?.context?.message?.reply_to_message) {
             return interaction._reply('Эта команда работает только при реплае на сообщение');
         }
@@ -228,6 +236,10 @@ class ChatGPTHandler{
     }
 
     handleTreeRequest(interaction) {
+        const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
+
+        logger.info(`Received command: ${interaction.context.message.text}`);
+
         const context_tree = this._getContextTree(interaction.context.chat.id);
         
         if (!context_tree.nodes.size) {
@@ -257,6 +269,10 @@ class ChatGPTHandler{
     }
 
     handleAnswerCommand(interaction) {
+        const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
+
+        logger.info(`Received command: ${interaction.context.message.text}`);
+
         if (!interaction?.context?.message?.reply_to_message) {
             return interaction._reply('Эта команда работает только при реплае на сообщение');
         }
@@ -292,6 +308,10 @@ class ChatGPTHandler{
     }
 
     handleAdjustSystemPrompt(interaction) {
+        const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
+        
+        logger.info(`Received command: ${interaction.context.message.text}`);
+
         const new_system_prompt = interaction.context.message.text.split(' ').slice(1).join(' ');
         
         if (!new_system_prompt) {
@@ -309,6 +329,10 @@ class ChatGPTHandler{
         if (!interaction.context.message.text && !interaction.context.message.caption) {
             return;
         }
+
+        const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
+        
+        logger.info(`Processing ChatGPT request received by direct message`);
 
         const context_tree = this._getContextTree(interaction.context.chat.id);
 
