@@ -325,6 +325,9 @@ class DiscordClient {
     }
 
     registerCommands() {
+        if (!process.env.DISCORD_APP_ID) {
+            return;
+        }
         const { SlashCommandBuilder } = require('@discordjs/builders');
         const { REST } = require('@discordjs/rest');
         const { Routes, ChannelType } = require('discord-api-types/v10');
@@ -405,7 +408,7 @@ class DiscordClient {
 
         new REST({ version: '9' })
         .setToken(process.env.DISCORD_TOKEN)
-        .put(Routes.applicationCommands(process.env.APP_ID), { body: json })
+        .put(Routes.applicationCommands(process.env.DISCORD_APP_ID), { body: json })
         .then(() => this.logger.info('Successfully registered application commands.'))
         .catch(err => this.logger.error('Error while registering application commands.', { error: err.stack || err }));
     }

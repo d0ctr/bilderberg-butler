@@ -660,7 +660,7 @@ class TelegramClient {
     }
 
     _registerGPTAnswers() {
-        if (!process.env.TELEGRAM_TOKEN) {
+        if (!process.env.OPENAI_TOKEN) {
             return;
         }
 

@@ -43,22 +43,19 @@ function main() {
 
 let app = main();
 
+process_logger = logger.child({ module: 'process' });
+
+process.on('warning', (warning) => {
+    process_logger.warn(warning.message);
+});
+
 process.on('uncaughtException', (error) => {
-    console.error('Got unhandledException:', error);
+    process_logger.error('Got unhandledException:', error);
 });
 
-process.on('SIGINT', async () => {
-    logger.child({ module: 'process-listener' }).info('Gracefully shutdowning application...');
+process.on('beforeExit', async () => {
+    process_logger.info('Gracefully shutdowning application...');
     await app.discord_client.stop();
     await app.telegram_client.stop();
     await app.api_server.stop();
-    process.exit();
-});
-
-process.on('SIGTERM', async () => {
-    logger.child({ module: 'process-listener' }).info('Gracefully shutdowning application...');
-    await app.discord_client.stop();
-    await app.telegram_client.stop();
-    await app.api_server.stop();
-    process.exit();
 });

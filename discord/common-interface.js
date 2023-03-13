@@ -52,7 +52,7 @@ function commonizeInteraction(interaction, definition) {
 }
 
 function replyWithText(interaction, response, logger) {
-    logger.info(`Replying with text: ${response.text}`);
+    logger.info(`Replying with [${response.text}]`, { response });
 
     interaction.reply(response.text)
     .then((messsage) => {
@@ -74,8 +74,6 @@ function replyWithText(interaction, response, logger) {
 }
 
 function replyWithEmbed(interaction, response, logger) {
-    logger.info(`Replying with [${JSON.stringify({ ...response, media: '...'})}]`, { response: { ...response, media: '...'} });
-    
     const payload = {};
 
     const embed = new EmbedBuilder();
@@ -85,9 +83,11 @@ function replyWithEmbed(interaction, response, logger) {
     }
 
     if (response.filename) {
+        logger.info(`Replying with file [${JSON.stringify({ ...response, media: '...' })}]`, { response: { ...response, media: '...' } });
         payload.files = [response.media];
     }
     else {
+        logger.info(`Replying with [${JSON.stringify(response)}]`, { response });
         embed.setImage(response.media);
         payload.embeds = [embed];
     }
