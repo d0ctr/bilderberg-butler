@@ -1,4 +1,4 @@
-const { sendNotification } = require('../telegram/channel-subscriber');
+const { sendNotification, deleteNotification } = require('../telegram/channel-subscriber');
 const { getRedis } = require('../services/redis');
 
 const subscribers = {};
@@ -129,8 +129,14 @@ class ChannelSubscriber {
     stop(telegram_chat_id) {
         if (telegram_chat_id && this.telegram_chat_ids.length) {
             delete this.telegram_chat_ids[this.telegram_chat_ids.indexOf(telegram_chat_id)];
+            this.logger.info(`Deleting notification for ${this._guild.name}:${this._channel.name} in [chat: ${telegram_chat_id}]`);
+            deleteNotification(telegram_chat_id, this._channel.id);
         }
         else {
+            this.logger.info(`Deleting notifications for ${this._guild.name}:${this._channel.name} in [chats: ${JSON.stringify(this.telegram_chat_ids)}]`);
+            this.telegram_chat_ids.forEach((telegram_chat_id) => {
+                deleteNotification(telegram_chat_id, this._channel.id);
+            });
             this.telegram_chat_ids = [];
         }
         
@@ -265,7 +271,7 @@ const stop = (channel, telegram_chat_id) => {
         return;
     }
 
-    subscribers[key].stop(channel, telegram_chat_id);
+    subscribers[key].stop(telegram_chat_id);
 };
 
 const update = (channel) => {

@@ -362,9 +362,6 @@ class TelegramInteraction {
             ...overrides,
         };
         result[`${inline_type}${suffix}`] = data;
-        if (media.url) {
-            result['thumb_url'] = media.type !== 'video' ? media.url : config.VIDEO_THUMB_URL;
-        }
 
         for (let key in result) {
             if (!result[key]) {
@@ -663,7 +660,7 @@ class TelegramClient {
     }
 
     _registerGPTAnswers() {
-        if (!process.env.TELEGRAM_TOKEN) {
+        if (!process.env.OPENAI_TOKEN) {
             return;
         }
 

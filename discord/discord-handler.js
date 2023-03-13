@@ -1,8 +1,6 @@
-const ChannelSubscriber = require('./channel-subscriber');
-const PresenceSubscriber = require('./presence-subscriber');
 const { server, user } = require('./command-handlers/info-handlers');
 const { subscribe, unsubscribe } = require('./command-handlers/channel-subscriber-handler');
-const { presence, unpresence } = require('./command-handlers/presence-subscriber-handler');
+// const { presence, unpresence } = require('./command-handlers/presence-subscriber-handler');
 
 class DiscordHandler {
     constructor(client) {

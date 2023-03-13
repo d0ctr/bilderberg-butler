@@ -1,11 +1,30 @@
 const { Bot, InlineKeyboard } = require('grammy');
 const logger = require('../logger').child({ module: 'telegram-channel-subscriber' });
+const { getHealth } = require('../services/health');
+const { getRedis } = require('../services/redis');
 
 const discord_notification_map = {};
+/**
+ * @property {Bot}
+ */
+const bot = process.env.TELEGRAM_TOKEN ? new Bot(process.env.TELEGRAM_TOKEN) : null;
 
-let bot = null;
-if (process.env.TELEGRAM_TOKEN) {
-    bot = new Bot(process.env.TELEGRAM_TOKEN);
+async function restoreMessageID(chat_id) {
+    if (getHealth('redis') !== 'ready') {
+        return null;
+    }
+
+    const redis = getRedis();
+
+    let current_message_id = await redis.get(`telegram:${chat_id}:channel_subscriber:message_id`);
+
+    current_message_id = Number(current_message_id);
+
+    if (isNaN(current_message_id) || !current_message_id) {
+        return null;
+    }
+
+    return current_message_id;
 }
 
 class DiscordNotification {
@@ -20,11 +39,24 @@ class DiscordNotification {
         this.cooldown = false;
         this.cooldown_duration = 5 * 1000;
 
-        this.current_message_id = null;
+        this._current_message_id = null;
         this.pending_notification_data = null;
 
         this.pending_notification_data_timer = null;
         this.cooldown_timer = null;
+    }
+
+    get current_message_id() {
+        return this._current_message_id;
+    }
+
+    set current_message_id(value) {
+        this._current_message_id = value;
+
+        if (getHealth('redis') === 'ready') {
+            const redis = getRedis();
+            redis.set(`telegram:${this.chat_id}:channel_subscriber:message_id`, value);
+        }
     }
 
     get channel_url() {
@@ -53,12 +85,9 @@ class DiscordNotification {
 
     update(notification_data) {
         if (!notification_data) {
-            this.current_notification_data = null;
-            this.cooldown = false;
-            this.pending_notification_data = null;
-
-            return this.current_message_id;
+            return;
         }
+        clearTimeout(this.cooldown_timer);
 
         this.current_notification_data = notification_data;
 
@@ -70,9 +99,11 @@ class DiscordNotification {
         clearTimeout(this.cooldown_timer);
 
         this.pending_notification_data_timer = null;
+        this.current_notification_data = null;
         this.cooldown_timer = null;
+        this.cooldown = false;
 
-        const current_message_id = `${this.update()}`;
+        const current_message_id = `${this.current_message_id}`;
 
         this.current_message_id = null;
 
@@ -138,6 +169,13 @@ ${member.camera && '🎥' || '&#160;&#160;'}</code>`;
         this.startCooldownTimer();
     }
 
+    dropPendingNotification() {
+        clearTimeout(this.pending_notification_data_timer);
+
+        this.pending_notification_data = null;
+        this.pending_notification_timer = null;
+    }
+
     getLogMeta() {
         let meta = {};
 
@@ -194,12 +232,13 @@ function getDiscordNotification(notification_data, chat_id) {
     if (notification_data instanceof DiscordNotification) {
         return notification_data;
     }
-    let discord_notification = discord_notification_map[`${chat_id}:${notification_data.channel_id}`];
-    if (!discord_notification) {
+
+    if (!discord_notification_map[`${chat_id}:${notification_data.channel_id}`]) {
         discord_notification_map[`${chat_id}:${notification_data.channel_id}`] = new DiscordNotification(notification_data, chat_id);
         return discord_notification_map[`${chat_id}:${notification_data.channel_id}`];
     }
-    return discord_notification;
+
+    return discord_notification_map[`${chat_id}:${notification_data.channel_id}`];
 }
 
 /**
@@ -251,13 +290,13 @@ function sendNotificationMessage(discord_notification) {
     ).then((message) => {
         discord_notification.current_message_id = message.message_id;
         logger.debug(
-            `Sent [notification: ${discord_notification.getNotificationText()}] about [channel:${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}], got [message: ${message.message_id}]`,
+            `Sent notification about [channel:${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}], got [message: ${message.message_id}]`,
             { ...discord_notification.getLogMeta() }
         );
         pinNotificationMessage(discord_notification);
     }).catch((err) => {
         logger.error(
-            `Error while sending [notification: ${discord_notification.getNotificationText()}] about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}]`,
+            `Error while sending notification about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}]`,
             { error: err.stack || err, ...discord_notification.getLogMeta() }
         );
     });
@@ -281,27 +320,62 @@ function editNotificationMessage(discord_notification) {
     ).then((message) => {
         discord_notification.current_message_id = message.message_id;
         logger.debug(
-            `Edited [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}] with [notification: ${discord_notification.getNotificationText()}]`,
+            `Edited [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`,
             { ...discord_notification.getLogMeta() }
         );
     }).catch((err) => {
         logger.error(
-            `Error while editing [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}] with [notification: ${discord_notification.getNotificationText()}]`, 
+            `Error while editing [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`, 
             { error: err.stack || err, ...discord_notification.getLogMeta() }
         );
     });
 }
 
-function wrapInCooldown(notification_data, chat_id) {
+async function wrapInCooldown(notification_data, chat_id) {
     const discord_notification = getDiscordNotification(notification_data, chat_id);
 
-    if (discord_notification.isNotified() && discord_notification.isCooldownActive()) {
-        logger.debug(
-            `Suspending [notification: ${discord_notification.getPendingNotificationText(notification_data)}] about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}]`,
-            { ...discord_notification.getLogMeta() }
-        );
-        discord_notification.suspendNotification(notification_data, editNotificationMessage);
-        return;
+    if (discord_notification.current_message_id === null) {
+        discord_notification.current_message_id = await restoreMessageID(chat_id);
+    }
+    
+    if (discord_notification.current_message_id !== null) {
+        try {
+            await bot.api.editMessageText(
+                discord_notification.chat_id,
+                discord_notification.current_message_id,
+                `Обновляю${'.'.repeat(Math.floor(1 + Math.random() * 5))}`
+            );
+            discord_notification.current_notification_data = null;
+        }
+        catch (err) {
+            logger.error(
+                `Error while checking [message: ${discord_notification.current_message_id}] presence in [chat: ${discord_notification.chat_id}]`,
+                {  ...discord_notification.getLogMeta(), error: err.stack || err }
+            );
+            if (err.error_code === 400) {
+                discord_notification.current_message_id = null;
+            }
+        }
+    }
+
+    if (discord_notification.isNotified()) {
+        if (discord_notification.generateNotificationTextFrom(notification_data) == discord_notification.getNotificationText()) {
+            logger.debug(
+                `Skipping notification about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}] as equals to current`,
+                { ...discord_notification.getLogMeta() }
+            );
+            discord_notification.dropPendingNotification();
+            return;
+        }
+
+        if (discord_notification.isCooldownActive()) {
+            logger.debug(
+                `Suspending notification about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}]`,
+                { ...discord_notification.getLogMeta() }
+            );
+            discord_notification.suspendNotification(notification_data, editNotificationMessage);
+            return;
+        }
     }
 
     discord_notification.update(notification_data);
@@ -322,9 +396,17 @@ async function sendNotification(notification_data, chat_id) {
         return;
     }
 
-    wrapInCooldown(notification_data, chat_id);
+    await wrapInCooldown(notification_data, chat_id);
 }
 
+async function deleteNotification(chat_id, channel_id) {
+    if (!chat_id || !channel_id || !bot) return;
+
+    if (discord_notification_map[`${chat_id}:${notification_data.channel_id}`]) {
+        clearNotification(discord_notification_map[`${chat_id}:${notification_data.channel_id}`]);
+    }
+}
 module.exports = {
-    sendNotification
+    sendNotification,
+    deleteNotification
 }

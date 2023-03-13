@@ -1,6 +1,6 @@
 {
   "name": "bilderberg_butler",
-  "version": "2.31.0",
+  "version": "2.32.0",
   "description": "Discord bot for bilderberg club",
   "main": "index.js",
   "scripts": {
@@ -26,7 +26,7 @@
     "dotenv-vault-core": "^0.6.1",
     "express": "^4.18.1",
     "form-data": "^4.0.0",
-    "grammy": "^1.11.2",
+    "grammy": "^1.15.2",
     "ioredis": "^5.2.4",
     "mathjs": "^11.4.0",
     "openai": "^3.2.1",
