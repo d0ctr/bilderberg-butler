@@ -58,13 +58,9 @@ class TelegramInteraction {
             module: 'telegram-interaction',
             command_name: command_name,
             telegram_chat_id: context?.chat?.id,
-            telegram_chat: context?.chat?.title || context?.chat?.username,
             telegram_message_id: context?.message?.message_id,
-            telegram_message: context?.message?.text,
             telegram_user_id: context?.from?.id,
-            telegram_user: `${context?.from?.first_name}${context?.from?.last_name ? ' ' + context?.from?.last_name : ''}`,
             telegram_placeholder_message_id: this?._placeholderMessage?.message_id,
-            telegram_placeholder_message: this?._placeholderMessage?.text,
         };
         this.logger = require('../logger').child(this.log_meta);
         this.command_name = command_name;
@@ -155,7 +151,7 @@ class TelegramInteraction {
      * @return {Promise<Message>}
      */
     _reply(text, overrides) {
-        this.logger.info(`Replying with [${text}]`);
+        this.logger.info(`Replying with text`);
         return this.context.reply(text, {
             ...this._getBasicMessageOptions(),
             ...this._getTextOptions(),
@@ -201,7 +197,7 @@ class TelegramInteraction {
             media[0].caption = media[0].caption ? `${media[0].caption}\n${message.text}` : message.text;
         }
 
-        this.logger.info(`Replying with [${JSON.stringify(media)}]`, { response: media });
+        this.logger.info(`Replying with media group of type: ${message.type}`, { response: media });
         return this.context.replyWithMediaGroup(media, message_options);
     }
 
@@ -230,22 +226,21 @@ class TelegramInteraction {
         let media;
 
         if (message.filename) {
-            this.logger.info(`Replying with file [${JSON.stringify({ ...message, media: '...' })}]`, { response: { ...message, media: '...' } });
+            this.logger.info(`Replying with file of type: ${message.type}`);
             media = new InputFile(message.media, message.filename);
         }
         else {
-            this.logger.info(`Replying with [${JSON.stringify(message)}]`, { response: message });
+            this.logger.info(`Replying with media of type: ${message.type}`);
             media = message.media || message[message.type];
         }
 
         const replyMethod = this._getReplyMethod(message.type);
 
         if (typeof replyMethod === 'function') {
-            this.logger.info(`Replying with [${message_options.caption ? `${message_options.caption} ` : ''}${message.type}:${message.filename ? message.filename : media}]`, { response: { ...message, media: '...' }, response_options: message_options });
             return replyMethod(media, message_options);
         }
 
-        this.logger.info(`Can't send message as media [${JSON.stringify(message)}]`, { ...message, media: '...' });
+        this.logger.info(`Can't send message as media`);
         return this._reply(message.text);
     }
 
@@ -282,33 +277,33 @@ class TelegramInteraction {
      */
     reply() {
         if (typeof this.handler[this.command_name] !== 'function') {
-            this.logger.warn(`Received nonsense, how did it get here???: ${this.context.message.text}`);
+            this.logger.warn(`Received nonsense, how did it get here???`);
             return;
         }
 
-        this.logger.info(`Received command: ${this.context.message.text}`);
+        this.logger.info(`Received command: ${this.command_name}`);
 
         this.handler[this.command_name](this.context, this).then(([err, response, _, overrides]) => {
             if (err) {
                 return this._reply(err, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
-                    this.logger.error(`Error while replying with an error message to [${this.context?.message?.text}]`, { error: err.stack || err });
+                    this.logger.error(`Error while replying with an error message to [${this.command_name}]`, { error: err.stack || err });
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
                 });
             }
             if (response instanceof String || typeof response === 'string') {
                 return this._reply(response, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
-                    this.logger.error(`Error while replying with response text to [${this.context?.message?.text}]`);
+                    this.logger.error(`Error while replying with response text to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
                 });
             }
             if (response instanceof Object) {
                 return this._replyWithMedia(response, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
-                    this.logger.error(`Error while replying with media to [${this.context?.message?.text}]`);
+                    this.logger.error(`Error while replying with media to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
                 });
             }
         }).catch((err) => {
-            this.logger.error(`Error while processing command [${this.context.message.text}]`, { error: err.stack || err });
+            this.logger.error(`Error while processing command [${this.command_name}]`, { error: err.stack || err });
             this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply dropped`, { error: err.stack || err }));
         });
     }
@@ -346,7 +341,7 @@ class TelegramInteraction {
         if (media.type === 'text') return this._generateInlineText(media.text, overrides);
 
         if (!inline_answer_media_types.includes(media.type)) {
-            this.logger.warn(`Can't answer inline query with [media: ${JSON.stringify(media)}]`);
+            this.logger.warn(`Can't answer inline query with media of type: ${media.type}`);
             return;
         }
 
@@ -395,7 +390,7 @@ class TelegramInteraction {
             }
         }
 
-        this.logger.info(`Responding to inline query with [${JSON.stringify(answer)}]`);
+        this.logger.info(`Responding to inline query with an array`);
 
         return this.context.answerInlineQuery(answer.results, answer.other);
     }
@@ -441,18 +436,18 @@ class TelegramInteraction {
             }
 
             if (!results.length) {
-                this.logger.silly(`No help is generated for the inline query [${query}], exiting`);
+                this.logger.silly(`No help is generated for the inline query, exiting`);
                 return;
             }
 
             return this._answerQuery(results).catch((err) => {
-                this.logger.error(`Error while answering the inline query [${query}]`, { error: err.stack || err });
+                this.logger.error(`Error while answering the inline query`, { error: err.stack || err });
             });
         }
 
         // nothing matches, exit
         if (!matching_command_names.length || !this.inline_commands.includes(command_name)) {
-            this.logger.silly(`Inline query [${query}] doesn't match any command, sending empty answer`);
+            this.logger.silly(`Inline query doesn't match any command, sending empty answer`);
             return this._answerQuery([], { cache_time: 0 }).catch(err => {
                 this.logger.error(`Error while sending empty response for inline query`, { error: err.stack || err });
             });
@@ -471,7 +466,7 @@ class TelegramInteraction {
             type: 'private'
         };
 
-        this.logger.info(`Received eligible inline query with input [${query}], parsed context [${JSON.stringify(parsed_context)}]`);
+        this.logger.info(`Received eligible inline query, parsed context [${JSON.stringify(parsed_context)}]`);
 
         (async () => {
             if (this.handler[command_name]) {
@@ -493,7 +488,7 @@ class TelegramInteraction {
                             response,
                             overrides
                         )]).catch(err =>
-                            this.logger.error(`Error while responsing to inline query [${query}] with text [${response && response.text}]`, { error: err.stack || err })
+                            this.logger.error(`Error while responsing to inline query with text`, { error: err.stack || err })
                         );
                     }
                     if (response instanceof Object) {
@@ -501,16 +496,16 @@ class TelegramInteraction {
                             response,
                             overrides
                         )]).catch(err =>
-                            this.logger.error(`Error while responding to inline query [${query}] with media [${JSON.stringify(response)}]`, { error: err.stack || err })
+                            this.logger.error(`Error while responding to inline query with media`, { error: err.stack || err })
                         );
                     }
                 }
                 catch (err) {
-                    this.logger.error(`Error when generating inline query [${query}]`, { error: err.stack || err });
+                    this.logger.error(`Error when generating inline query`, { error: err.stack || err });
                 }
             }
         }).catch(err => {
-            this.logger.error(`Error while processing inline query [${query}]`, { error: err.stack || err });
+            this.logger.error(`Error while processing inline query`, { error: err.stack || err });
         });
     }
 }

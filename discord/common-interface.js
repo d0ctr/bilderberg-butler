@@ -83,11 +83,11 @@ function replyWithEmbed(interaction, response, logger) {
     }
 
     if (response.filename) {
-        logger.info(`Replying with file [${JSON.stringify({ ...response, media: '...' })}]`, { response: { ...response, media: '...' } });
+        logger.info(`Replying with file of type: ${response.type}`);
         payload.files = [response.media];
     }
     else {
-        logger.info(`Replying with [${JSON.stringify(response)}]`, { response });
+        logger.info(`Replying with media of type: ${response.type}`);
         embed.setImage(response.media);
         payload.embeds = [embed];
     }

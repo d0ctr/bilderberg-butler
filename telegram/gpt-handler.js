@@ -203,7 +203,7 @@ class ChatGPTHandler{
     handleContextRequest(interaction) {
         const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
         
-        logger.info(`Received command: ${interaction.context.message.text}`);
+        logger.info(`Received command: ${interaction.command_name}`);
 
         if (!interaction?.context?.message?.reply_to_message) {
             return interaction._reply('Эта команда работает только при реплае на сообщение');
@@ -238,7 +238,7 @@ class ChatGPTHandler{
     handleTreeRequest(interaction) {
         const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
 
-        logger.info(`Received command: ${interaction.context.message.text}`);
+        logger.info(`Received command: ${interaction.command_name}`);
 
         const context_tree = this._getContextTree(interaction.context.chat.id);
         
