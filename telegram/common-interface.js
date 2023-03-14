@@ -127,11 +127,11 @@ function reply(ctx, response, logger) {
     let media;
 
     if (response.filename) {
-        logger.info(`Replying with file [${JSON.stringify({ ...response, media: '...' })}]`, { response: { ...response, media: '...' } });
+        logger.info(`Replying with file of type: ${response.type}`);
         media = new InputFile(response.media, response.filename);
     }
     else {
-        logger.info(`Replying with [${JSON.stringify(response)}]`, { response });
+        logger.info(`Replying with media of type: ${response.type}`);
         media = response.media;
     }
 

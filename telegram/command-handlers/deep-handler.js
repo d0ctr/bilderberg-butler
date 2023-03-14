@@ -32,7 +32,7 @@ async function generateImage(input, interaction) {
         );
 
         const { output_url } = res.data;
-        this.logger.info(` ${arg} response ready ${output_url}`, { args: [arg] });
+        this.logger.info(`${arg} response ready ${output_url}`, { args: [arg] });
 
         return [null, { type: 'photo', media: output_url, url: output_url, text: arg }];
     } catch (err) {

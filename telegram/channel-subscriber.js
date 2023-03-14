@@ -29,7 +29,7 @@ async function restoreMessageID(chat_id) {
 
 class DiscordNotification {
     constructor(notification_data, chat_id) {
-        this.current_notification_data = notification_data;
+        this.current_notification_data = null;
         this.chat_id = chat_id;
         this.channel_id = notification_data.channel_id;
         this.channel_name = notification_data.channel_name;
@@ -55,16 +55,21 @@ class DiscordNotification {
 
         if (getHealth('redis') === 'ready') {
             const redis = getRedis();
-            redis.set(`telegram:${this.chat_id}:channel_subscriber:message_id`, value);
+            if (!value) {
+                redis.del(`telegram:${this.chat_id}:channel_subscriber:message_id`);
+            }
+            else {
+                redis.set(`telegram:${this.chat_id}:channel_subscriber:message_id`, value);
+            }
         }
     }
 
     get channel_url() {
-        return this.current_notification_data.channel_url;
+        return this.current_notification_data?.channel_url;
     }
 
     get members() {
-        return this.current_notification_data.members;
+        return this.current_notification_data?.members;
     }
 
     isNotified() {
@@ -328,35 +333,16 @@ function editNotificationMessage(discord_notification) {
             `Error while editing [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`, 
             { error: err.stack || err, ...discord_notification.getLogMeta() }
         );
+        if (err.description.search('message to edit not found') !== -1) {
+            logger.info(`[message: ${discord_notification.current_message_id}] doesn't exist, sending new message instead`);
+            discord_notification.current_message_id = null;
+            return sendNotificationMessage(discord_notification);
+        }
     });
 }
 
 async function wrapInCooldown(notification_data, chat_id) {
     const discord_notification = getDiscordNotification(notification_data, chat_id);
-
-    if (discord_notification.current_message_id === null) {
-        discord_notification.current_message_id = await restoreMessageID(chat_id);
-    }
-    
-    if (discord_notification.current_message_id !== null) {
-        try {
-            await bot.api.editMessageText(
-                discord_notification.chat_id,
-                discord_notification.current_message_id,
-                `Обновляю${'.'.repeat(Math.floor(1 + Math.random() * 5))}`
-            );
-            discord_notification.current_notification_data = null;
-        }
-        catch (err) {
-            logger.error(
-                `Error while checking [message: ${discord_notification.current_message_id}] presence in [chat: ${discord_notification.chat_id}]`,
-                {  ...discord_notification.getLogMeta(), error: err.stack || err }
-            );
-            if (err.error_code === 400) {
-                discord_notification.current_message_id = null;
-            }
-        }
-    }
 
     if (discord_notification.isNotified()) {
         if (discord_notification.generateNotificationTextFrom(notification_data) == discord_notification.getNotificationText()) {
@@ -377,7 +363,11 @@ async function wrapInCooldown(notification_data, chat_id) {
             return;
         }
     }
-
+    else {
+        discord_notification.current_message_id = await restoreMessageID(chat_id);
+    }
+    
+    
     discord_notification.update(notification_data);
 
     if (discord_notification.isNotified()) {
