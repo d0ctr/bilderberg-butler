@@ -163,7 +163,7 @@ class ChatGPTHandler{
                 'ChatGPT отказывается отвечать, можешь попробовать ещё раз, может он поддастся!',
                 { reply_to_message_id: prev_message_id }
             ).catch((err) => {
-                'Error while sending a safe reply', { error: err.stack || err }
+                this.logger.error('Error while sending a safe reply', { error: err.stack || err });
             });
         });
     }
