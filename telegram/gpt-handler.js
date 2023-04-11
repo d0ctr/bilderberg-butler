@@ -159,6 +159,12 @@ class ChatGPTHandler{
             });
         }).catch(err => {
             this.logger.error(`Error while getting ChatGPT Completion`, { error: err.stack || err });
+            interaction._reply(
+                'ChatGPT отказывается отвечать, можешь попробовать ещё раз, может он поддастся!',
+                { reply_to_message_id: prev_message_id }
+            ).catch((err) => {
+                this.logger.error('Error while sending a safe reply', { error: err.stack || err });
+            });
         });
     }
 
