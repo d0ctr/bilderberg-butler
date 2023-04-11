@@ -134,11 +134,11 @@ class DiscordNotification {
         let text = `Канал <a href="${this.getChannelUrl(notification_data)}">${notification_data.channel_name}</a> в Discord:`;
 
         notification_data.members.forEach((member) => {
-            text += `\n${member.member_name || member.user_name} <code>\
-${member.muted && '🔇' || '&#160;&#160;'}\
-${member.deafened && '🔕' || '&#160;&#160;'}\
-${member.streaming && '🖥️' || '&#160;&#160;'}\
-${member.camera && '🎥' || '&#160;&#160;'}</code>`;
+            text += `\n${member.member_name || member.user_name} \
+${member.muted && '🔇' || ''}\
+${member.deafened && '🔕' || ''}\
+${member.streaming && '🖥️' || ''}\
+${member.camera && '🎥' || ''}`;
         });
 
         return text;
