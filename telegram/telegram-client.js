@@ -671,11 +671,13 @@ class TelegramClient {
             }
         });
 
-        this.client.command('context', async (ctx) => {
-            if (ctx?.message?.reply_to_message) {
-                this.chatgpt_handler.handleContextRequest(new TelegramInteraction(this.client, 'context', ctx));
-            }
-        });
+        /* Sesitive data
+        * this.client.command('context', async (ctx) => {
+        *     if (ctx?.message?.reply_to_message) {
+        *         this.chatgpt_handler.handleContextRequest(new TelegramInteraction(this.client, 'context', ctx));
+        *     }
+        * });
+        */
 
         this.client.command('new_system_prompt', async (ctx) => {
             this.chatgpt_handler.handleAdjustSystemPrompt(new TelegramInteraction(this.client, 'new_system_prompt', ctx));
