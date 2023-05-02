@@ -1,4 +1,3 @@
-const { sendDiscordNotification } = require("./command-handlers/discord-handler");
 const { fizzbuzz } = require("./command-handlers/fizzbuzz-handler");
 const { get, set, getList, del } = require("./command-handlers/get-set-handlers");
 const { gh } = require("./command-handlers/github-handler");
@@ -40,8 +39,6 @@ class TelegramHandler {
         let message = 'Этот бот что-то может, чтобы узнать что, воспользуйся командой /help';
         return [null, message];
     }
-
-    discord_notification = sendDiscordNotification.bind(this);
 
     fizzbuzz = fizzbuzz.bind(this);
 

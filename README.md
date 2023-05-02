@@ -1,6 +1,6 @@
 <div align="center">
     <p style="text-align:center;">
-    <a><img src="https://github.com/d0ctr/bilderberg-butler/raw/main/docs/bilderberg_club_10p.png" width="50%" height="50%" /></a>
+    <a><img src="https://github.com/d0ctr/bilderberg-butler/raw/main/docs/bilderberg-butler.jpg"/></a>
     </p>
     <br />
     <p>
@@ -48,7 +48,7 @@ This bot talks with you in English and have a number of interesting (and not so 
   - /ping — pong
   - /user — prints the name and the id of the user who sent the command
   - /server — print the name and the id of the server where the command was sent
-  - /subscribe — {voice channel} {telegram chat id} — will send (and edit afterwards) to `telegram chat id` a message containing the list of current users and their statuses in `voice channel` . It will be pinned and updated on any change. When channel becomes empty the message will be deleted. 
+  - /subscribe — {voice channel} {telegram chat id} — will send (and edit afterwards) to `telegram chat id` a message containing the list of current users and their statuses in `voice channel` . It will be pinned and updated on any change. When channel becomes empty the message will be deleted. *To get `telegram chat id`, send `/info` command to bot in Telegram.*
   - /unsubscribe {voice channel} {telegram chat id?} — will turn off the feature for selected `voice channel` and won't send messages to `telegram chat id` or (if empty) to all previously configured `telegram chat id`s.
 
 ## Telegram Bot
@@ -59,14 +59,15 @@ This bot talks with you in Russian (because I've decided so, fill free to add tr
 
   - /start — start bot in private chat
   - /help — list of commands
-  - /discord_notification —  returns current chat id for Discord intergration
+  - /info —  returns information about current chat
   - /set {name} — saving content of a message that was replied with this command
   - /get {name} — getting content that was saved by `/set`
-  - /get_list — getting a list of possible /get
+  - /get_list — getting a list of possible `/get`
   - /del {name} — deleting the content saved by `/set` (in group chats can only be done by the person that previously used `/set`)
   - /html {HTML text} — return submitted text as HTML formatted
   - /gh {link} — convert GitHub link to a GitHub link with Instant View
   - /deep {prompt} — generates an image based on prompt with DeepAI
+  - /fizzbuzz {number_1} {word_1} ... {number_n} {word_n} - fizzbuzz from 1 to 101
 
 ### Inline Query
 
@@ -86,6 +87,22 @@ Here is the list of supported inline commands:
   - /curl
   - /wiki
 
+### ChatGPT integration
+
+If you reply to the bot's message (e.g. in group chats) or write to it directly (in private chat), it will use ChatGPT integration to answer you.
+
+ChatGPT integration uses OpenAI's `gpt-3.5-turbo` model to ger answers.
+
+Bot also has a **context tree**! Bot saves user's messages and own responses, so if you reply to either of it, it will use existing thread of messages as the context, which will affect ChatGPT's response. 
+  - Note that it makes a difference to which message you reply with new request (context will be captured from the thread of messages that ends with your newest request). 
+  - Context is only saved in bot's internal cache, therefore is wiped out at every restart.
+
+#### Special commands for ChatGPT 
+
+  - /new_system_prompt {prompt} — changes prompt in current chat. Default: `you are chat-assistant, answer shortly (less than 3000 characters), always answer in the same language as the question was asked`
+  - /answer — reply with this command to a message, bot will answer to it
+  - /tree — get a representation of bot's tree of context for this chat
+
 ## Common commands
 
 Some commands are both available in Discord and Telegram:
@@ -96,6 +113,7 @@ Some commands are both available in Discord and Telegram:
   - /urban {phrase?} — get the random or the phrase (if specified) definition from urban dictionary
   - /cur {amount} {from} {to} — convert amount from one currency to another
   - /wiki {query} — returns a summary from wikipedia
+  - /0o0 {query} — turns query into QuErY
 
 
 # Using or altering code
@@ -127,13 +145,16 @@ To authenticate as Discord or/and Telegram application needs tokens and other pa
 This application automatically loads variables specified in [`.env`](https://www.youtube.com/watch?v=dQw4w9WgXcQ) file that you should create yourself or you can export environment variables anyway you like.
 
   - `DISCORD_TOKEN` — Discord bot token (ignore if you are not planning to use it)
-  - `APP_ID` — Discord application id (ignore if you are not planning to use Discord bot)
+  - `DISCORD_APP_ID` — Discord application id (ignore if you are not planning to use Discord bot)
   - `TELEGRAM_TOKEN` — Telegram bot token (ignore if you are not planning to use it)
   - `REDISCLOUD_URL` — Redis connection URL that can be accepted by [ioredis](https://www.npmjs.com/package/ioredis/v/4.28.3) (can also be ignored)
   - `PORT` — Port for API (can be ignored)
-  - `ENV` — define environment, if equals `dev` (or if `PORT` is not specified, or if `DOMAIN` is not specified) will start polling for Telegram client, if is absent will start webhooking
+  - `ENV` — define environment, if equals `dev` (or if `PORT` is not specified, or if `DOMAIN` is not specified) will start polling for Telegram client, if is absent will start webhooking, if equals `test` will start polling using Telegram's test server's URL (`https://api.telegram.org/api/bot<token>/test`)
   - `COINMARKETCAP_TOKEN` — CoinMarketCap API token for currency conversion
   - `DOMAIN` — domain that application is available on (neeeded for webhooks and API)
+  - `DEEP_AI_TOKEN` — Deep AI token (ignorable)
+  - `OPENAI_TOKEN` — OpenAI account token (ignorable)
+  - `WEBAPP_URL` — Web App url to be posted in Inline Mode (ignorable)
 
 ## config.json
 

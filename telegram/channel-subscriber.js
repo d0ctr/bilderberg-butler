@@ -4,6 +4,8 @@ const { getHealth } = require('../services/health');
 const { getRedis } = require('../services/redis');
 
 const discord_notification_map = {};
+
+const chat_notification_map = {};
 /**
  * @property {Bot}
  */
@@ -52,6 +54,8 @@ class DiscordNotification {
 
     set current_message_id(value) {
         this._current_message_id = value;
+
+        chat_notification_map[this.chat_id] = value;
 
         if (getHealth('redis') === 'ready') {
             const redis = getRedis();
@@ -396,7 +400,13 @@ async function deleteNotification(chat_id, channel_id) {
         clearNotification(discord_notification_map[`${chat_id}:${notification_data.channel_id}`]);
     }
 }
+
+function isNotificationMessage(chat_id, message_id) {
+    return chat_notification_map[chat_id] === message_id;
+}
+
 module.exports = {
     sendNotification,
-    deleteNotification
+    deleteNotification,
+    isNotificationMessage
 }
