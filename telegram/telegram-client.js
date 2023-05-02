@@ -5,6 +5,7 @@ const { setHealth } = require('../services/health');
 const { handleCommand, getLegacyResponse } = require('./common-interface');
 const { commands, conditions, definitions, handlers } = require('../commands/handlers-exporter');
 const { ChatGPTHandler } = require('./gpt-handler');
+const { isNotificationMessage } = require('./channel-subscriber.js');
 
 const no_tags_regex = /<\/?[^>]+(>|$)/g;
 
@@ -390,6 +391,19 @@ class TelegramInteraction {
             }
         }
 
+        if (process.env.WEBAPP_URL) {
+            answer.other = {
+                ...answer.other,
+                button: {
+                    text: 'Открыть веб-интерфейс',
+                    web_app: {
+                        url: process.env.WEBAPP_URL
+                    }
+                },
+                ...overrides
+            }
+        }
+
         this.logger.info(`Responding to inline query with an array`);
 
         return this.context.answerInlineQuery(answer.results, answer.other);
@@ -566,7 +580,6 @@ class TelegramClient {
         // Registering commands specific to Telegram
         this._registerTelegramCommand('start', true);
         this._registerTelegramCommand('help', true, true);
-        this._registerTelegramCommand('discord_notification', true);
         this._registerTelegramCommand('html', true, true);
         this._registerTelegramCommand('fizzbuzz', true, true);
         this._registerTelegramCommand('gh', true, true);
@@ -576,7 +589,7 @@ class TelegramClient {
         this._registerTelegramCommand('del', this.app && this.app.redis);
         this._registerTelegramCommand('deep', config.DEEP_AI_API && process.env.DEEP_AI_TOKEN);
         this._registerTelegramCommand('info', true);
-        this._registerTelegramCommand('ytdl', process.env.YTDL_URL, false);
+        // this._registerTelegramCommand('ytdl', process.env.YTDL_URL, false);
         
         // Registering common commands
         commands.forEach((command_name, index) => {
@@ -666,7 +679,7 @@ class TelegramClient {
         });
 
         this.client.command('answer', async (ctx) => {
-            if (ctx?.message?.reply_to_message) {
+            if (ctx?.message?.reply_to_message && !isNotificationMessage(ctx?.message?.reply_to_message?.id)) {
                 this.chatgpt_handler.handleAnswerCommand(new TelegramInteraction(this.client, 'answer', ctx));
             }
         });
@@ -700,7 +713,16 @@ class TelegramClient {
             return;
         }
 
-        this.client = new Bot(process.env.TELEGRAM_TOKEN);
+        if (process.env?.ENV === 'test') {
+            this.client = new Bot(process.env.TELEGRAM_TOKEN, {
+                client: {
+                    buildUrl: (root, token, method) => `https://api.telegram.org/bot${token}/test/${method}`
+                }
+            });
+        }
+        else {
+            this.client = new Bot(process.env.TELEGRAM_TOKEN);
+        }
 
         this.client.catch((err) => {
             this.logger.error(`High level middleware error in bot`, { error: err.stack || err });
@@ -710,7 +732,7 @@ class TelegramClient {
         this._filterServiceMessages();
         this._registerGPTAnswers();
 
-        if (process.env.ENV.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
+        if (['dev', 'test'].includes(process.env.ENV.toLowerCase()) || !process.env.PORT || !process.env.DOMAIN) {
             this._startPolling();
         }
         else {

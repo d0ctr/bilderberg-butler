@@ -206,40 +206,40 @@ class ChatGPTHandler{
         this._replyFromContext(interaction, context, context_tree, message_id)
     }
 
-    handleContextRequest(interaction) {
-        const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
+    // handleContextRequest(interaction) {
+    //     const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
         
-        logger.info(`Received command: ${interaction.command_name}`);
+    //     logger.info(`Received command: ${interaction.command_name}`);
 
-        if (!interaction?.context?.message?.reply_to_message) {
-            return interaction._reply('Эта команда работает только при реплае на сообщение');
-        }
+    //     if (!interaction?.context?.message?.reply_to_message) {
+    //         return interaction._reply('Эта команда работает только при реплае на сообщение');
+    //     }
 
-        const context_tree = this._getContextTree(interaction.context.chat.id);
+    //     const context_tree = this._getContextTree(interaction.context.chat.id);
 
-        const message_id = interaction.context.message.reply_to_message.message_id;
+    //     const message_id = interaction.context.message.reply_to_message.message_id;
 
-        const context = context_tree.getRawContext(message_id);
+    //     const context = context_tree.getRawContext(message_id);
 
-        if (!context.length) {
-            return interaction._reply('Для этого сообщения нет контекста');
-        }
+    //     if (!context.length) {
+    //         return interaction._reply('Для этого сообщения нет контекста');
+    //     }
 
-        const context_message = {
-            type: 'document',
-            filename: `context_${message_id}.json`,
-            media: Buffer.from(JSON.stringify(context, null, 2)),
-            text: 'Контекст'
-        };
+    //     const context_message = {
+    //         type: 'document',
+    //         filename: `context_${message_id}.json`,
+    //         media: Buffer.from(JSON.stringify(context, null, 2)),
+    //         text: 'Контекст'
+    //     };
 
-        return interaction._replyWithMedia(
-            context_message,
-            { reply_to_message_id: interaction.context.message.message_id }
-        ).catch(err => {
-            this.logger.error('Error while sending context', { error: err.stack || err });
-            interaction._reply(`Ошибка во время отправки контекста:\n<code>${err.message}</code>`);
-        });
-    }
+    //     return interaction._replyWithMedia(
+    //         context_message,
+    //         { reply_to_message_id: interaction.context.message.message_id }
+    //     ).catch(err => {
+    //         this.logger.error('Error while sending context', { error: err.stack || err });
+    //         interaction._reply(`Ошибка во время отправки контекста:\n<code>${err.message}</code>`);
+    //     });
+    // }
 
     handleTreeRequest(interaction) {
         const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
