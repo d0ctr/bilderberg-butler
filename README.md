@@ -1,6 +1,6 @@
 <div align="center">
     <p style="text-align:center;">
-    <a><img src="https://github.com/d0ctr/bilderberg-butler/raw/main/docs/bilderberg_club_10p.png" width="50%" height="50%" /></a>
+    <a><img src="https://github.com/d0ctr/bilderberg-butler/raw/main/docs/bilderberg-butler.jpg"/></a>
     </p>
     <br />
     <p>

@@ -37,7 +37,16 @@ const inline_answer_media_types = [
     'voice',
     'photo',
     'gif',
-    'sticker'
+    'sticker',
+    'mpeg4_gif'
+];
+
+const inline_media_requiring_thumbnail = [
+    'photo',
+    'video',
+    'gif',
+    'animation',
+    'mpeg4_gif'
 ];
 
 /**
@@ -349,11 +358,13 @@ class TelegramInteraction {
         let suffix = media.url ? '_url' : '_file_id';
         let data = media.url ? media.url : media.media || media[media.type];
         let inline_type = media.type === 'animation' ? 'gif' : media.type;
+        let thumbnail_url = media.thumbnail_url || (inline_media_requiring_thumbnail.includes(media.type) && config.DEFAULT_THUMBNAIL_URL);
         let result = {
             id: Date.now(),
             type: inline_type,
             title: media.text ? media.text.split('\n')[0] : ' ',
             caption: media.text,
+            thumbnail_url,
             ...this._getTextOptions(),
             ...overrides,
         };

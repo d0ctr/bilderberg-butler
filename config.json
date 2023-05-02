@@ -11,5 +11,6 @@
     "WIKIPEDIA_SUMMARY_URL": {
         "EN": "https://en.wikipedia.org/api/rest_v1/page/summary",
         "RU": "https://ru.wikipedia.org/api/rest_v1/page/summary"
-    }
+    },
+    "DEFAULT_THUMBNAIL_URL": "https://github.com/d0ctr/bilderberg-butler/raw/main/docs/bilderberg-butler.jpg"
 }
