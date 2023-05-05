@@ -402,6 +402,9 @@ async function deleteNotification(chat_id, channel_id) {
 }
 
 function isNotificationMessage(chat_id, message_id) {
+    if (!chat_id || !message_id) {
+        return false;
+    }
     return chat_notification_map[chat_id] === message_id;
 }
 
