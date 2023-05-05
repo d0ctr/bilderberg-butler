@@ -690,7 +690,7 @@ class TelegramClient {
         });
 
         this.client.command('answer', async (ctx) => {
-            if (ctx?.message?.reply_to_message && !isNotificationMessage(ctx?.message?.reply_to_message?.id)) {
+            if (ctx?.message?.reply_to_message && !isNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.id)) {
                 this.chatgpt_handler.handleAnswerCommand(new TelegramInteraction(this.client, 'answer', ctx));
             }
         });
