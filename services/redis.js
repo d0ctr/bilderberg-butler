@@ -8,12 +8,16 @@ const logger = require('../logger').child({ module: 'redis' });
 
 let redis_instance = null;
 
+/**
+ * 
+ * @returns {Redis.Redis | null}
+ */
 const startRedis = () => {
-    redis_instance = process.env.REDISCLOUD_URL ? new Redis(process.env.REDISCLOUD_URL) : null;
-    
-    if (!redis_instance) {
-        return null;
+    if (!process.env.REDIS_URL) {
+        return redis_instance;
     }
+    
+    redis_instance = new Redis(process.env.REDIS_URL);
 
     redis_instance.on('connect', () => {
         logger.info('Redis is connected');
@@ -47,6 +51,10 @@ const startRedis = () => {
     return redis_instance;
 };
 
+/**
+ * 
+ * @returns {Redis.Redis | null}
+ */
 const getRedis = () => redis_instance;
 
 module.exports = {
