@@ -4,7 +4,7 @@ if (process.env.ENV !== 'prod') {
 }
 const { startRedis } = require('./services/redis');
 const DiscordClient = require('./discord');
-const TelegramClient = require('./telegram');
+const { TelegramClient } = require('./telegram');
 const APIServer = require('./api');
 const logger = require('./logger');
 const { fetchCurrenciesList } = require('./services/currency');
@@ -55,7 +55,8 @@ process.on('uncaughtException', (error) => {
 
 process.on('beforeExit', async () => {
     process_logger.info('Gracefully shutdowning application...');
-    await app.discord_client.stop();
-    await app.telegram_client.stop();
-    await app.api_server.stop();
+    await app?.discord_client?.stop();
+    await app?.telegram_client?.stop();
+    await app?.api_server?.stop();
+    process.exit();
 });

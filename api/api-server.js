@@ -13,7 +13,7 @@ class APIServer {
         this.express.use((req, res, next) => {
             this.logger.info(
                 `Received [${req.method} : ${req.originalUrl}]`,
-                { method: req.method, uri: req.originalUrl }
+                { method: req.method, uri: req.originalUrl, payload: ['dev', 'test'].includes(process.env.ENV) ? req?.body : '...' }
             );
             next();
         });
