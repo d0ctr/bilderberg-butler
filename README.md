@@ -147,7 +147,7 @@ This application automatically loads variables specified in [`.env`](https://www
   - `DISCORD_TOKEN` — Discord bot token (ignore if you are not planning to use it)
   - `DISCORD_APP_ID` — Discord application id (ignore if you are not planning to use Discord bot)
   - `TELEGRAM_TOKEN` — Telegram bot token (ignore if you are not planning to use it)
-  - `REDISCLOUD_URL` — Redis connection URL that can be accepted by [ioredis](https://www.npmjs.com/package/ioredis/v/4.28.3) (can also be ignored)
+  - `REDIS_URL` — Redis connection URL that can be accepted by [ioredis](https://www.npmjs.com/package/ioredis/v/4.28.3) (can also be ignored)
   - `PORT` — Port for API (can be ignored)
   - `ENV` — define environment, if equals `dev` (or if `PORT` is not specified, or if `DOMAIN` is not specified) will start polling for Telegram client, if is absent will start webhooking, if equals `test` will start polling using Telegram's test server's URL (`https://api.telegram.org/api/bot<token>/test`)
   - `COINMARKETCAP_TOKEN` — CoinMarketCap API token for currency conversion

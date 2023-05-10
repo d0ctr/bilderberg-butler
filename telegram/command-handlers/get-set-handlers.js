@@ -97,7 +97,7 @@ async function get(ctx) {
         this.logger.error(`Error while getting content from redis`, { error: err.stack || err, args: [name] });
         return [`Что-то случилось во время получения гета:\n<code>${err}</code>`];
     }
-    if (!result) {
+    if (!result || !Object.keys(result).length) {
         return [`Такого гета нет, можешь быть первым кто его сделает`];
     }
     return [null, result];

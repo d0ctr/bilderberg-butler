@@ -408,7 +408,7 @@ class TelegramInteraction {
                 button: {
                     text: 'Открыть веб-интерфейс',
                     web_app: {
-                        url: process.env.WEBAPP_URL
+                        url: `${process.env.WEBAPP_URL}/user/${this.context.from.id}`
                     }
                 },
                 ...overrides
@@ -547,7 +547,6 @@ class TelegramClient {
         this.logger = require('../logger').child(this.log_meta);
         this.handler = new TelegramHandler(this);
         this.inline_commands = [];
-        this._discord_notification_map = {};
     }
 
     /**
@@ -600,6 +599,7 @@ class TelegramClient {
         this._registerTelegramCommand('del', this.app && this.app.redis);
         this._registerTelegramCommand('deep', config.DEEP_AI_API && process.env.DEEP_AI_TOKEN);
         this._registerTelegramCommand('info', true);
+        this._registerTelegramCommand('webapp', process.env.WEBAPP_URL);
         // this._registerTelegramCommand('ytdl', process.env.YTDL_URL, false);
         
         // Registering common commands
@@ -623,22 +623,27 @@ class TelegramClient {
         this.client.on('inline_query', async (ctx) => new TelegramInteraction(this, 'inline_query', ctx).answer());
     }
 
-    _saveInterruptedWebhookURL() {
-        this.client.api.getWebhookInfo().then(({ url }) => {
+    async _saveInterruptedWebhookURL() {
+        try {
+            const { url } = await this.client.api.getWebhookInfo();
+
             if (url) {
                 this.logger.info(`Saving interrupted webhook url for restoration [${url}]`);
                 this._interruptedWebhookURL = url;
             }
-        })
+        }
+        catch (err) {
+            this.logger.error('Got an error, while getting Webhook Info', { error: err.stack || err });
+        }
     }
 
-    _startPolling() {
+    async _startPolling() {
         if (!process.env.TELEGRAM_TOKEN) {
             this.logger.warn(`Token for Telegram wasn't specified, client is not started.`);
             return;
         }
 
-        this._saveInterruptedWebhookURL();
+        await this._saveInterruptedWebhookURL();
 
         this.client.start({
             onStart: () => {
@@ -724,7 +729,7 @@ class TelegramClient {
             return;
         }
 
-        if (process.env?.ENV === 'test') {
+        if (process.env?.ENV === 'dev') {
             this.client = new Bot(process.env.TELEGRAM_TOKEN, {
                 client: {
                     buildUrl: (root, token, method) => `https://api.telegram.org/bot${token}/test/${method}`
@@ -743,8 +748,8 @@ class TelegramClient {
         this._filterServiceMessages();
         this._registerGPTAnswers();
 
-        if (['dev', 'test'].includes(process.env.ENV.toLowerCase()) || !process.env.PORT || !process.env.DOMAIN) {
-            this._startPolling();
+        if (process.env.ENV.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
+            await this._startPolling();
         }
         else {
             this._setWebhook();
@@ -757,9 +762,6 @@ class TelegramClient {
         }
         this.logger.info('Gracefully shutdowning Telegram client.');
 
-        for (let discord_notification of Object.values(this._discord_notification_map)) {
-            await this._clearNotification(discord_notification);
-        }
         await this.client.api.deleteWebhook();
         await this.client.stop();
         if (this._interruptedWebhookURL) {
@@ -769,4 +771,7 @@ class TelegramClient {
     }
 }
 
-module.exports = TelegramClient;
+module.exports = {
+    TelegramClient,
+    TelegramInteraction   
+};
