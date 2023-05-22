@@ -1,8 +1,28 @@
 const { OpenAIApi, Configuration } = require('openai');
 
+const { Converter: MDConverter } = require('showdown');
+
+const mdConverter = new MDConverter({
+    noHeaderId: 'true',
+    strikethrough: 'true'
+});
+
 const CHAT_MODEL_NAME = 'gpt-3.5-turbo';
 
 const DEFAULT_SYSTEM_PROMPT = 'you are chat-assistant, answer shortly (less than 3000 characters), always answer in the same language as the question was asked';
+/**
+   @param {String} input
+   @return {String}
+ */
+function prepareText(input) {
+    let res = input
+        .replace(/>/gm, '&gt;')
+        .replace(/</gm, '&lt;')
+        .replace(/&/gm, '&amp;');
+    res = mdConverter.makeHTML(res);
+    
+    return res;
+}
 
 class ContextNode {
     constructor({ role, content, message_id, prev_node } = {}) {
@@ -129,6 +149,8 @@ class ChatGPTHandler{
             model: CHAT_MODEL_NAME,
             messages: context
         }).then(({ data, status } = {}) => {
+            interaction.context.replyWithChatAction('typing');
+
             if (status !== 200) {
                 this.logger.warn('Non-200 response to ChatGPT Completion', { data: data });
             }
@@ -139,11 +161,8 @@ class ChatGPTHandler{
             }
 
             interaction._reply(
-                data.choices[0].message.content,
-                { 
-                    reply_to_message_id: prev_message_id,
-                    parse_mode: 'MarkdownV2'
-                }
+                prepareText(data.choices[0].message.content),
+                { reply_to_message_id: prev_message_id }
             ).then(({ message_id: new_message_id, text }) => {
                 context_tree.appendNode({
                     role: 'assistant',
