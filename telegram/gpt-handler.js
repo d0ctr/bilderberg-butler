@@ -140,7 +140,10 @@ class ChatGPTHandler{
 
             interaction._reply(
                 data.choices[0].message.content,
-                { reply_to_message_id: prev_message_id }
+                { 
+                    reply_to_message_id: prev_message_id,
+                    parse_mode: 'MarkdownV2'
+                }
             ).then(({ message_id: new_message_id, text }) => {
                 context_tree.appendNode({
                     role: 'assistant',
