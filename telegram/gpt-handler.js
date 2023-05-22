@@ -1,8 +1,33 @@
 const { OpenAIApi, Configuration } = require('openai');
 
+const { Converter: MDConverter } = require('showdown');
+
+const mdConverter = new MDConverter({
+    noHeaderId: 'true',
+    strikethrough: 'true'
+});
+
 const CHAT_MODEL_NAME = 'gpt-3.5-turbo';
 
 const DEFAULT_SYSTEM_PROMPT = 'you are chat-assistant, answer shortly (less than 3000 characters), always answer in the same language as the question was asked';
+/**
+   @param {String} input
+   @return {String}
+ */
+function prepareText(input) {
+    /** Needs to avoid replacing inside code snippets
+     *  let res = input
+     *     .replace(/&/gm, '&amp;')
+     *     .replace(/>/gm, '&gt;')
+     *     .replace(/</gm, '&lt;');
+     */
+
+    let res = mdConverter
+        .makeHtml(input)
+        .replace(/<\/?p>/gm, '');
+    
+    return res;
+}
 
 class ContextNode {
     constructor({ role, content, message_id, prev_node } = {}) {
@@ -125,10 +150,16 @@ class ChatGPTHandler{
     _replyFromContext(interaction, context, context_tree, prev_message_id) {
         interaction.context.replyWithChatAction('typing');
 
+        const continiousChatAction = setInterval(() => {
+            interaction.context.replyWithChatAction('typing');
+        }, 5000);
+
         this.openAIApi.createChatCompletion({
             model: CHAT_MODEL_NAME,
             messages: context
         }).then(({ data, status } = {}) => {
+            clearInterval(continiousChatAction);
+
             if (status !== 200) {
                 this.logger.warn('Non-200 response to ChatGPT Completion', { data: data });
             }
@@ -139,11 +170,8 @@ class ChatGPTHandler{
             }
 
             interaction._reply(
-                data.choices[0].message.content,
-                { 
-                    reply_to_message_id: prev_message_id,
-                    parse_mode: 'MarkdownV2'
-                }
+                prepareText(data.choices[0].message.content),
+                { reply_to_message_id: prev_message_id }
             ).then(({ message_id: new_message_id, text }) => {
                 context_tree.appendNode({
                     role: 'assistant',
@@ -161,6 +189,8 @@ class ChatGPTHandler{
                 });
             });
         }).catch(err => {
+            clearInterval(continiousChatAction);
+
             this.logger.error(`Error while getting ChatGPT Completion`, { error: err.stack || err });
             interaction._reply(
                 'ChatGPT отказывается отвечать, можешь попробовать ещё раз, может он поддастся!',
