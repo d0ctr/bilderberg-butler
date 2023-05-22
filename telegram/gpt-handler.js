@@ -15,11 +15,16 @@ const DEFAULT_SYSTEM_PROMPT = 'you are chat-assistant, answer shortly (less than
    @return {String}
  */
 function prepareText(input) {
-    let res = input
-        .replace(/>/gm, '&gt;')
-        .replace(/</gm, '&lt;')
-        .replace(/&/gm, '&amp;');
-    res = mdConverter.makeHTML(res);
+    /** Needs to avoid replacing inside code snippets
+     *  let res = input
+     *     .replace(/&/gm, '&amp;')
+     *     .replace(/>/gm, '&gt;')
+     *     .replace(/</gm, '&lt;');
+     */
+
+    let res = mdConverter
+        .makeHtml(input)
+        .replace(/<\/?p>/gm, '');
     
     return res;
 }
@@ -145,11 +150,15 @@ class ChatGPTHandler{
     _replyFromContext(interaction, context, context_tree, prev_message_id) {
         interaction.context.replyWithChatAction('typing');
 
+        const continiousChatAction = setInterval(() => {
+            interaction.context.replyWithChatAction('typing');
+        }, 5000);
+
         this.openAIApi.createChatCompletion({
             model: CHAT_MODEL_NAME,
             messages: context
         }).then(({ data, status } = {}) => {
-            interaction.context.replyWithChatAction('typing');
+            clearInterval(continiousChatAction);
 
             if (status !== 200) {
                 this.logger.warn('Non-200 response to ChatGPT Completion', { data: data });
@@ -180,6 +189,8 @@ class ChatGPTHandler{
                 });
             });
         }).catch(err => {
+            clearInterval(continiousChatAction);
+
             this.logger.error(`Error while getting ChatGPT Completion`, { error: err.stack || err });
             interaction._reply(
                 'ChatGPT отказывается отвечать, можешь попробовать ещё раз, может он поддастся!',
