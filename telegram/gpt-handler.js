@@ -15,17 +15,17 @@ const DEFAULT_SYSTEM_PROMPT = 'you are chat-assistant, answer shortly (less than
    @return {String}
  */
 function prepareText(input) {
-    /** Needs to avoid replacing inside code snippets
-     *  let res = input
-     *     .replace(/&/gm, '&amp;')
-     *     .replace(/>/gm, '&gt;')
-     *     .replace(/</gm, '&lt;');
-     */
+    /** Needs to avoid replacing inside code snippets */
+    let res = input
+        .replace(/&/gm, '&amp;')
+        .replace(/>/gm, '&gt;')
+        .replace(/</gm, '&lt;');
 
-    let res = mdConverter
-        .makeHtml(input)
-        .replace(/<\/?p>/gm, '');
-    
+    /** too aggressive
+     *  let res = mdConverter
+     *     .makeHtml(input)
+     *     .replace(/<\/?p>/gm, '');
+     */
     return res;
 }
 
