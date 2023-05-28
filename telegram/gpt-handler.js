@@ -26,6 +26,7 @@ function prepareText(input) {
      *     .makeHtml(input)
      *     .replace(/<\/?p>/gm, '');
      */
+    return res;
 }
 
 class ContextNode {
