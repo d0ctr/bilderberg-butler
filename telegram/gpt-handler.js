@@ -26,6 +26,7 @@ function prepareText(input) {
      *     .makeHtml(input)
      *     .replace(/<\/?p>/gm, '');
      */
+    return res;
 }
 
 class ContextNode {
@@ -181,7 +182,7 @@ class ChatGPTHandler{
             }).catch(err => {
                 this.logger.error('Error while sending ChatGPT completion', { error: err.stack || err });
                 interaction._reply(
-                    'Ты даже представить себе не можешь, что там ChatGPT придумал, давай поновой',
+                    'Ты даже представить себе не можешь, что там ChatGPT придумал, давай по новой',
                     { reply_to_message_id: prev_message_id }
                 ).catch(err => {
                     this.logger.error('Safe reply failed', { error: err.stack || err });
