@@ -4,6 +4,7 @@ const { EmbedBuilder } = require('discord.js');
 const turndownService = new TurndownService({
     codeBlockStyle: 'fenced',
 });
+
 turndownService.addRule('a', {
     filter: ['a'],
     replacement: (content, node) => {

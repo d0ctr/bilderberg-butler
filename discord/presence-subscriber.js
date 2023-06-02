@@ -1,29 +1,11 @@
+const { BaseSubscriber } = require('./common');
 const { setTitle, deleteTitle } = require('../telegram/presence-subscriber');
 
 const subscribers = {};
 
-class PresenceSubscriber {
+class PresenceSubscriber extends BaseSubscriber {
     constructor() {
-        this.log_meta = { module: 'presence-subscriber' };
-        this.redis = require('../services/redis').getRedis() || null;
-        this.telegram_chat_ids = [];
-        this.telegram_user_id = null;
-        this.last_state_name = null;
-        this.active = false;
-        this._dump_retries = 0;
-        this._restore_retries = 0;
-        
-        this.logger = require('../logger').child(this.log_meta);
-    }
-
-    set _guild(guild) {
-        this.log_meta.discord_guild_id = guild?.id;
-        this.log_meta.discord_guild = guild?.name;
-        this.__guild = guild;
-    }
-
-    get _guild() {
-        return this.__guild;
+        super('presence_subscriber');
     }
 
     set _member(member) {
@@ -34,6 +16,10 @@ class PresenceSubscriber {
 
     get _member() {
         return this.__member;
+    }
+
+    get _dump_key() {
+        return `${this._guild.id}:${this._subscriber_type}:${this._member.id}`;
     }
 
     async update(presence) {
@@ -96,17 +82,11 @@ class PresenceSubscriber {
         this.last_state_name = activity_name;
     }
 
-    async start(member, telegram_chat_id, telegram_user_id) {
-        if (!telegram_chat_id || !telegram_user_id || !member) 
-        {
-            return;
-        }
+    start(member, telegram_chat_id, telegram_user_id) {
+        if (!telegram_chat_id || !telegram_user_id || !member) return;
         if (this.active
             && this.telegram_chat_ids
-            && this.telegram_chat_ids.includes(telegram_chat_id))
-        {
-            return;
-        }
+            && this.telegram_chat_ids.includes(telegram_chat_id)) return;
 
         this.active = true;
         this.telegram_chat_ids.push(telegram_chat_id);
