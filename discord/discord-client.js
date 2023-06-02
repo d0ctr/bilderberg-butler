@@ -1,18 +1,28 @@
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const DiscordHandler = require('./discord-handler');
+
 const { 
     isActive: isChannelSubscriberActive,
     update: updateChannelSubscriberState,
     restore: restoreChannelSubscriber,
 } = require('./channel-subscriber');
+
 const {
     isActive: isPresenceSubscriberActive,
     update: updatePresenceSubscriberState,
     restore: restorePresenceSubscriber,
 } = require('./presence-subscriber');
+
+const {
+    isActive: isEventSubscriberActive,
+    update: updateEventSubscriberState,
+    restore: restoreEventSubscriber,
+    cleanup: cleanupEventSubscriber
+} = require('./event-subscriber');
+
 const { setHealth } = require('../services/health');
 const { commands, conditions, definitions, handlers } = require('../commands/handlers-exporter');
-const { handleCommand } = require('./common-interface');
+const { handleCommand } = require('../commands/discord');
 
 class DiscordInteraction {
     constructor(interaction, handler) {
@@ -89,15 +99,23 @@ class DiscordInteraction {
             this._reply(response).then(() => {
                 this.logger.debug('Replied!');
             }).catch(err => {
-                this.logger.error(`Error while replying`, { error: err.stack || err});
+                this.logger.error(`Error while replying`, { error: err.stack || err });
                 this._reply({
                     type: 'error',
                     text: `Что-то случилось:\n\`\`\`${err}\`\`\``
                 }).then(() => {
                     this.logger.debug('Safe reply succeeded');
                 }).catch(err => {
-                    this.logger.error(`Safe reply failed`, { error: err.stack || err});
+                    this.logger.error(`Safe reply failed`, { error: err.stack || err });
                 });
+            });
+        }).catch(err => {
+            this.logger.error(`Error while processing command [${this.command_name}]`, { error: err.stack || err });
+            this._reply({
+                type: 'error',
+                text: `Что-то случилось:\n\`\`\`${err}\`\`\``
+            }).catch(err => {
+                this.logger.error(`Safe reply failed`, { error: err.stack || err });
             });
         });
     }
@@ -110,8 +128,8 @@ class DiscordClient {
         this.logger = require('../logger').child(this.log_meta);
         this.discordjs_logger = require('../logger').child({ module: 'discordjs' });
         this.redis = app.redis;
-        this.handler = new DiscordHandler(this);
-        this.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates /**, GatewayIntentBits.GuildPresences */] });
+        this.handler = new DiscordHandler();
+        this.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.GuildScheduledEvents /**, GatewayIntentBits.GuildPresences */] });
 
         this.client.on('ready', () => {
             this.log_meta.discord_bot_id = this.client.application.id;
@@ -126,7 +144,7 @@ class DiscordClient {
         this.client.on('invalidated', () => {
             this.logger.warn('Discord Client is invalidated.');
             setHealth('discord', 'invalidated');
-        })
+        });
 
         this.client.on('debug', info => {
             this.discordjs_logger.silly(`${info}`);
@@ -134,11 +152,11 @@ class DiscordClient {
 
         this.client.on('warn', info => {
             this.discordjs_logger.warn(`${info}`);
-        })
+        });
 
         this.client.on('error', error => {
             this.discordjs_logger.error(`${error}`);
-        })
+        });
 
         this.client.on('interactionCreate', async interaction => {
             if (!interaction.isChatInputCommand()) return;
@@ -158,12 +176,11 @@ class DiscordClient {
                 return handleCommand(interaction, handlers[index], definitions[index]);
             }
 
-
             return new DiscordInteraction(interaction, this.handler).reply();
         });
 
         this.client.on('voiceStateUpdate', async (prev_state, new_state) => {
-            if(isChannelSubscriberActive(new_state.channel)) {
+            if (isChannelSubscriberActive(new_state.channel)) {
                 new_state.channel.fetch().then(channel => {
                     updateChannelSubscriberState(channel);
                 });
@@ -180,6 +197,12 @@ class DiscordClient {
         //         updatePresenceSubscriberState(new_state.member);
         //     }
         // });
+
+        this.client.on('guildScheduledEventUpdate', async ({}, new_state) => {
+            if (isEventSubscriberActive(new_state.guild)) {
+                updateEventSubscriberState(new_state);
+            }
+        });
     }
 
     async start() {
@@ -231,7 +254,6 @@ class DiscordClient {
             });
         });
     }
-        
 
     async restoreChannelSubscribers(guild) {
         if (!this.redis) {
@@ -267,14 +289,39 @@ class DiscordClient {
         });
     }
 
+    async restoreEventSubscriber(guild) {
+        if (!this.redis) {
+            this.logger.info("Hey! I can't revive without redis instance!");
+            return;
+        }
+        if (isEventSubscriberActive(guild)) {
+            this.logger.info(`There is an active event subscriber for ${guild.id}, no need for restoration`);
+            return;
+        }
+
+        restoreEventSubscriber(guild);
+
+        guild.scheduledEvents.fetch().then(events => {
+            const existing_events_ids = [];
+            events.forEach(event => {
+                existing_events_ids.push(event.id);
+                updateEventSubscriberState(event);
+            });
+            cleanupEventSubscriber(guild, existing_events_ids);
+        }).catch(err => {
+            this.logger.error(`Error while fetching events for ${guild.id}`, { error: err.stack || err });
+        });
+    }
+
     async restoreData () {
-        this.client.guilds.cache.map((guild) => {
+        this.client.guilds.cache.forEach((guild) => {
             this.logger.info(`Reviving data from redis for [guild:${guild.id}]`, { discord_guild: guild.name, discord_guild_id: guild.id });
             this.restoreChannelSubscribers(guild);
             // this.restorePresenceSubscribers(guild);
+            this.restoreEventSubscriber(guild);
         });
     }
-    
+
     parseInteractionInfo (interaction) {
         let info = {};
         if (interaction.guild) {
@@ -366,6 +413,24 @@ class DiscordClient {
                         .setDescription('Голосовой канал.')
                         .addChannelTypes(ChannelType.GuildVoice)
                         .setRequired(true))
+                .addStringOption(input =>
+                    input.setName('telegram_chat_id')
+                        .setDescription('ID чата в Telegram.')
+                        .setRequired(false)),
+
+            new SlashCommandBuilder() // subevents
+            .setName('subevents')
+            .setDMPermission(false)
+            .setDescription(`Подписаться на эвенты на сервере`)
+            .addStringOption(input => 
+                input.setName('telegram_chat_id')
+                    .setDescription('ID чата в Telegram, который будет получать уведомления.')
+                    .setRequired(true)),
+            
+            new SlashCommandBuilder() // unsubevents
+                .setName('unsubevents')
+                .setDMPermission(false)
+                .setDescription(`Отписаться от событий в голосовом канале сервера.`)
                 .addStringOption(input =>
                     input.setName('telegram_chat_id')
                         .setDescription('ID чата в Telegram.')

@@ -2,10 +2,11 @@ const { Bot, Context, webhookCallback, InputFile } = require('grammy');
 const TelegramHandler = require('./telegram-handler');
 const config = require('../config.json');
 const { setHealth } = require('../services/health');
-const { handleCommand, getLegacyResponse } = require('./common-interface');
+const { handleCommand, getLegacyResponse } = require('../commands/telegram');
 const { commands, conditions, definitions, handlers } = require('../commands/handlers-exporter');
 const { ChatGPTHandler } = require('./gpt-handler');
-const { isNotificationMessage } = require('./channel-subscriber.js');
+const { isNotificationMessage: isChannelNotificationMessage } = require('./channel-subscriber.js');
+const { isNotificationMessage: isEventNotificationMessage } = require('./event-subscriber.js');
 
 const no_tags_regex = /<\/?[^>]+(>|$)/g;
 
@@ -314,7 +315,7 @@ class TelegramInteraction {
             }
         }).catch((err) => {
             this.logger.error(`Error while processing command [${this.command_name}]`, { error: err.stack || err });
-            this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply dropped`, { error: err.stack || err }));
+            this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
         });
     }
 
@@ -695,7 +696,10 @@ class TelegramClient {
         });
 
         this.client.command('answer', async (ctx) => {
-            if (ctx?.message?.reply_to_message && !isNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.id)) {
+            if (ctx?.message?.reply_to_message 
+                && !isChannelNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.id)
+                && !isEventNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.id)
+                ) {
                 this.chatgpt_handler.handleAnswerCommand(new TelegramInteraction(this.client, 'answer', ctx));
             }
         });
@@ -732,7 +736,7 @@ class TelegramClient {
         if (process.env?.ENV === 'dev') {
             this.client = new Bot(process.env.TELEGRAM_TOKEN, {
                 client: {
-                    buildUrl: (root, token, method) => `https://api.telegram.org/bot${token}/test/${method}`
+                    buildUrl: ({}, token, method) => `https://api.telegram.org/bot${token}/test/${method}`
                 }
             });
         }

@@ -27,7 +27,7 @@ async function subscribe (interaction) {
         return {
             type: 'text',
             text: `Чат \`${telegram_chat_id}\` в телеграмме уже получает уведомления об изменениях в канале ${channel.name}.`
-        }
+        };
     }
     
     create(channel, telegram_chat_id);

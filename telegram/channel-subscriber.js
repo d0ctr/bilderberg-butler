@@ -6,21 +6,34 @@ const { getRedis } = require('../services/redis');
 const discord_notification_map = {};
 
 const chat_notification_map = {};
-/**
- * @property {Bot}
- */
-const bot = process.env.TELEGRAM_TOKEN ? new Bot(process.env.TELEGRAM_TOKEN) : null;
 
-async function restoreMessageID(chat_id) {
+const bot_config = {};
+if (process.env?.ENV === 'dev') {
+    bot_config.client = {
+        buildUrl: ({}, token, method) => `https://api.telegram.org/bot${token}/test/${method}`
+    }
+}
+/**
+ * @property {Bot?}
+ */
+const bot = process.env.TELEGRAM_TOKEN ? new Bot(process.env.TELEGRAM_TOKEN, bot_config) : null;
+
+async function restoreMessageID(chat_id, channel_id) {
     if (getHealth('redis') !== 'ready') {
         return null;
     }
 
     const redis = getRedis();
 
-    let current_message_id = await redis.get(`telegram:${chat_id}:channel_subscriber:message_id`);
+    const message_to_channel = await redis.hgetall(`telegram:${chat_id}:channel_subscriber:message_to_channel`);
 
-    current_message_id = Number(current_message_id);
+    let current_message_id;
+
+    for (const [message_id, channel_id_] of Object.entries(message_to_channel)) {
+        if (channel_id_ === channel_id) {
+            current_message_id = Number(message_id);
+        }
+    }
 
     if (isNaN(current_message_id) || !current_message_id) {
         return null;
@@ -53,19 +66,27 @@ class DiscordNotification {
     }
 
     set current_message_id(value) {
-        this._current_message_id = value;
+        if (!chat_notification_map[this.chat_id]) {
+            chat_notification_map[this.chat_id] = new Set();
+        }
 
-        chat_notification_map[this.chat_id] = value;
+        if (value !== null && this._current_message_id !== null) {
+            chat_notification_map[this.chat_id].delete(this._current_message_id);
+        }
+
+        chat_notification_map[this.chat_id].add(value);
 
         if (getHealth('redis') === 'ready') {
             const redis = getRedis();
-            if (!value) {
-                redis.del(`telegram:${this.chat_id}:channel_subscriber:message_id`);
+            if (value) {
+                redis.hset(`telegram:${this.chat_id}:channel_subscriber:message_to_channel`, { [value]: this.channel_id });
             }
             else {
-                redis.set(`telegram:${this.chat_id}:channel_subscriber:message_id`, value);
+                redis.hdel(`telegram:${this.chat_id}:channel_subscriber:message_to_channel`, [this._current_message_id]);
             }
         }
+
+        this._current_message_id = value;
     }
 
     get channel_url() {
@@ -77,7 +98,7 @@ class DiscordNotification {
     }
 
     isNotified() {
-        return (this.current_message_id && true) || false;
+        return !!this.current_message_id;
     }
 
     isCooldownActive() {
@@ -126,9 +147,7 @@ class DiscordNotification {
         if (process.env.DOMAIN) {
             return `${process.env.DOMAIN}/discordredirect/${notification_data.channel_url.replace(/.*discord.com\//, '')}`;
         }
-        else {
-            return notification_data.channel_url;
-        }
+        return notification_data.channel_url;
     }
 
     generateNotificationTextFrom(notification_data) {
@@ -196,10 +215,8 @@ ${member.camera && '🎥' || ''}`;
 
 
         if (this.isNotified()) {
-            meta['notification_data'] = this.current_notification_data;
-            meta['pending_notification_data'] = this.pending_notification_data;
+            meta['pending_notification_data_exists'] = !!this.pending_notification_data;
             meta['telegram_message_id'] = this.current_message_id;
-            meta['telegram_message'] = this.getNotificationText();
         }
 
         return meta;
@@ -244,7 +261,6 @@ function getDiscordNotification(notification_data, chat_id) {
 
     if (!discord_notification_map[`${chat_id}:${notification_data.channel_id}`]) {
         discord_notification_map[`${chat_id}:${notification_data.channel_id}`] = new DiscordNotification(notification_data, chat_id);
-        return discord_notification_map[`${chat_id}:${notification_data.channel_id}`];
     }
 
     return discord_notification_map[`${chat_id}:${notification_data.channel_id}`];
@@ -258,25 +274,24 @@ function getDiscordNotification(notification_data, chat_id) {
 function clearNotification(discord_notification) {
     if (!discord_notification.isNotified()) {
         logger.debug(
-            `No notification to clear about [channel:${discord_notification.channel_id}] in [chat:${discord_notification.chat_id}]`,
+            `No channel state notification to clear about [channel:${discord_notification.channel_id}] in [chat:${discord_notification.chat_id}]`,
             { ...discord_notification.getLogMeta() }
         );
         return;
     }
 
-    const current_message_id = discord_notification.clear();
-
     return bot.api.deleteMessage(
         discord_notification.chat_id,
-        current_message_id
+        discord_notification.current_message_id
     ).then(() => {
         logger.debug(
-            `Deleted notification [message: ${current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`,
-            { ...discord_notification.getLogMeta(), telegram_message_id: current_message_id }
+            `Deleted channel state notification [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`,
+            { ...discord_notification.getLogMeta() }
         );
+        discord_notification.clear();
     }).catch(err => {
         logger.error(
-            `Error while clearing notification [message: ${current_message_id}] about [channel_id: ${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`,
+            `Error while clearing channel state notification [message: ${current_message_id}] about [channel_id: ${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`,
             { error: err.stack || err, ...discord_notification.getLogMeta(), telegram_message_id: current_message_id }
         );
     });
@@ -299,13 +314,13 @@ function sendNotificationMessage(discord_notification) {
     ).then((message) => {
         discord_notification.current_message_id = message.message_id;
         logger.debug(
-            `Sent notification about [channel:${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}], got [message: ${message.message_id}]`,
+            `Sent channel state notification about [channel:${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}], got [message: ${message.message_id}]`,
             { ...discord_notification.getLogMeta() }
         );
         pinNotificationMessage(discord_notification);
     }).catch((err) => {
         logger.error(
-            `Error while sending notification about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}]`,
+            `Error while sending channel state notification about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}]`,
             { error: err.stack || err, ...discord_notification.getLogMeta() }
         );
     });
@@ -351,7 +366,7 @@ async function wrapInCooldown(notification_data, chat_id) {
     if (discord_notification.isNotified()) {
         if (discord_notification.generateNotificationTextFrom(notification_data) == discord_notification.getNotificationText()) {
             logger.debug(
-                `Skipping notification about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}] as equals to current`,
+                `Skipping channel state notification about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}] as equals to current`,
                 { ...discord_notification.getLogMeta() }
             );
             discord_notification.dropPendingNotification();
@@ -360,7 +375,7 @@ async function wrapInCooldown(notification_data, chat_id) {
 
         if (discord_notification.isCooldownActive()) {
             logger.debug(
-                `Suspending notification about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}]`,
+                `Suspending channel state notification about [channel: ${discord_notification.channel_id}] to [chat: ${discord_notification.chat_id}]`,
                 { ...discord_notification.getLogMeta() }
             );
             discord_notification.suspendNotification(notification_data, editNotificationMessage);
@@ -368,7 +383,7 @@ async function wrapInCooldown(notification_data, chat_id) {
         }
     }
     else {
-        discord_notification.current_message_id = await restoreMessageID(chat_id);
+        discord_notification.current_message_id = await restoreMessageID(chat_id, discord_notification.channel_id);
     }
     
     
@@ -396,16 +411,17 @@ async function sendNotification(notification_data, chat_id) {
 async function deleteNotification(chat_id, channel_id) {
     if (!chat_id || !channel_id || !bot) return;
 
-    if (discord_notification_map[`${chat_id}:${notification_data.channel_id}`]) {
-        clearNotification(discord_notification_map[`${chat_id}:${notification_data.channel_id}`]);
-    }
+    if (!discord_notification_map[`${chat_id}:${channel_id}`]) return;
+
+    clearNotification(discord_notification_map[`${chat_id}:${channel_id}`]);
+    delete discord_notification_map[`${chat_id}:${channel_id}`]
 }
 
 function isNotificationMessage(chat_id, message_id) {
     if (!chat_id || !message_id) {
         return false;
     }
-    return chat_notification_map[chat_id] === message_id;
+    return chat_notification_map[chat_id] && chat_notification_map[chat_id].has(message_id);
 }
 
 module.exports = {

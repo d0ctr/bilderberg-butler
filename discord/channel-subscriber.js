@@ -1,5 +1,5 @@
+const { BaseSubscriber } = require('./common');
 const { sendNotification, deleteNotification } = require('../telegram/channel-subscriber');
-const { getRedis } = require('../services/redis');
 
 const subscribers = {};
 
@@ -19,26 +19,10 @@ function isDifferent(obj1, obj2) {
     return false;
 }
 
-class ChannelSubscriber {
+class ChannelSubscriber extends BaseSubscriber {
     constructor() {
-        this.log_meta = { module: 'channel-subscriber' };
-        this.logger = require('../logger').child(this.log_meta);
-        this.redis = getRedis() || null;
-        this.active = false;
-        this.telegram_chat_ids = [];
+        super('channel_subscriber');
         this.last_state = null;
-        this._dump_retries = 0;
-        this._restore_retries = 0;
-    }
-
-    set _guild(guild) {
-        this.log_meta.discord_guild_id = guild?.id;
-        this.log_meta.discord_guild = guild?.name;
-        this.__guild = guild;
-    }
-
-    get _guild() {
-        return this.__guild;
     }
 
     set _channel(channel) {
@@ -50,8 +34,12 @@ class ChannelSubscriber {
     get _channel() {
         return this.__channel;
     }
+
+    get _dump_key() {
+        return `${this._guild?.id}:${this._subscriber_type}:${this._channel?.id}`;
+    }
     
-    async update(channel) {
+    update(channel) {
         if (!this.active) {
             return;
         }
@@ -69,11 +57,11 @@ class ChannelSubscriber {
             { state: parsed_state }
         );
         
-        if (parsed_state && this.telegram_chat_ids) {
+        if (parsed_state && this.telegram_chat_ids.length) {
             this.telegram_chat_ids.forEach((telegram_chat_id) => {
                 sendNotification(parsed_state, telegram_chat_id).catch(err => {
                     this.logger.error(
-                        `Couldn't send notification for ${this._guild.name}:${this._channel.name}`,
+                        `Couldn't send channel state notification for ${this._guild.name}:${this._channel.name}`,
                         { error: err.stack || err, telegram_chat_id}
                     );
                 });
@@ -91,8 +79,7 @@ class ChannelSubscriber {
         parsed_state.channel_url = channel.url;
         parsed_state.channel_type = channel.type;
         parsed_state.guild_id = channel.guild.id;
-        parsed_state.guild_name = channel.guild.guild_name;
-
+        parsed_state.guild_name = channel.guild.name;
 
         parsed_state.members = [];
         
@@ -114,7 +101,7 @@ class ChannelSubscriber {
         return parsed_state;
     }
 
-    async start(channel, telegram_chat_id) {
+    start(channel, telegram_chat_id) {
         if (!channel || !telegram_chat_id) return;
         if (this.active 
             && this.telegram_chat_ids
@@ -129,11 +116,11 @@ class ChannelSubscriber {
     stop(telegram_chat_id) {
         if (telegram_chat_id && this.telegram_chat_ids.length) {
             delete this.telegram_chat_ids[this.telegram_chat_ids.indexOf(telegram_chat_id)];
-            this.logger.info(`Deleting notification for ${this._guild.name}:${this._channel.name} in [chat: ${telegram_chat_id}]`);
+            this.logger.info(`Deleting channel state notification for ${this._guild.name}:${this._channel.name} in [chat: ${telegram_chat_id}]`);
             deleteNotification(telegram_chat_id, this._channel.id);
         }
         else {
-            this.logger.info(`Deleting notifications for ${this._guild.name}:${this._channel.name} in [chats: ${JSON.stringify(this.telegram_chat_ids)}]`);
+            this.logger.info(`Deleting channel state notifications for ${this._guild.name}:${this._channel.name} in [chats: ${JSON.stringify(this.telegram_chat_ids)}]`);
             this.telegram_chat_ids.forEach((telegram_chat_id) => {
                 deleteNotification(telegram_chat_id, this._channel.id);
             });
@@ -151,19 +138,19 @@ class ChannelSubscriber {
         if (!this.redis) {
             return;
         }
-        this.redis.hmset(`${this._guild.id}:channel_subscriber:${this._channel.id}`, {
+        return this.redis.hmset(this._dump_key, {
             active: this.active,
             telegram_chat_ids: JSON.stringify(this.telegram_chat_ids),
             last_state: JSON.stringify(this.last_state)
         }).catch(err => {
-            this.logger.error(`Error while dumping data for ${this._guild.id}:channel_subscriber`, { error: err.stack || err });
+            this.logger.error(`Error while dumping data for ${this._dump_key}`, { error: err.stack || err });
             if (this._dump_retries < 15) {
-                this.logger.info(`Retrying dumping data for ${this._guild.id}:channel_subscriber`);
+                this.logger.info(`Retrying dumping data for ${this._dump_key}`);
                 setTimeout(this.dump.bind(this), 15000);
                 this._dump_retries += 1;
             }
             else {
-                this.logger.info(`Giving up on trying to dump data for ${this._guild.id}:channel_subscriber`);
+                this.logger.info(`Giving up on trying to dump data for ${this._dump_key}`);
                 this._dump_retries = 0;
             }
         }).then(res => {
@@ -186,24 +173,24 @@ class ChannelSubscriber {
 
         let data;
         try {
-            data = await this.redis.hgetall(`${this._guild.id}:channel_subscriber:${this._channel.id}`);
+            data = await this.redis.hgetall(this._dump_key);
         }
         catch (err) {
-            this.logger.error(`Error while restoring data for ${this._guild.id}:channel_subscriber:${this._channel.id}`, { error: err.stack || err });
+            this.logger.error(`Error while restoring data for ${this._dump_key}`, { error: err.stack || err });
             if (this._restore_retries < 15) {
-                this.logger.info(`Retrying restoring data for ${this._guild.id}:channel_subscriber:${this._channel.id}`, { ...this.log_meta });
+                this.logger.info(`Retrying restoring data for ${this._dump_key}`, { ...this.log_meta });
                 setTimeout(this.restore.bind(this), 15000);
                 this._restore_retries += 1;
             }
             else {
-                this.logger.info(`Giving up on trying to restore data for ${this._guild.id}:channel_subscriber:${this._channel.id}`, { ...this.log_meta });
+                this.logger.info(`Giving up on trying to restore data for ${this._dump_key}`, { ...this.log_meta });
                 this._restore_retries = 0;
             }
             return;
         }
 
         if (!data || !data.active) {
-            this.logger.info(`Nothing to restore for ${this._guild.id}:channel_subscriber:${this._channel.id}`, { ...this.log_meta });
+            this.logger.info(`Nothing to restore for ${this._dump_key}`, { ...this.log_meta });
             return;
         }
         else {
@@ -214,15 +201,15 @@ class ChannelSubscriber {
         this.telegram_chat_ids = data.telegram_chat_ids && JSON.parse(data.telegram_chat_ids);
         this.last_state = data.last_state && JSON.parse(data.last_state);
         
-        this.logger.info(`Parsed data: ${JSON.stringify({ active: this.active, telegram_chat_ids: this.telegram_chat_ids, last_state: this.last_state })}`, { parsed_data: JSON.stringify({ active: this.active, telegram_chat_ids: this.telegram_chat_ids, last_state: this.last_state }), ...this.log_meta });
+        this.logger.info(`Parsed data ${this._dump_key}`, { parsed_data: JSON.stringify({ active: this.active, telegram_chat_ids: this.telegram_chat_ids, last_state: this.last_state }), ...this.log_meta });
     }
 
-    deleteDump() {
+    async deleteDump() {
         if (!this.redis) {
             return;
         }
-        this.redis.del(`${this._guild.id}:channel_subscriber:${this._channel.id}`).catch((err) => {
-            this.logger.error(`Error while deleting dump for ${this._guild.id}`, { error: err.stack || err });
+        return this.redis.del(this._dump_key).catch((err) => {
+            this.logger.error(`Error while deleting dump for ${this._dump_key}`, { error: err.stack || err });
         });
     }
 }
@@ -254,7 +241,7 @@ const create = (channel, telegram_chat_id) => {
     }
 
     if (!subscribers[key]) {
-        subscribers[key] = new ChannelSubscriber(channel);
+        subscribers[key] = new ChannelSubscriber();
     }
 
     subscribers[key].start(channel, telegram_chat_id);
