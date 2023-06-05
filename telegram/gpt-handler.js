@@ -1,11 +1,11 @@
 const { OpenAIApi, Configuration } = require('openai');
 
-const { Converter: MDConverter } = require('showdown');
+// const { Converter: MDConverter } = require('showdown');
 
-const mdConverter = new MDConverter({
-    noHeaderId: 'true',
-    strikethrough: 'true'
-});
+// const mdConverter = new MDConverter({
+//     noHeaderId: 'true',
+//     strikethrough: 'true'
+// });
 
 const CHAT_MODEL_NAME = 'gpt-3.5-turbo';
 
@@ -21,6 +21,11 @@ function prepareText(input) {
         .replace(/>/gm, '&gt;')
         .replace(/</gm, '&lt;');
 
+    // Replace code blocks with language specification
+    res = res.replace(/```(\S*)\n([^]*?)\n```/g, `<pre><code class='$1'>$2</code></pre>`);
+
+    // Replace inline code blocks
+    res = res.replace(/`([^`]*?)`/g, '<code>$1</code>');
     /** too aggressive
      *  let res = mdConverter
      *     .makeHtml(input)
