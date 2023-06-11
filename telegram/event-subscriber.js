@@ -316,6 +316,7 @@ async function deleteNotification(chat_id, event_id) {
 }
 
 function isNotificationMessage(chat_id, message_id) {
+    logger.debug(`Checking if service message`, { chat_id, message_id, chat_event_map: JSON.stringify(Array.from(chat_event_map))});
     if (!chat_id || !message_id) return false;
     return chat_event_map[chat_id] && chat_event_map[chat_id].has(message_id);
 }
