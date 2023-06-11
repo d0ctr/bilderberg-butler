@@ -418,7 +418,6 @@ async function deleteNotification(chat_id, channel_id) {
 }
 
 function isNotificationMessage(chat_id, message_id) {
-    logger.debug(`Checking if service message`, { chat_id, message_id, chat_notification_map: JSON.stringify(Array.from(chat_notification_map))});
     if (!chat_id || !message_id) {
         return false;
     }
