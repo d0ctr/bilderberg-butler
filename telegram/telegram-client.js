@@ -697,8 +697,8 @@ class TelegramClient {
 
         this.client.command('answer', async (ctx) => {
             if (ctx?.message?.reply_to_message 
-                && !isChannelNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.id)
-                && !isEventNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.id)
+                && !isChannelNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.message_id)
+                && !isEventNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.message_id)
                 ) {
                 this.chatgpt_handler.handleAnswerCommand(new TelegramInteraction(this.client, 'answer', ctx));
             }
