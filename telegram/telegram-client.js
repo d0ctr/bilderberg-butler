@@ -696,11 +696,14 @@ class TelegramClient {
         });
 
         this.client.command('answer', async (ctx) => {
-            if (ctx?.message?.reply_to_message 
-                && !isChannelNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.id)
-                && !isEventNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.id)
-                ) {
+            if (ctx?.message?.reply_to_message) {
                 this.chatgpt_handler.handleAnswerCommand(new TelegramInteraction(this.client, 'answer', ctx));
+            }
+            else {
+                ctx.reply('Отправь эту команду как реплай на другое сообщение, чтобы получить ответ.', {
+                    reply_to_message_id: ctx.message.message_id,
+                    allow_sending_without_reply: true,
+                });
             }
         });
 
@@ -717,6 +720,12 @@ class TelegramClient {
         });
 
         this.client.on('message', async (ctx) => {
+            if (ctx?.message?.reply_to_message?.from?.id === this.client.botInfo.id
+                && (isChannelNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.message_id)
+                || isEventNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.message_id))
+                ) {
+                    return;
+            }
             if (!ctx?.from?.is_bot && ctx?.message?.reply_to_message?.from?.id === this.client.botInfo.id) {
                 this.chatgpt_handler.answerReply(new TelegramInteraction(this.client, null, ctx));
             }
