@@ -357,7 +357,7 @@ class ChatGPTHandler{
            });
         }
         // fetch onlty messages refered by this command
-        const context = prev_message ? context_tree.getContext(message_id, 2) : context_tree.getContext(message_id, 1);
+        const context = prev_message_id ? context_tree.getContext(message_id, 2) : context_tree.getContext(message_id, 1);
 
         this._replyFromContext(interaction, context, context_tree, message_id);
     }
