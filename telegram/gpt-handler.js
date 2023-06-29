@@ -317,47 +317,36 @@ class ChatGPTHandler{
 
         logger.info(`Received command: ${interaction.context.message.text}`);
 
-        const command_text = interaction?.context?.message?.text.replace(new RegExp(`\/answer(@${interaction.context.me.username})? ?`), '');
-        
-        if (!interaction?.context?.message?.reply_to_message && !command_text?.length) {
-            return interaction._reply('Отправь эту команду как реплай на другое сообщение или напишите запрос в сообщении с командой, чтобы получить ответ.');
+        if (!interaction?.context?.message?.reply_to_message) {
+            return interaction._reply('Эта команда работает только при реплае на сообщение');
         }
 
-        if (!interaction.context.message.reply_to_message.text && !interaction.context.message.reply_to_message.caption && !command_text?.length) {
-            return interaction._reply('Ни в отвеченном сообщении ни в сообщении с командой нет запроса, а без него никуда.');
+        if (!interaction.context.message.reply_to_message.text && !interaction.context.message.reply_to_message.caption) {
+            return interaction._reply('В отвеченном сообщении нет текста, без текста никуда');
         }
 
         const context_tree = this._getContextTree(interaction.context.chat.id);
 
-        let prev_message_id = null;
-        let message_id = null;
+        const message_id = interaction.context.message.reply_to_message.message_id;
 
-        if (interaction?.context?.message?.reply_to_message) {
+        if (!context_tree.isNodeExisting({ message_id })) {
             const text = interaction.context.message.reply_to_message.text || interaction.context.message.reply_to_message.caption;
-            if (text.length) {
-                message_id = interaction.context.message.reply_to_message.message_id;
-                if (!context_tree.isNodeExisting({ message_id })) {
-                    context_tree.appendNode({
-                        role: 'user',
-                        content: text,
-                        message_id: message_id
-                    });
-                }
+            context_tree.appendNode({
+                role: 'user',
+                content: text,
+                message_id: message_id
+            });
+        }
+
+        const context = [
+            {
+                ...context_tree.root_node.getContextMessage()
+            },
+            {
+                ...context_tree.getNode(message_id).getContextMessage(),
+                role: 'user'
             }
-        }
-       
-        if (command_text?.length) {
-           prev_message_id = message_id;
-           message_id = interaction.context.message.message_id;
-           context_tree.appendNode({
-               role: 'user',
-               content: command_text,
-               message_id: message_id,
-               prev_message_id
-           });
-        }
-        // fetch onlty messages refered by this command
-        const context = prev_message ? context_tree.getContext(message_id, 2) : context_tree.getContext(message_id, 1);
+        ];
 
         this._replyFromContext(interaction, context, context_tree, message_id);
     }
