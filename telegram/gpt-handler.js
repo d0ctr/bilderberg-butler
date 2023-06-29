@@ -207,7 +207,7 @@ class ChatGPTHandler{
     }
 
     answerReply(interaction) {
-        if (!interaction?.context?.message?.reply_to_message && !(interaction?.context?.message?.text || interaction?.context?.message?.caption)) {
+        if (!interaction?.context?.message?.reply_to_message || !(interaction?.context?.message?.text || interaction?.context?.message?.caption)) {
             return;
         }
 
