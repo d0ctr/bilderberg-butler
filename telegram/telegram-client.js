@@ -696,15 +696,7 @@ class TelegramClient {
         });
 
         this.client.command('answer', async (ctx) => {
-            if (ctx?.message?.reply_to_message) {
-                this.chatgpt_handler.handleAnswerCommand(new TelegramInteraction(this.client, 'answer', ctx));
-            }
-            else {
-                ctx.reply('Отправь эту команду как реплай на другое сообщение, чтобы получить ответ.', {
-                    reply_to_message_id: ctx.message.message_id,
-                    allow_sending_without_reply: true,
-                });
-            }
+            this.chatgpt_handler.handleAnswerCommand(new TelegramInteraction(this.client, 'answer', ctx));
         });
 
         /* Sesitive data
