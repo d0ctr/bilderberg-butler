@@ -334,8 +334,8 @@ class ChatGPTHandler{
 
         if (interaction?.context?.message?.reply_to_message) {
             const text = interaction.context.message.reply_to_message.text || interaction.context.message.reply_to_message.caption;
-            message_id = interaction.context.message.reply_to_message.message_id;
             if (text.length) {
+                message_id = interaction.context.message.reply_to_message.message_id;
                 if (!context_tree.isNodeExisting({ message_id })) {
                     context_tree.appendNode({
                         role: 'user',
