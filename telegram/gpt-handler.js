@@ -323,7 +323,7 @@ class ChatGPTHandler{
             return interaction._reply('Отправь эту команду как реплай на другое сообщение или напишите запрос в сообщении с командой, чтобы получить ответ.');
         }
 
-        if (!interaction.context.message.reply_to_message.text && !interaction.context.message.reply_to_message.caption && !command_text?.length) {
+        if (!interaction.context.message?.reply_to_message?.text && !interaction.context.message?.reply_to_message?.caption && !command_text?.length) {
             return interaction._reply('Ни в отвеченном сообщении ни в сообщении с командой нет запроса, а без него никуда.');
         }
 
