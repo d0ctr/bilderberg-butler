@@ -147,7 +147,7 @@ class ChatGPTHandler{
             throw new Error('No chat_id specified to get context tree');
         }
         if (!this.context_trees_map.has(chat_id)) {
-            const system_prompt = (chat_id === 5000897842 || null) && `${DEFAULT_SYSTEM_PROMPT}\npeople in this chat:[name:Никита] [username:neverovskii],[name:Danila] [username:d0ctr],[name:Миша] [username:mishokll],[name:Влад] [username:vladzasyadko]`;
+            const system_prompt = (chat_id === -1001625731191 || null) && `${DEFAULT_SYSTEM_PROMPT}\npeople in this chat:[name:Никита] [username:neverovskii],[name:Danila] [username:d0ctr],[name:Миша] [username:mishokll],[name:Влад] [username:vladzasyadko]`;
             this.context_trees_map.set(chat_id, new ContextTree(system_prompt));
         }
         return this.context_trees_map.get(chat_id);
