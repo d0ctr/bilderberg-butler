@@ -1,7 +1,4 @@
-
-
 const getRegex = /^[a-zA-Zа-яА-Я0-9_-]+$/g;
-
 
 async function redisGet(ctx, name) {
     const redis = require('../../services/redis').getRedis();

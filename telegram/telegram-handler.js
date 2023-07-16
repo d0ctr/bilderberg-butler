@@ -63,6 +63,8 @@ class TelegramHandler {
     ytdl = require('./command-handlers/ytdl-handler').ytdl.bind(this);
 
     webapp = require('./command-handlers/webapp-handler').webapp.bind(this);
+
+    roundit = require('./command-handlers/roundit-handler').roundit.bind(this);
 }
 
 module.exports = TelegramHandler;
