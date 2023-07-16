@@ -1,4 +1,5 @@
 const { Bot, Context, webhookCallback, InputFile } = require('grammy');
+const { hydrateFiles } = require('@grammyjs/files');
 const TelegramHandler = require('./telegram-handler');
 const config = require('../config.json');
 const { setHealth } = require('../services/health');
@@ -150,7 +151,7 @@ class TelegramInteraction {
     /**
      * Get reply method associated with content type
      * @param {String} media_type 
-     * @return {Context.reply}
+     * @return {() => Promise}
      */
     _getReplyMethod(media_type) {
         return this.mediaToMethod[media_type];
@@ -236,9 +237,9 @@ class TelegramInteraction {
 
         let media;
 
-        if (message.filename) {
+        if (message.filename || message.path) {
             this.logger.info(`Replying with file of type: ${message.type}`);
-            media = new InputFile(message.media, message.filename);
+            media = new InputFile(message.media || message.path, message.filename);
         }
         else {
             this.logger.info(`Replying with media of type: ${message.type}`);
@@ -247,9 +248,22 @@ class TelegramInteraction {
 
         const replyMethod = this._getReplyMethod(message.type);
 
-        if (typeof replyMethod === 'function') {
-            return replyMethod(media, message_options);
+        const deleteTempFile = () => {
+            if (!message.path) return;
+            
+            const { promises: fs_promises } = require('fs');
+            return fs_promises.rm(message.path).then(() => {
+                this.logger.debug('Deleted temp file');
+            }).catch((e) => {
+                this.logger.error(`Could not delete temp file: ${message.path}`, { error: e.stack || e });
+            })
         }
+
+        if (typeof replyMethod === 'function') {
+            return replyMethod(media, message_options).finally(deleteTempFile);
+        }
+
+        deleteTempFile();
 
         this.logger.info(`Can't send message as media`);
         return this._reply(message.text);
@@ -601,7 +615,7 @@ class TelegramClient {
         this._registerTelegramCommand('deep', config.DEEP_AI_API && process.env.DEEP_AI_TOKEN);
         this._registerTelegramCommand('info', true);
         this._registerTelegramCommand('webapp', process.env.WEBAPP_URL);
-        // this._registerTelegramCommand('ytdl', process.env.YTDL_URL, false);
+        this._registerTelegramCommand('ringit', true);
         
         // Registering common commands
         commands.forEach((command_name, index) => {
@@ -681,7 +695,7 @@ class TelegramClient {
             this.logger.error(`Error while setting telegram webhook`, { error: err.stack || err });
             this.logger.info('Trying to start with polling');
             this._startPolling();
-        };
+        }
     }
 
     _registerGPTAnswers() {
@@ -749,8 +763,14 @@ class TelegramClient {
             this.logger.error(`High level middleware error in bot`, { error: err.stack || err });
         });
 
-        this._registerCommands();
+        // plugins
+        this.client.api.config.use(hydrateFiles(process.env.TELEGRAM_TOKEN));
+
+        // filters
         this._filterServiceMessages();
+        
+        // handlers
+        this._registerCommands();
         this._registerGPTAnswers();
 
         if (process.env.ENV.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {

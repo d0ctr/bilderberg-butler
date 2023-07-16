@@ -2,7 +2,7 @@ const GrammyTypes = require('grammy');
 
 /**
  * `/html` command handler
- * @param {GrammyTypes.Context | Object} input
+ * @param {GrammyTypes.Context} input
  * @returns {[String | null, String | null]}
  */
 

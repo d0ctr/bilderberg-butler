@@ -1,5 +1,3 @@
-
-
 const getRegex = /^[a-zA-Zа-яА-Я0-9_-]+$/g;
 
 
