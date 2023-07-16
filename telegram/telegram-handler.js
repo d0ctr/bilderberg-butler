@@ -64,7 +64,7 @@ class TelegramHandler {
 
     webapp = require('./command-handlers/webapp-handler').webapp.bind(this);
 
-    ringit = require('./command-handlers/ringit-handler').ringit.bind(this);
+    roundit = require('./command-handlers/roundit-handler').roundit.bind(this);
 }
 
 module.exports = TelegramHandler;

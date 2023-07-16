@@ -1,4 +1,5 @@
 const { Bot, Context, webhookCallback, InputFile } = require('grammy');
+const { promises: fs } = require('fs');
 const { hydrateFiles } = require('@grammyjs/files');
 const TelegramHandler = require('./telegram-handler');
 const config = require('../config.json');
@@ -250,13 +251,11 @@ class TelegramInteraction {
 
         const deleteTempFile = () => {
             if (!message.path) return;
-            
-            const { promises: fs_promises } = require('fs');
-            return fs_promises.rm(message.path).then(() => {
+            return fs.rm(message.path).then(() => {
                 this.logger.debug('Deleted temp file');
             }).catch((e) => {
                 this.logger.error(`Could not delete temp file: ${message.path}`, { error: e.stack || e });
-            })
+            });
         }
 
         if (typeof replyMethod === 'function') {
@@ -615,7 +614,7 @@ class TelegramClient {
         this._registerTelegramCommand('deep', config.DEEP_AI_API && process.env.DEEP_AI_TOKEN);
         this._registerTelegramCommand('info', true);
         this._registerTelegramCommand('webapp', process.env.WEBAPP_URL);
-        this._registerTelegramCommand('ringit', true);
+        this._registerTelegramCommand('roundit', true);
         
         // Registering common commands
         commands.forEach((command_name, index) => {
@@ -751,7 +750,7 @@ class TelegramClient {
         if (process.env?.ENV === 'dev') {
             this.client = new Bot(process.env.TELEGRAM_TOKEN, {
                 client: {
-                    buildUrl: ({}, token, method) => `https://api.telegram.org/bot${token}/test/${method}`
+                    buildUrl: (root, token, method) => `${root}/bot${token}/test/${method}`
                 }
             });
         }
@@ -773,7 +772,7 @@ class TelegramClient {
         this._registerCommands();
         this._registerGPTAnswers();
 
-        if (process.env.ENV.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
+        if (process.env.ENV?.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
             await this._startPolling();
         }
         else {
