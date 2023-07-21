@@ -307,24 +307,24 @@ class TelegramInteraction {
 
         this.logger.info(`Received command: ${this.command_name}`);
 
-        this.handler[this.command_name](this.context, this).then(([err, response, _, overrides]) => {
+        this.handler[this.command_name](this.context, this).then(([err, response, callback = () => {}, overrides]) => {
             if (err) {
                 return this._reply(err, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
                     this.logger.error(`Error while replying with an error message to [${this.command_name}]`, { error: err.stack || err });
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
-                });
+                }).finally(callback);
             }
             if (response instanceof String || typeof response === 'string') {
                 return this._reply(response, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
                     this.logger.error(`Error while replying with response text to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
-                });
+                }).finally(callback);
             }
             if (response instanceof Object) {
                 return this._replyWithMedia(response, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
                     this.logger.error(`Error while replying with media to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
-                });
+                }).finally(callback);
             }
         }).catch((err) => {
             this.logger.error(`Error while processing command [${this.command_name}]`, { error: err.stack || err });
@@ -615,6 +615,7 @@ class TelegramClient {
         this._registerTelegramCommand('info', true);
         this._registerTelegramCommand('webapp', process.env.WEBAPP_URL);
         this._registerTelegramCommand('roundit', true);
+        this._registerTelegramCommand('imagine', process.env.OPENAI_TOKEN);
         
         // Registering common commands
         commands.forEach((command_name, index) => {
