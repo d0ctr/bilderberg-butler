@@ -16,8 +16,10 @@ async function imagine(input) {
         return ['Нужен промпт'];
     }
 
+    input.replyWithChatAction('upload_photo');
+
     const continiousChatAction = setInterval(() => {
-        input.replyWithChatAction('upload_photo')
+        input.replyWithChatAction('upload_photo');
     }, 5000);
 
     const callback = () => {
