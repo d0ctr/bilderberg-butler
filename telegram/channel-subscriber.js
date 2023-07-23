@@ -32,6 +32,7 @@ async function restoreMessageID(chat_id, channel_id) {
     for (const [message_id, channel_id_] of Object.entries(message_to_channel)) {
         if (channel_id_ === channel_id) {
             current_message_id = Number(message_id);
+            break;
         }
     }
 
@@ -405,7 +406,7 @@ async function sendNotification(notification_data, chat_id) {
         return;
     }
 
-    await wrapInCooldown(notification_data, chat_id);
+    return wrapInCooldown(notification_data, chat_id);
 }
 
 async function deleteNotification(chat_id, channel_id) {
