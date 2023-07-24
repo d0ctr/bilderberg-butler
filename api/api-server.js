@@ -11,7 +11,7 @@ class APIServer {
         this.express = express();
 
         this.express.use((req, res, next) => {
-            this.logger.info(
+            this.logger.silly(
                 `Received [${req.method} : ${req.originalUrl}]`,
                 { method: req.method, uri: req.originalUrl, payload: ['dev', 'test'].includes(process.env.ENV) ? req?.body : '...' }
             );
