@@ -9,7 +9,7 @@ const { commands, conditions, definitions, handlers } = require('../commands/han
 const { ChatGPTHandler } = require('./gpt-handler');
 const { isNotificationMessage: isChannelNotificationMessage } = require('./channel-subscriber.js');
 const { isNotificationMessage: isEventNotificationMessage } = require('./event-subscriber.js');
-const { isNotificationMessage: isPresenceNotificationMessage } = require('./presence-subscriber.js');
+// const { isNotificationMessage: isPresenceNotificationMessage } = require('./presence-subscriber.js');
 
 const no_tags_regex = /<\/?[^>]+(>|$)/g;
 

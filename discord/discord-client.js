@@ -228,6 +228,11 @@ class DiscordClient {
         this.client.destroy();
     }
 
+    /**
+     * 
+     * @param {*} guild 
+     * @returns 
+     */
     async restorePresenceSubscribers(guild) {
         if (!guild) {
             this.logger.info(`Not enough input to restore data.`);
@@ -252,12 +257,13 @@ class DiscordClient {
                 return;
             }
 
-            restorePresenceSubscriber(member);
-
-            member.presence.fetch().then(presence => {
-                updatePresenceSubscriberState(presence);
-            }).catch(err => {
-                this.logger.error(`Error while fetching presence for ${member_id}`, { error: err.stack || err });
+            restorePresenceSubscriber(member).then(() => {
+                member.fetch().then(({ presence }) => {
+                    updatePresenceSubscriberState(presence);
+                }).catch(err => {
+                    this.logger.error(`Error while fetching presence for ${member_id}`, { error: err.stack || err });
+                });
+                
             });
         });
     }
@@ -324,7 +330,7 @@ class DiscordClient {
         this.client.guilds.cache.forEach((guild) => {
             this.logger.info(`Reviving data from redis for [guild:${guild.id}]`, { discord_guild: guild.name, discord_guild_id: guild.id });
             this.restoreChannelSubscribers(guild);
-            // this.restorePresenceSubscribers(guild);
+            this.restorePresenceSubscribers(guild);
             this.restoreEventSubscriber(guild);
         });
     }
@@ -432,14 +438,14 @@ class DiscordClient {
                 .addStringOption(input => 
                     input.setName('telegram_chat_id')
                         .setDescription('ID чата в Telegram, который будет получать уведомления.')
-                        .setRequired(true)),
+                        .setRequired(true))
                 .addStringOption(input => 
                     input.setName('telegram_user_id')
                         .setDescription('ID пользователя в Telegram.')
                         .setRequired(true)),
             
             new SlashCommandBuilder() // unsubscribe
-                .setName('unsubscribe')
+                .setName('unpresence')
                 .setDMPermission(false)
                 .setDescription(`Отписаться от статуса активности пользователя.`)
                 .addStringOption(input =>

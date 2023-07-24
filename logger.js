@@ -30,6 +30,14 @@ const logger_options = {
             ),
             level: LOGLEVEL,
         }),
+        new transports.File({
+            format: format.combine(
+                format.timestamp(),
+                format.json()
+            ),
+            level: LOGLEVEL,
+            filename: `combined.log`
+        })
     ]
 };
 

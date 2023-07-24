@@ -162,7 +162,8 @@ class DiscordNotification {
 ${member.muted && '🔇' || ''}\
 ${member.deafened && '🔕' || ''}\
 ${member.streaming && '🖥️' || ''}\
-${member.camera && '🎥' || ''}`;
+${member.camera && '🎥' || ''}\
+${member.activity && ` -- <i>${member.activity}</i>` || ''}`;
         });
 
         return text;

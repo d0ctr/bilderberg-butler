@@ -1,4 +1,5 @@
 const { isActive, create, stop } = require('../presence-subscriber');
+const { testPermissions } = require('../../telegram/presence-subscriber');
 
 async function presence(input) {
     if (!input.guild) {
@@ -27,6 +28,13 @@ async function presence(input) {
         return {
             type: 'text',
             text: 'Этот пользователь уже получает автоматическое обновления тайтла в указанном чате.'
+        };
+    }
+
+    if (!(await testPermissions(telegram_chat_id))) {
+        return {
+            type: 'text',
+            text: 'Бот не может изменять описание указанного чата, удостоверьтесь, что бот добавлен в групповой чат и имеет право менять инвормацию о чате.'
         };
     }
 

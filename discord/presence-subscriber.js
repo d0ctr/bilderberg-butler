@@ -33,7 +33,7 @@ class PresenceSubscriber extends BaseSubscriber {
             { presence: parsed_presence }
         );
 
-        if (this.telegram_chat_ids.legth) {
+        if (this.telegram_chat_ids.length) {
             this.telegram_chat_ids.forEach(telegram_chat_id => {
                 updatePresence(telegram_chat_id, this.telegram_user_id, parsed_presence).catch(err => {
                     this.logger.error(
@@ -79,16 +79,44 @@ class PresenceSubscriber extends BaseSubscriber {
         }
         this._member = member;
         this._guild = member.guild;
+        this.update(member.presence);
         this.dump();
     }
 
-    stop(telegram_chat_id) {
+    stop(member, telegram_chat_id) {
+        let deleted_telegram_chat_ids = telegram_chat_id ? [telegram_chat_id] : this.telegram_chat_ids;
+        
         if (telegram_chat_id && this.telegram_chat_ids.length) {
             delete this.telegram_chat_ids[this.telegram_chat_ids.indexOf(telegram_chat_id)];
         }
         else {
             this.telegram_chat_ids = [];
         }
+
+        deleted_telegram_chat_ids.forEach((telegram_chat_id) => {
+            updatePresence(
+                telegram_chat_id,
+                this.telegram_user_id,
+                { ...this._parsePresence(member.presence), activity: null }
+            ).then(() => {
+                this.logger.silly(
+                    `Deleting presence of ${this._member.displayName}:${this._guild.name}`,
+                    {
+                        telegram_chat_id,
+                        telegram_user_id: this.telegram_user_id,
+                    }
+                );
+            }).catch((err) => {
+                this.logger.error(
+                    `Error while deleting presence for ${this._member.displayName}:${this._guild.name}`,
+                    { 
+                        error: err.stack || err,
+                        telegram_chat_id,
+                        telegram_user_id: this.telegram_user_id,
+                    }
+                );
+            });
+        });
         
         if (!this.telegram_chat_ids.length) {
             this.active = false;
@@ -103,7 +131,7 @@ class PresenceSubscriber extends BaseSubscriber {
         }
         this.redis.hmset(this._dump_key, {
             active: this.active,
-            telegram_chat_ids: JSON.stringify(this.telegram_chat_ids),
+            telegram_chat_ids: this.telegram_chat_ids.length ? JSON.stringify(this.telegram_chat_ids) : null,
             telegram_user_id: this.telegram_user_id,
         }).catch(err => {
             this.logger.error(`Error while dumping data for ${this._guild.id}:presence_subscriber${this._member.id}`, { error: err.stack || err });
@@ -236,7 +264,7 @@ const update = (presence) => {
     subscribers[key].update(presence);
 }
 
-const restore = (member) => {
+const restore = async (member) => {
     if (!member) {
         return;
     }
@@ -244,7 +272,7 @@ const restore = (member) => {
     let key = `${member.guild.id}:${member.id}`;
 
     subscribers[key] = new PresenceSubscriber();
-    subscribers[key].restore(member);
+    return subscribers[key].restore(member);
 };
 
 module.exports = {
