@@ -129,7 +129,14 @@ class DiscordClient {
         this.discordjs_logger = require('../logger').child({ module: 'discordjs' });
         this.redis = app.redis;
         this.handler = new DiscordHandler();
-        this.client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.GuildScheduledEvents /**, GatewayIntentBits.GuildPresences */] });
+        this.client = new Client({ 
+                intents: [
+                    GatewayIntentBits.Guilds,
+                    GatewayIntentBits.GuildVoiceStates,
+                    GatewayIntentBits.GuildScheduledEvents,
+                    GatewayIntentBits.GuildPresences
+                ]
+        });
 
         this.client.on('ready', () => {
             this.log_meta.discord_bot_id = this.client.application.id;
@@ -192,11 +199,11 @@ class DiscordClient {
             }
         });
 
-        // this.client.on('presenceUpdate', async (prev_state, new_state) => {
-        //     if (isPresenceSubscriberActive(new_state.member)) {
-        //         updatePresenceSubscriberState(new_state.member);
-        //     }
-        // });
+        this.client.on('presenceUpdate', async ({}, new_state) => {
+            if (isPresenceSubscriberActive(new_state.member)) {
+                updatePresenceSubscriberState(new_state);
+            }
+        });
 
         this.client.on('guildScheduledEventUpdate', async ({}, new_state) => {
             if (isEventSubscriberActive(new_state.guild)) {
@@ -221,6 +228,11 @@ class DiscordClient {
         this.client.destroy();
     }
 
+    /**
+     * 
+     * @param {*} guild 
+     * @returns 
+     */
     async restorePresenceSubscribers(guild) {
         if (!guild) {
             this.logger.info(`Not enough input to restore data.`);
@@ -240,17 +252,18 @@ class DiscordClient {
         member_id_keys.forEach(member_id_key => {
             const member_id = member_id_key.split(':')[2];
             const member = guild.members.resolve(member_id);
-            if (isActivePresenceSubscriber(member)) {
+            if (isPresenceSubscriberActive(member)) {
                 this.logger.info(`There is an active presence subscriber for ${member_id}, no need for restoration`);
                 return;
             }
 
-            restorePresenceSubscriber(member);
-
-            member.presence.fetch().then(presence => {
-                updatePresenceSubscriberState(presence);
-            }).catch(err => {
-                this.logger.error(`Error while fetching presence for ${member_id}`, { error: err.stack || err });
+            restorePresenceSubscriber(member).then(() => {
+                member.fetch().then(({ presence }) => {
+                    updatePresenceSubscriberState(presence);
+                }).catch(err => {
+                    this.logger.error(`Error while fetching presence for ${member_id}`, { error: err.stack || err });
+                });
+                
             });
         });
     }
@@ -268,7 +281,7 @@ class DiscordClient {
             this.logger.error(`Error while getting channel ids for ${guild.id}:channel_subscriber`, { error: err.stack || err });
             setTimeout(this.restoreChannelIds.bind(this), 15000, guild);
             return;
-        };
+        }
 
         channel_id_keys.forEach(channel_id_key => {
             const channel_id = channel_id_key.split(':')[2];
@@ -317,7 +330,7 @@ class DiscordClient {
         this.client.guilds.cache.forEach((guild) => {
             this.logger.info(`Reviving data from redis for [guild:${guild.id}]`, { discord_guild: guild.name, discord_guild_id: guild.id });
             this.restoreChannelSubscribers(guild);
-            // this.restorePresenceSubscribers(guild);
+            this.restorePresenceSubscribers(guild);
             this.restoreEventSubscriber(guild);
         });
     }
@@ -413,6 +426,28 @@ class DiscordClient {
                         .setDescription('Голосовой канал.')
                         .addChannelTypes(ChannelType.GuildVoice)
                         .setRequired(true))
+                .addStringOption(input =>
+                    input.setName('telegram_chat_id')
+                        .setDescription('ID чата в Telegram.')
+                        .setRequired(false)),
+            
+            new SlashCommandBuilder() // presence
+                .setName('presence')
+                .setDMPermission(false)
+                .setDescription(`Подписаться на статус активности пользователя.`)
+                .addStringOption(input => 
+                    input.setName('telegram_chat_id')
+                        .setDescription('ID чата в Telegram, который будет получать уведомления.')
+                        .setRequired(true))
+                .addStringOption(input => 
+                    input.setName('telegram_user_id')
+                        .setDescription('ID пользователя в Telegram.')
+                        .setRequired(true)),
+            
+            new SlashCommandBuilder() // unsubscribe
+                .setName('unpresence')
+                .setDMPermission(false)
+                .setDescription(`Отписаться от статуса активности пользователя.`)
                 .addStringOption(input =>
                     input.setName('telegram_chat_id')
                         .setDescription('ID чата в Telegram.')

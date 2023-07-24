@@ -11,3 +11,6 @@ node_modules/*
 !.env.project
 !.env.vault
 .flaskenv*
+
+# logs
+**/**/**.log

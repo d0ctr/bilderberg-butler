@@ -111,7 +111,7 @@ class DiscordEvent {
 
     getLogMeta() {
         let meta = {};
-        
+
         meta['discord_event'] = this.event_name;
         meta['discord_event_id'] = this.event_id;
         meta['discord_guild'] = this.guild_name;
@@ -119,7 +119,6 @@ class DiscordEvent {
         meta['telegram_chat_id'] = this.chat_id;
 
         if (this.isNotified()) {
-            meta['pending_notification_data_exists'] = !!this.pending_notification_data;
             meta['telegram_message_id'] = this.current_message_id;
         }
 
@@ -145,6 +144,7 @@ async function restoreMessageID(chat_id, event_id) {
     for (const [message_id, event_id_] of Object.entries(message_to_event)) {
         if (event_id_ === event_id) {
             current_message_id = Number(message_id);
+            break;
         }
     }
 
@@ -267,7 +267,7 @@ async function deleteMessage(discord_event) {
             { ...discord_event.getLogMeta() }
         );
         discord_event.current_message_id = null;
-    })
+    });
 }
 
 async function sendNotification(event_data, chat_id) {

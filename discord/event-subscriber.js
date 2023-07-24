@@ -191,7 +191,7 @@ class EventSubscriber extends BaseSubscriber {
 const isActive = (guild, telegram_chat_id) => {
     if (!guild) {
         return false;
-    };
+    }
 
     let key = guild.id;
 

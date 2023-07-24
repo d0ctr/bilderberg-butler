@@ -9,6 +9,7 @@ const { commands, conditions, definitions, handlers } = require('../commands/han
 const { ChatGPTHandler } = require('./gpt-handler');
 const { isNotificationMessage: isChannelNotificationMessage } = require('./channel-subscriber.js');
 const { isNotificationMessage: isEventNotificationMessage } = require('./event-subscriber.js');
+// const { isNotificationMessage: isPresenceNotificationMessage } = require('./presence-subscriber.js');
 
 const no_tags_regex = /<\/?[^>]+(>|$)/g;
 
@@ -728,7 +729,8 @@ class TelegramClient {
         this.client.on('message', async (ctx) => {
             if (ctx?.message?.reply_to_message?.from?.id === this.client.botInfo.id
                 && (isChannelNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.message_id)
-                || isEventNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.message_id))
+                || isEventNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.message_id)
+                || isPresenceNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.message_id))
                 ) {
                     return;
             }
