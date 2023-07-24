@@ -33,6 +33,19 @@ const logger_options = {
     ]
 };
 
+if (process.env?.ENV === 'dev') {
+    logger_options.transports.push(
+        new transports.File({
+            format: format.combine(
+                format.timestamp(),
+                format.json()
+            ),
+            level: LOGLEVEL,
+            filename: `combined.log`
+        })
+    )
+} 
+
 if (ENABLE_LOKI) {
     const { 
         LOKI_HOST = '',
