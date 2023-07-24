@@ -30,6 +30,11 @@ const logger_options = {
             ),
             level: LOGLEVEL,
         }),
+    ]
+};
+
+if (process.env?.ENV === 'dev') {
+    logger_options.transports.push(
         new transports.File({
             format: format.combine(
                 format.timestamp(),
@@ -38,8 +43,8 @@ const logger_options = {
             level: LOGLEVEL,
             filename: `combined.log`
         })
-    ]
-};
+    )
+} 
 
 if (ENABLE_LOKI) {
     const { 
