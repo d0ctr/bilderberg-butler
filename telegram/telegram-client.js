@@ -730,7 +730,6 @@ class TelegramClient {
             if (ctx?.message?.reply_to_message?.from?.id === this.client.botInfo.id
                 && (isChannelNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.message_id)
                 || isEventNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.message_id)
-                || isPresenceNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.message_id))
                 ) {
                     return;
             }
