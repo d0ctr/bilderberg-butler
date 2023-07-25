@@ -163,7 +163,7 @@ ${member.muted && '🔇' || ''}\
 ${member.deafened && '🔕' || ''}\
 ${member.streaming && '🖥️' || ''}\
 ${member.camera && '🎥' || ''}\
-${member.activity && ` -- <i>${member.activity}</i>` || ''}`;
+${member.activity && `— <i>${member.activity}</i>` || ''}`;
         });
 
         return text;
