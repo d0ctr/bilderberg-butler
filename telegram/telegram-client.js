@@ -729,7 +729,7 @@ class TelegramClient {
         this.client.on('message', async (ctx) => {
             if (ctx?.message?.reply_to_message?.from?.id === this.client.botInfo.id
                 && (isChannelNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.message_id)
-                || isEventNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.message_id)
+                || isEventNotificationMessage(ctx?.chat?.id, ctx?.message?.reply_to_message?.message_id))
                 ) {
                     return;
             }
