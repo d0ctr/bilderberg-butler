@@ -53,7 +53,7 @@ class PresenceNotification {
     getNotificationText() {
         let text = 'Активность';
         for (const [{}, { member_name, activity, call_me_by = null }] of this.presence_collection.entries()) {
-            if (activity) text += `\n${call_me_by || member_name} -- ${activity}`;
+            if (activity) text += `\n${call_me_by || member_name} — ${activity}`;
         }
         return text;
     }
