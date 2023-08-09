@@ -138,7 +138,8 @@ class ChatGPTHandler{
         this.logger = require('../logger').child({ module: 'chatgpt-handler' })
         
         const api_configuration = new Configuration({
-            apiKey: process.env.OPENAI_TOKEN
+            apiKey: process.env.OPENAI_TOKEN,
+            organization: 'org-TDjq9ytBDVcKt4eVSizl0O74'
         });
         this.openAIApi = new OpenAIApi(api_configuration);
 
