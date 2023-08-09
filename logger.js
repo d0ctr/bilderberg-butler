@@ -25,7 +25,8 @@ const logger_options = {
                 format.timestamp(),
                 format.colorize(),
                 format.printf(options => {
-                    return `${options.timestamp} - ${options.module} - ${options.level} - ${options.level === 'error' ? options.message : options.message.replace(/\n/gm, '\\n')}${options.error ? ` : ${options.error}` : ''}`;
+                    return `${options.timestamp} - ${options.module} - ${options.level} - ${options.level === 'error' ? options.message : options.message.replace(/\n/gm, '\\n')}\
+${options.error ? ` : ${typeof options.error === 'object' ? JSON.stringify(options.error) : options.error}` : ''}`;
                 })
             ),
             level: LOGLEVEL,

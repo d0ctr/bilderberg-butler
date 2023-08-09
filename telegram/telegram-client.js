@@ -616,7 +616,7 @@ class TelegramClient {
         this._registerTelegramCommand('info', true);
         this._registerTelegramCommand('webapp', process.env.WEBAPP_URL);
         this._registerTelegramCommand('roundit', true);
-        this._registerTelegramCommand('imagine', process.env.OPENAI_TOKEN);
+        // this._registerTelegramCommand('imagine', process.env.OPENAI_TOKEN);
         
         // Registering common commands
         commands.forEach((command_name, index) => {
