@@ -1,5 +1,5 @@
 const TurndownService = require('turndown');
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle, MessagePayload } = require('discord.js');
 
 const turndownService = new TurndownService({
     codeBlockStyle: 'fenced',
@@ -53,9 +53,17 @@ function commonizeInteraction(interaction, definition) {
 }
 
 function replyWithText(interaction, response, logger) {
-    logger.info(`Replying with [${response.text}]`, { response });
+    logger.info(`Replying with text`, { response });
 
-    interaction.reply(response.text)
+    // if (response?.overrides?.followup) {
+    //     const { text, url } = response.overrides.followup;
+    //     let embed = new EmbedBuilder;
+    //     text && embed.setTitle(text);
+    //     url && embed.setURL(url);
+    //     response.embeds = [embed];
+    // }
+
+    interaction.reply({ content: response.text, components: response?.components })
     .then((messsage) => {
         logger.debug('Replied!', { message_id: messsage.id });
     }).catch(err => {
@@ -83,9 +91,13 @@ function replyWithEmbed(interaction, response, logger) {
         payload.content = response.text;
     }
 
+    if (response.components) {
+        payload.components = response.components;
+    }
+
     if (response.filename) {
         logger.info(`Replying with file of type: ${response.type}`);
-        payload.files = [response.media];
+        payload.files = [{ name: response.filename, attachment: response.media }];
     }
     else {
         logger.info(`Replying with media of type: ${response.type}`);
@@ -109,7 +121,56 @@ function replyWithEmbed(interaction, response, logger) {
     });
 }
 
+function replyWithFile(interaction, response, logger) {
+    const payload = {};
+
+    if (response.text) {
+        payload.content = response.text;
+    }
+
+    if (response.components) {
+        payload.components = response.components;
+    }
+
+    if (response.filename) {
+        logger.info(`Replying with file of type: ${response.type}`);
+        payload.files = [{ name: response.filename, attachment: response.media }];
+    }
+
+    interaction.reply(payload)
+    .then((messsage) => {
+        logger.debug('Replied!', { message_id: messsage.id });
+    }).catch(err => {
+        logger.error(`Error while replying`, { error: err.stack || err });
+        replyWithText(
+            interaction,
+            {
+                type: 'error',
+                text: `Что-то случилось:\n\`${err}\``
+            },
+            logger
+        );
+    });
+}
+
 function reply(interaction, response, logger) {
+
+    if (response?.overrides?.followup) {
+        const { text, url } = response.overrides.followup;
+        const components = [
+            new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setLabel(text)
+                        .setURL(url)
+                        .setStyle(ButtonStyle.Link)
+                )
+        ];
+        response.components = components;
+    }
+
+    while (response?.text?.length >= 2000) response.text = response.text.split('\n').slice(0, -1).join('\n');
+
     if (['text', 'error'].includes(response.type)) {
         replyWithText(interaction, response, logger);
         return;
@@ -117,6 +178,11 @@ function reply(interaction, response, logger) {
 
     if (['photo', 'image'].includes(response.type)) {
         replyWithEmbed(interaction, response, logger);
+        return;
+    }
+
+    if (response.type === 'document' && response.filename) {
+        replyWithFile(interaction, response, logger);
         return;
     }
 

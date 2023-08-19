@@ -12,5 +12,7 @@
         "EN": "https://en.wikipedia.org/api/rest_v1/page/summary",
         "RU": "https://ru.wikipedia.org/api/rest_v1/page/summary"
     },
-    "DEFAULT_THUMBNAIL_URL": "https://github.com/d0ctr/bilderberg-butler/raw/main/docs/bilderberg-butler.jpg"
+    "DEFAULT_THUMBNAIL_URL": "https://github.com/d0ctr/bilderberg-butler/raw/main/docs/bilderberg-butler.jpg",
+    "RAWG_API_BASE": "https://api.rawg.io/api",
+    "RAWG_BASE": "https://rawg.io"
 }

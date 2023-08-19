@@ -1,6 +1,6 @@
 {
   "name": "bilderberg_butler",
-  "version": "2.54.0",
+  "version": "2.55.0",
   "description": "Discord bot for bilderberg club",
   "main": "index.js",
   "scripts": {
@@ -40,6 +40,6 @@
     "eslint": "^8.6.0"
   },
   "engines": {
-    "node": ">=16.16.0"
+    "node": ">=18.17.1"
   }
 }

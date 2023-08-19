@@ -6,7 +6,7 @@ const config = require('../config.json');
 const { setHealth } = require('../services/health');
 const { handleCommand, getLegacyResponse } = require('../commands/telegram');
 const { commands, conditions, definitions, handlers } = require('../commands/handlers-exporter');
-const { ChatGPTHandler } = require('./gpt-handler');
+const ChatGPTHandler = require('./gpt-handler');
 const { isNotificationMessage: isChannelNotificationMessage } = require('./channel-subscriber.js');
 const { isNotificationMessage: isEventNotificationMessage } = require('./event-subscriber.js');
 // const { isNotificationMessage: isPresenceNotificationMessage } = require('./presence-subscriber.js');
@@ -310,22 +310,22 @@ class TelegramInteraction {
 
         this.handler[this.command_name](this.context, this).then(([err, response, callback = () => {}, overrides]) => {
             if (err) {
-                return this._reply(err, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
+                return this._reply(err, overrides).catch((err) => {
                     this.logger.error(`Error while replying with an error message to [${this.command_name}]`, { error: err.stack || err });
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
-                }).finally(callback);
+                }).then(callback).finally(this.deletePlaceholder.bind(this));
             }
             if (response instanceof String || typeof response === 'string') {
-                return this._reply(response, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
+                return this._reply(response, overrides).catch((err) => {
                     this.logger.error(`Error while replying with response text to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
-                }).finally(callback);
+                }).then(callback).finally(this.deletePlaceholder.bind(this));
             }
             if (response instanceof Object) {
-                return this._replyWithMedia(response, overrides).then(this.deletePlaceholder.bind(this)).catch((err) => {
+                return this._replyWithMedia(response, overrides).catch((err) => {
                     this.logger.error(`Error while replying with media to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
-                }).finally(callback);
+                }).then(callback).finally(this.deletePlaceholder.bind(this));
             }
         }).catch((err) => {
             this.logger.error(`Error while processing command [${this.command_name}]`, { error: err.stack || err });
@@ -616,6 +616,9 @@ class TelegramClient {
         this._registerTelegramCommand('info', true);
         this._registerTelegramCommand('webapp', process.env.WEBAPP_URL);
         this._registerTelegramCommand('roundit', true);
+        this._registerTelegramCommand('new_system_prompt', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('answer', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('tree', process.env.OPENAI_TOKEN);
         // this._registerTelegramCommand('imagine', process.env.OPENAI_TOKEN);
         
         // Registering common commands
@@ -704,16 +707,6 @@ class TelegramClient {
             return;
         }
 
-        this.chatgpt_handler = new ChatGPTHandler();
-
-        this.client.command('tree', async (ctx) => {
-            this.chatgpt_handler.handleTreeRequest(new TelegramInteraction(this.client, 'tree', ctx));
-        });
-
-        this.client.command('answer', async (ctx) => {
-            this.chatgpt_handler.handleAnswerCommand(new TelegramInteraction(this.client, 'answer', ctx));
-        });
-
         /* Sesitive data
         * this.client.command('context', async (ctx) => {
         *     if (ctx?.message?.reply_to_message) {
@@ -721,10 +714,6 @@ class TelegramClient {
         *     }
         * });
         */
-
-        this.client.command('new_system_prompt', async (ctx) => {
-            this.chatgpt_handler.handleAdjustSystemPrompt(new TelegramInteraction(this.client, 'new_system_prompt', ctx));
-        });
 
         this.client.on('message', async (ctx) => {
             if (ctx?.message?.reply_to_message?.from?.id === this.client.botInfo.id
@@ -734,10 +723,10 @@ class TelegramClient {
                     return;
             }
             if (!ctx?.from?.is_bot && ctx?.message?.reply_to_message?.from?.id === this.client.botInfo.id) {
-                this.chatgpt_handler.answerReply(new TelegramInteraction(this.client, null, ctx));
+                ChatGPTHandler.answerReply(new TelegramInteraction(this.client, null, ctx));
             }
             else if (ctx.chat.id === ctx.from.id) {
-                this.chatgpt_handler.answerQuestion(new TelegramInteraction(this.client, null, ctx));
+                ChatGPTHandler.answerQuestion(new TelegramInteraction(this.client, null, ctx));
             }
         });
 

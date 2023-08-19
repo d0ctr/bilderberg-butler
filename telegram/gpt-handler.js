@@ -164,7 +164,7 @@ class ChatGPTHandler{
             interaction.context.replyWithChatAction('typing');
         }, 5000);
 
-        this.openAIApi.createChatCompletion({
+        return this.openAIApi.createChatCompletion({
             model: CHAT_MODEL_NAME,
             messages: context
         }).then(({ data, status } = {}) => {
@@ -176,29 +176,23 @@ class ChatGPTHandler{
 
             if (!data?.choices?.length) {
                 this.logger.warn('No choices for ChatGPT Completion');
-                return interaction._reply('У ChatGPT просто нет слов', { reply_to_message_id: prev_message_id });
+                ['У ChatGPT просто нет слов', null, null, { reply_to_message_id: prev_message_id }];
             }
 
-            interaction._reply(
+            return [
+                null,
                 prepareText(data.choices[0].message.content),
+                ({ message_id: new_message_id, text }) => {
+                    context_tree.appendNode({
+                        role: 'assistant',
+                        name: interaction.context.me.first_name,
+                        content: text,
+                        message_id: new_message_id,
+                        prev_message_id
+                    });
+                },
                 { reply_to_message_id: prev_message_id }
-            ).then(({ message_id: new_message_id, text }) => {
-                context_tree.appendNode({
-                    role: 'assistant',
-                    name: interaction.context.me.first_name,
-                    content: text,
-                    message_id: new_message_id,
-                    prev_message_id
-                });
-            }).catch(err => {
-                this.logger.error('Error while sending ChatGPT completion', { error: err.stack || err });
-                interaction._reply(
-                    'Ты даже представить себе не можешь, что там ChatGPT придумал, давай по новой',
-                    { reply_to_message_id: prev_message_id }
-                ).catch(err => {
-                    this.logger.error('Safe reply failed', { error: err.stack || err });
-                });
-            });
+            ];
         }).catch(err => {
             clearInterval(continiousChatAction);
 
@@ -208,12 +202,7 @@ class ChatGPTHandler{
             else {
                 this.logger.error(`Error while getting ChatGPT Completion`, { error: err.stack || err });
             }
-            interaction._reply(
-                'ChatGPT отказывается отвечать, можешь попробовать ещё раз, может он поддастся!',
-                { reply_to_message_id: prev_message_id }
-            ).catch((err) => {
-                this.logger.error('Error while sending a safe reply', { error: err.stack || err });
-            });
+            return ['ChatGPT отказывается отвечать, можешь попробовать ещё раз, может он поддастся!', null, null, { reply_to_message_id: prev_message_id }];
         });
     }
 
@@ -252,7 +241,14 @@ class ChatGPTHandler{
 
         const context = context_tree.getContext(message_id);
 
-        this._replyFromContext(interaction, context, context_tree, message_id)
+        return this._replyFromContext(interaction, context, context_tree, message_id)
+            .then(([err, response, callback = () => {}, overrides]) => {
+                return interaction._reply(response || err, overrides)
+                    .then(callback)
+                    .catch(err => {
+                        this.logger.error('Unprecedent error, it should have been already caught', { error: err.stack || err })
+                    });
+            });
     }
 
     // handleContextRequest(interaction) {
@@ -290,15 +286,15 @@ class ChatGPTHandler{
     //     });
     // }
 
-    handleTreeRequest(interaction) {
-        const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
+    async handleTreeRequest(context) {
+        // const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
 
-        logger.info(`Received command: ${interaction.command_name}`);
+        // logger.info(`Received command: ${interaction.command_name}`);
 
-        const context_tree = this._getContextTree(interaction.context.chat.id);
+        const context_tree = this._getContextTree(context.chat.id);
         
         if (!context_tree.nodes.size) {
-            return interaction._reply('Пока дерево пустое.');
+            return ['Пока дерево пустое.'];
         }
 
         try {
@@ -311,44 +307,40 @@ class ChatGPTHandler{
                 text: 'Дерево'
             };
 
-            return interaction._replyWithMedia(nodes_message)
-            .catch(err => {
-                this.logger.error('Error while sending nodes tree', { error: err.stack || err });
-                interaction._reply(`Ошибка во время отправки дерева контекста:\n<code>${err.message}</code>`);
-            });
+            return [null, nodes_message];
         }
         catch (err) {
             this.logger.error('Error while generating nodes tree', { error: err.stack || err });
-            interaction._reply(`Ошибка во время генерирования дерева контекста:\n<code>${err.message}</code>`);
+            return [`Ошибка во время генерирования дерева контекста:\n<code>${err.message}</code>`];
         }
     }
 
-    handleAnswerCommand(interaction) {
-        const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
+    async handleAnswerCommand(context, interaction) {
+        // const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
 
-        logger.info(`Received command: ${interaction.context.message.text}`);
+        // logger.info(`Received command: ${interaction.context.message.text}`);
 
-        const command_text = interaction?.context?.message?.text.replace(new RegExp(`\/answer(@${interaction.context.me.username})? ?`), '');
-        
-        if (!interaction?.context?.message?.reply_to_message && !command_text?.length) {
-            return interaction._reply('Отправь эту команду как реплай на другое сообщение или напишите запрос в сообщении с командой, чтобы получить ответ.');
+        const command_text = context?.message?.text.replace(new RegExp(`\/answer(@${context.me.username})? ?`), '');
+
+        if (!context?.message?.reply_to_message && !command_text?.length) {
+            return ['Отправь эту команду как реплай на другое сообщение или напишите запрос в сообщении с командой, чтобы получить ответ.'];
         }
 
-        if (!interaction.context.message?.reply_to_message?.text && !interaction.context.message?.reply_to_message?.caption && !command_text?.length) {
-            return interaction._reply('Ни в отвеченном сообщении ни в сообщении с командой нет запроса, а без него никуда.');
+        if (!context.message?.reply_to_message?.text && !context.message?.reply_to_message?.caption && !command_text?.length) {
+            return ['Ни в отвеченном сообщении ни в сообщении с командой нет запроса, а без него никуда.'];
         }
 
-        const context_tree = this._getContextTree(interaction.context.chat.id);
+        const context_tree = this._getContextTree(context.chat.id);
 
         let prev_message_id = null;
         let message_id = null;
         let author = null;
         let username = null;
 
-        if (interaction?.context?.message?.reply_to_message) {
-            const text = interaction.context.message.reply_to_message.text || interaction.context.message.reply_to_message.caption;
+        if (context?.message?.reply_to_message) {
+            const text = context.message.reply_to_message.text || context.message.reply_to_message.caption;
             if (text?.length) {
-                ({ message_id, from: { first_name: author, username } } = interaction.context.message.reply_to_message);
+                ({ message_id, from: { first_name: author, username } } = context.message.reply_to_message);
                 if (!context_tree.isNodeExisting({ message_id })) {
                     context_tree.appendNode({
                         role: 'user',
@@ -362,7 +354,7 @@ class ChatGPTHandler{
        
         if (command_text?.length) {
            prev_message_id = message_id;
-           ({ message_id, from: { first_name: author, username } } = interaction.context.message);
+           ({ message_id, from: { first_name: author, username } } = context.message);
            context_tree.appendNode({
                role: 'user',
                content: `[name:${author}] [username:${username}]\n${command_text}`,
@@ -372,27 +364,27 @@ class ChatGPTHandler{
            });
         }
         // fetch onlty messages refered by this command
-        const context = prev_message_id ? context_tree.getContext(message_id, 2) : context_tree.getContext(message_id, 1);
+        const gpt_context = prev_message_id ? context_tree.getContext(message_id, 2) : context_tree.getContext(message_id, 1);
 
-        this._replyFromContext(interaction, context, context_tree, message_id);
+        return this._replyFromContext(interaction, gpt_context, context_tree, message_id);
     }
 
-    handleAdjustSystemPrompt(interaction) {
-        const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
+    async handleAdjustSystemPrompt(context) {
+        // const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
         
-        logger.info(`Received command: ${interaction.context.message.text}`);
+        // logger.info(`Received command: ${interaction.context.message.text}`);
 
-        const new_system_prompt = interaction.context.message.text.split(' ').slice(1).join(' ');
+        const new_system_prompt = context.message.text.split(' ').slice(1).join(' ');
         
-        const context_tree = this._getContextTree(interaction.context.chat.id);
+        const context_tree = this._getContextTree(context.chat.id);
         
         if (!new_system_prompt) {
-            return interaction._reply(`Нужен не пустой системный промпт.\nПо умолчанию: <code>${DEFAULT_SYSTEM_PROMPT}</code>\nСейчас: <code>${context_tree.root_node.content}</code>`);
+            [`Нужен не пустой системный промпт.\nПо умолчанию: <code>${DEFAULT_SYSTEM_PROMPT}</code>\nСейчас: <code>${context_tree.root_node.content}</code>`];
         }
 
         context_tree.root_node.content = new_system_prompt;
 
-        interaction._reply('Обновил');
+        return [null, 'Обновил'];
     }
 
     answerQuestion(interaction) {
@@ -419,10 +411,15 @@ class ChatGPTHandler{
 
         const context = context_tree.getContext(message_id);
 
-        this._replyFromContext(interaction, context, context_tree, message_id);
+        return this._replyFromContext(interaction, context, context_tree, message_id)
+            .then(([err, response, callback = () => {}, overrides]) => {
+                return interaction._reply(response || err, overrides)
+                    .then(callback)
+                    .catch(err => {
+                        this.logger.error('Unprecedent error, it should have been already caught', { error: err.stack || err })
+                    });
+            });
     }
 }
 
-module.exports = {
-    ChatGPTHandler
-};
+module.exports = new ChatGPTHandler();
