@@ -1,4 +1,4 @@
-const { InputFile } = require('grammy');
+const { InputFile, InlineKeyboard } = require('grammy');
 
 /**
  * Turns Telegram context to an object that can be used as an input to a common command handler
@@ -67,7 +67,7 @@ function commonizeContext(ctx, limit) {
 }
 
 function replyWithText(ctx, response, logger) {
-    logger.info(`Replying with [${response.text}]`, { response });
+    logger.info(`Replying with text`, { response });
 
     ctx.reply(
         response.text,
@@ -119,6 +119,11 @@ function reply(ctx, response, logger) {
     };
 
     const sendReply = reply_methods[response.type];
+
+    if (response?.overrides?.followup && !response?.overrides?.reply_markup) {
+        const { text, url } = response.overrides.followup;
+        response.overrides.reply_markup = new InlineKeyboard().url(text, url);
+    }
 
     if (!sendReply) {
         return replyWithText(ctx, response, logger);

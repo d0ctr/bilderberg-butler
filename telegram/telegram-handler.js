@@ -5,6 +5,7 @@ const { help } = require("./command-handlers/help-handler");
 const { html } = require("./command-handlers/html-handler");
 const { generateImage } = require("./command-handlers/deep-handler");
 const { info } = require("./command-handlers/info-handler");
+const ChatGPTHandler = require('./gpt-handler');
 
 class TelegramHandler {
     constructor() {
@@ -67,6 +68,12 @@ class TelegramHandler {
     roundit = require('./command-handlers/roundit-handler').roundit.bind(this);
 
     imagine = require('./command-handlers/imagine-handler').imagine.bind(this);
+
+    new_system_prompt = ChatGPTHandler.handleAdjustSystemPrompt.bind(ChatGPTHandler);
+
+    answer = ChatGPTHandler.handleAnswerCommand.bind(ChatGPTHandler);
+
+    tree = ChatGPTHandler.handleTreeRequest.bind(ChatGPTHandler);
 }
 
 module.exports = TelegramHandler;

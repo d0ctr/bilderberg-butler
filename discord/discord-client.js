@@ -78,7 +78,7 @@ class DiscordInteraction {
             return this._replyWithEmbed(response.text);
         }
 
-        this.logger.info(`Replying with ${response.text}`);
+        this.logger.info(`Replying with text`);
         return this.interaction.reply(response.text);
     }
 
@@ -269,10 +269,6 @@ class DiscordClient {
     }
 
     async restoreChannelSubscribers(guild) {
-        if (!this.redis) {
-            this.logger.info("Hey! I can't revive without redis instance!");
-            return;
-        }
         let channel_id_keys;
         try {
             channel_id_keys = await this.redis.keys(`${guild.id}:channel_subscriber:*`);
@@ -327,6 +323,10 @@ class DiscordClient {
     }
 
     async restoreData () {
+        if (!this.redis) {
+            this.logger.info("Hey! I can't revive without redis instance!");
+            return;
+        }
         this.client.guilds.cache.forEach((guild) => {
             this.logger.info(`Reviving data from redis for [guild:${guild.id}]`, { discord_guild: guild.name, discord_guild_id: guild.id });
             this.restoreChannelSubscribers(guild);
