@@ -5,7 +5,7 @@ const getReleasesFromRAWG = async ({ year = new Date(Date.now()).getFullYear(), 
         `${RAWG_API_BASE}/games/calendar/${year}/${month}?`
         + new URLSearchParams({
             key: process.env.RAWG_TOKEN,
-            ordering: '-released',
+            ordering: '-added',
             popular: 'true',
             page_size: 25,
             ...args
