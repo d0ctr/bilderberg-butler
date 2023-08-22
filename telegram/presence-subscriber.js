@@ -17,12 +17,12 @@ const bot = process.env.TELEGRAM_TOKEN ? new Bot(process.env.TELEGRAM_TOKEN, bot
 const presence_notification_map = {};
 
 const getDescriptionHeading = (chat_desription) => {
-    if (!description?.length) return '';
+    if (!chat_desription?.length) return '';
 
     // checking that there is a "--" line delimeter in description
-    if (!description.match(/\n--\n?/gm)?.length) return '';
+    if (!chat_desription.match(/\n--\n?/gm)?.length) return '';
 
-    return `${description.match(/.*\n--/gm)[0]}`;
+    return `${chat_desription.match(/.*\n--/gm)[0]}`;
 }
 
 class PresenceNotification {
