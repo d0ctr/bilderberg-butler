@@ -199,7 +199,7 @@ class ChannelSubscriber extends BaseSubscriber {
         }
 
         this.active = data.active === 'true';
-        this.telegram_chat_ids = data.telegram_chat_ids && JSON.parse(data.telegram_chat_ids);
+        this.telegram_chat_ids = data.telegram_chat_ids.length ? JSON.parse(data.telegram_chat_ids) : [];
         this.last_state = data.last_state && JSON.parse(data.last_state);
         
         this.logger.info(`Parsed data ${this._dump_key}`, { parsed_data: JSON.stringify({ active: this.active, telegram_chat_ids: this.telegram_chat_ids, last_state: this.last_state }), ...this.log_meta });
