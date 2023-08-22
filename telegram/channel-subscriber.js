@@ -350,15 +350,15 @@ function editNotificationMessage(discord_notification) {
             { ...discord_notification.getLogMeta() }
         );
     }).catch((err) => {
-        logger.error(
-            `Error while editing [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`, 
-            { error: err.stack || err, ...discord_notification.getLogMeta() }
-        );
         if (err.description.search('message to edit not found') !== -1) {
             logger.info(`[message: ${discord_notification.current_message_id}] doesn't exist, sending new message instead`);
             discord_notification.current_message_id = null;
             return sendNotificationMessage(discord_notification);
         }
+        logger.error(
+            `Error while editing [message: ${discord_notification.current_message_id}] about [channel:${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`, 
+            { error: err.stack || err, ...discord_notification.getLogMeta() }
+        );
     });
 }
 

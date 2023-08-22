@@ -189,7 +189,7 @@ class PresenceSubscriber extends BaseSubscriber {
         }
 
         this.active = data.active === 'true';
-        this.telegram_chat_ids = data.telegram_chat_ids && JSON.parse(data.telegram_chat_ids);
+        this.telegram_chat_ids = data.telegram_chat_ids.length ? Array.from(JSON.parse(data.telegram_chat_ids)) : [];
         this.telegram_user_id = data.telegram_user_id;
         
         this.logger.info(`Parsed data: ${JSON.stringify({ active: this.active, telegram_chat_ids: this.telegram_chat_ids, telegram_user_id: this.telegram_user_id })}`, { parsed_data: JSON.stringify({ active: this.active, telegram_chat_ids: this.telegram_chat_ids, telegram_user_id: this.telegram_user_id }), ...this.log_meta });

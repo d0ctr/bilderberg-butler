@@ -1,9 +1,3 @@
-require('dotenv-vault-core').config();
-
-if (process.env.ENV !== 'prod') {
-    require('dotenv').config();
-}
-
 const axios = require("axios");
 
 const config = require('../config.json');

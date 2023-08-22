@@ -154,6 +154,7 @@ class DiscordClient {
         });
 
         this.client.on('debug', info => {
+
             this.discordjs_logger.silly(`${info}`);
         });
 
@@ -161,8 +162,8 @@ class DiscordClient {
             this.discordjs_logger.warn(`${info}`);
         });
 
-        this.client.on('error', error => {
-            this.discordjs_logger.error(`${error}`);
+        this.client.on('error', err => {
+            this.discordjs_logger.error(`${error}`, { error: err.stack | err });
         });
 
         this.client.on('interactionCreate', async interaction => {

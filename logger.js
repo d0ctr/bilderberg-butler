@@ -1,12 +1,6 @@
 const { createLogger, format, transports } = require('winston');
 const LokiTransport = require('winston-loki');
 
-require('dotenv-vault-core').config();
-
-if (process.env.ENV !== 'prod') {
-    require('dotenv').config();
-}
-
 const ENABLE_LOKI = process.env.ENABLE_LOKI === 'true';
 const LOGLEVEL = [
     'silly',
@@ -18,10 +12,28 @@ const LOGLEVEL = [
     'error',
 ].includes(process.env.DEFAULT_LOGLEVEL) ? process.env.DEFAULT_LOGLEVEL : 'info';
 
+const token_values = Object.entries(process.env).reduce((acc, [name, value]) => {
+    if (name.endsWith('_TOKEN') && value.length) {
+        acc.push(value)
+    }
+    return acc;
+}, []);
+
+const replaceToken = format((options) => {
+    for (let key of Object.keys(options)) {
+        if (typeof options[key] !== 'string') continue;
+        token_values.forEach(token => {
+            options[key] = options[key].replaceAll(token, '***')
+        });
+    }
+    return options;
+});
+
 const logger_options = {
     transports: [
         new transports.Console({
             format: format.combine(
+                replaceToken(),
                 format.timestamp(),
                 format.colorize(),
                 format.printf(options => {
@@ -38,6 +50,7 @@ if (process.env?.ENV === 'dev') {
     logger_options.transports.push(
         new transports.File({
             format: format.combine(
+                replaceToken(),
                 format.timestamp(),
                 format.json()
             ),
@@ -69,7 +82,10 @@ if (ENABLE_LOKI) {
                 last_commit: LAST_COMMIT,
             },
             basicAuth: `${LOKI_USER}:${LOKI_PASS}`,
-            format: format.json(),
+            format: format.combine(
+                replaceToken(),
+                format.json()
+            ),
             level: LOKI_LOGLEVEL,
         })
     )

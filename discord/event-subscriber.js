@@ -109,7 +109,7 @@ class EventSubscriber extends BaseSubscriber {
         }
 
         this.active = data.active === 'true';
-        this.telegram_chat_ids = data.telegram_chat_ids && JSON.parse(data.telegram_chat_ids);
+        this.telegram_chat_ids = data.telegram_chat_ids.length ? JSON.parse(data.telegram_chat_ids) : [];
         this.event_ids = new Set(data.event_ids ? JSON.parse(data.event_ids) : []);
         
         this.logger.info(`Parsed data ${this._dump_key}`, { parsed_data: JSON.stringify({ active: this.active, telegram_chat_ids: this.telegram_chat_ids, event_ids: this.event_ids }), ...this.log_meta });

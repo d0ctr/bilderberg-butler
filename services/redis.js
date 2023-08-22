@@ -1,7 +1,3 @@
-require('dotenv-vault-core').config();
-if (process.env.ENV !== 'prod') {
-    require('dotenv').config();
-}
 const Redis = require('ioredis');
 const { setHealth } = require('./health');
 const logger = require('../logger').child({ module: 'redis' });
