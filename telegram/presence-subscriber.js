@@ -16,6 +16,15 @@ const bot = process.env.TELEGRAM_TOKEN ? new Bot(process.env.TELEGRAM_TOKEN, bot
 
 const presence_notification_map = {};
 
+const getDescriptionHeading = (chat_desription) => {
+    if (!description?.length) return '';
+
+    // checking that there is a "--" line delimeter in description
+    if (!description.match(/\n--\n?/gm)?.length) return '';
+
+    return `${description.match(/.*\n--/gm)[0]}`;
+}
+
 class PresenceNotification {
     constructor(chat_id, presence_data) {
         this.chat_id = chat_id;
@@ -82,7 +91,7 @@ function getPresenceNotification(presence_data, chat_id) {
 }
 
 async function editDescription(presence_notification, new_description) {
-    if (!presence_notification) return;
+    if (!presence_notification || !bot) return;
 
     presence_notification.current_update_promise = bot.api.setChatDescription(
         presence_notification.chat_id,
@@ -93,6 +102,10 @@ async function editDescription(presence_notification, new_description) {
             { ...presence_notification.getLogMeta() }
         )
     }).catch(err => {
+        if (err.description.includes('chat description not modified')) {
+            logger.noise(`Same presence already exists in [chat: ${presence_notification.chat_id}], skipping`, { ...presence_notification.getLogMeta() })
+            return;
+        }
         logger.error(
             `Error while updating description in [chat: ${presence_notification.chat_id}]`,
             { error: err.stack || err, ...presence_notification.getLogMeta() }
@@ -108,15 +121,15 @@ async function updatePresence(telegram_chat_id, telegram_user_id, presence_data)
 
     const presence_notification = getPresenceNotification(presence_data, telegram_chat_id);
 
+    const old_presence_text = presence_notification.getNotificationText();
+
     try {
         const chat_member = await bot.api.getChatMember(telegram_chat_id, telegram_user_id);
 
-        if (chat_member?.user?.username) {
-            presence_notification.setPresence(telegram_user_id, { call_me_by: `@${chat_member.user.username}`, ...presence_data });
-        }
-        else {
-            presence_notification.setPresence(telegram_user_id, { call_me_by: `${chat_member.user.first_name}`, ...presence_data });
-        }
+        presence_notification.setPresence(telegram_user_id, { 
+            call_me_by: `${chat_member.user.username ? `@${chat_member.user.username}` : chat_member.user.first_name}`, 
+            ...presence_data 
+        });
     }
     catch (err) {
         logger.warn(
@@ -124,6 +137,11 @@ async function updatePresence(telegram_chat_id, telegram_user_id, presence_data)
             { error: err.stack || err, ...presence_notification.getLogMeta() }
         );
         presence_notification.setPresence(telegram_user_id, presence_data);
+    }
+
+    if (old_presence_text === presence_notification.getNotificationText()) {
+        logger.debug(`Nothing new for [chat: ${telegram_chat_id}], skipping update`, { ...presence_notification.getLogMeta() });
+        return;
     }
 
     let chat_data;
@@ -139,12 +157,7 @@ async function updatePresence(telegram_chat_id, telegram_user_id, presence_data)
     }
 
     const { description } = chat_data;
-    let new_description = '';
-    if (description?.length) {
-        if (description.match(/\n\-\-[$\n]?/gm)?.length) {
-            new_description = `${description.match(/.*\n--[\n$]?/gm)[0]}\n`;
-        }
-    }
+    let new_description = getDescriptionHeading(description);
 
     if (presence_notification.isEmpty()) {
         return editDescription(presence_notification, new_description);
@@ -184,12 +197,7 @@ async function deletePresence(telegram_chat_id) {
     }
 
     const { description } = chat_data;
-    let new_description = '';
-    if (description?.length) {
-        if (description.match(/\n\-\-[$\n]?/gm)?.length) {
-            new_description = `${description.match(/.*\n--[\n$]?/gm)[0]}\n`;
-        }
-    }
+    let new_description = getDescriptionHeading(description);
 
     return editDescription(presence_notification_map[telegram_chat_id], new_description).then(() => {
         presence_notification_map[telegram_chat_id].is_deleted = true;

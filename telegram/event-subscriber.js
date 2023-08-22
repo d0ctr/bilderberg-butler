@@ -211,15 +211,15 @@ async function editMessage(discord_event, new_event_data) {
             { ...discord_event.getLogMeta() }
         );
     }).catch(err => {
-        logger.error(
-            `Error while calling ${method_name} about [event: ${discord_event.event_id}] to [chat: ${discord_event.chat_id}]`, 
-            { error: err.stack || err, ...discord_event.getLogMeta() }
-        );
         if (err.description.search('message to edit not found') !== -1) {
             logger.debug(`[message: ${discord_event.current_message_id}] doesn't exist, sending new message instead`);
             discord_event.current_message_id = null;
             return sendMessage(discord_event);
         }
+        logger.error(
+            `Error while calling ${method_name} about [event: ${discord_event.event_id}] to [chat: ${discord_event.chat_id}]`, 
+            { error: err.stack || err, ...discord_event.getLogMeta() }
+        );
     });
 
     return discord_event.current_update_promise;
