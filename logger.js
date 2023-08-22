@@ -13,7 +13,7 @@ const LOGLEVEL = [
 ].includes(process.env.DEFAULT_LOGLEVEL) ? process.env.DEFAULT_LOGLEVEL : 'info';
 
 const token_values = Object.entries(process.env).reduce((acc, [name, value]) => {
-    if (name.endsWith('_TOKEN')) {
+    if (name.endsWith('_TOKEN') && value.length) {
         acc.push(value)
     }
     return acc;
