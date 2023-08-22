@@ -1,12 +1,6 @@
 const { createLogger, format, transports } = require('winston');
 const LokiTransport = require('winston-loki');
 
-require('dotenv-vault-core').config();
-
-if (process.env.ENV !== 'prod') {
-    require('dotenv').config();
-}
-
 const ENABLE_LOKI = process.env.ENABLE_LOKI === 'true';
 const LOGLEVEL = [
     'silly',
@@ -32,6 +26,7 @@ const replaceToken = format((options) => {
             options[key] = options[key].replaceAll(token, '***')
         });
     }
+    return options;
 });
 
 const logger_options = {
