@@ -22,6 +22,7 @@ const token_values = Object.entries(process.env).reduce((acc, [name, value]) => 
     if (name.endsWith('_TOKEN')) {
         acc.push(value)
     }
+    return acc;
 }, []);
 
 const replaceToken = format((options) => {
