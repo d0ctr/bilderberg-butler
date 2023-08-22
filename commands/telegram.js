@@ -211,6 +211,12 @@ async function getLegacyResponse(ctx, handler, definition) {
 
     logger.info(`Received command: ${common_interaction.text}`);
     let response = await handler(common_interaction);
+
+    if (response?.overrides?.followup && !response?.overrides?.reply_markup) {
+        const { text, url } = response.overrides.followup;
+        response.overrides.reply_markup = new InlineKeyboard().url(text, url);
+    }
+
     return [
         response.type === 'error' ? response.text : null,
         response.type === 'text' ? response.text : response,
