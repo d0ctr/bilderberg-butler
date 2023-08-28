@@ -9,7 +9,6 @@ const { commands, conditions, definitions, handlers } = require('../commands/han
 const ChatGPTHandler = require('./gpt-handler');
 const { isNotificationMessage: isChannelNotificationMessage } = require('./channel-subscriber.js');
 const { isNotificationMessage: isEventNotificationMessage } = require('./event-subscriber.js');
-// const { isNotificationMessage: isPresenceNotificationMessage } = require('./presence-subscriber.js');
 
 const no_tags_regex = /<\/?[^>]+(>|$)/g;
 
@@ -108,6 +107,13 @@ class TelegramInteraction {
 
     get inline_commands() {
         return this.client.inline_commands;
+    }
+
+    /**
+     * @returns {Map<'string', 'string'[]>}
+     */
+    get registered_commands() {
+        return this.client.registered_commands;
     }
 
     /**
@@ -301,14 +307,14 @@ class TelegramInteraction {
      * @returns {undefined | Promise}
      */
     reply() {
-        if (typeof this.handler[this.command_name] !== 'function') {
+        if (typeof this.handler[this.command_name]?.handler !== 'function') {
             this.logger.warn(`Received nonsense, how did it get here???`);
             return;
         }
 
         this.logger.info(`Received command: ${this.command_name}`);
 
-        this.handler[this.command_name](this.context, this).then(([err, response, callback = () => {}, overrides]) => {
+        this.handler[this.command_name].handler(this.context, this).then(([err, response, callback = () => {}, overrides]) => {
             if (err) {
                 return this._reply(err, overrides).catch((err) => {
                     this.logger.error(`Error while replying with an error message to [${this.command_name}]`, { error: err.stack || err });
@@ -454,25 +460,20 @@ class TelegramInteraction {
         if (matching_command_names.length > 0 && !this.inline_commands.includes(command_name)) {
             let results = [];
             for (const matching_command_name of matching_command_names) {
-                if (commands.includes(matching_command_name)) {
-                    const index = commands.indexOf(matching_command_name);
-                    let line = `/${matching_command_name} `;
-                    if (definitions[index].args && definitions[index].args.length) {
-                        for (const arg of definitions[index].args) {
-                            line += `{${arg.name}${arg.optional ? '?' : ''}} `;
-                        }
-                    }
+                this.registered_commands.forEach((help, command_name) => {
+                    if (command_name !== matching_command_name || !help.length) return;
+                    let line = `/${command_name} ${help.length > 1 ? help.slice(0, -1).join(' ') : ''}`;
                     results.push(
                         this._generateInlineText(
                             line,
                             {
-                                description: definitions[index].description,
+                                description: help.slice(-1)[0],
                                 id: `${matching_command_name}${require('../package.json').version}${process.env.ENV}`,
-                                message_text: `<code>@${this.context.me.username} ${line}</code>\n<i>${definitions[index].description}</i>`,
+                                message_text: `<code>@${this.context.me.username} ${line}</code>\n<i>${help.slice(-1)[0]}</i>`,
                             }
                         )
                     );
-                }
+                });
             }
 
             if (!results.length) {
@@ -509,8 +510,8 @@ class TelegramInteraction {
         this.logger.info(`Received eligible inline query, parsed context [${JSON.stringify(parsed_context)}]`);
 
         (async () => {
-            if (this.handler[command_name]) {
-                return this.handler[command_name](parsed_context, this);
+            if (this.handler[command_name]?.handler) {
+                return this.handler[command_name].handler(parsed_context, this);
             }
             const common_command_index = commands.indexOf(command_name);
             if (common_command_index >= 0) {
@@ -562,6 +563,7 @@ class TelegramClient {
         this.logger = require('../logger').child(this.log_meta);
         this.handler = new TelegramHandler(this);
         this.inline_commands = [];
+        this.registered_commands = new Map();
     }
 
     /**
@@ -572,20 +574,14 @@ class TelegramClient {
      * @param {String?} handle_function_name {command_name} which function from TelegramHandler handles this command
      */
     _registerTelegramCommand(command_name, condition = false, is_inline = false, handle_function_name = command_name) {
-        if (!command_name) {
-            return;
-        }
-
         if (typeof condition === 'function') {
-            condition = condition();
+            if (!condition()) return;
         }
+        else if (!condition)  return;
 
-        if (!condition) {
-            return;
-        }
+        this.handler[handle_function_name]?.help && this.registered_commands.set(command_name, this.handler[handle_function_name].help);
 
         this.client.command(command_name, async (ctx) => new TelegramInteraction(this, handle_function_name, ctx).reply());
-
         if (is_inline) {
             this.inline_commands.push(command_name);
         }
@@ -624,20 +620,52 @@ class TelegramClient {
         // Registering common commands
         commands.forEach((command_name, index) => {
             if (typeof conditions[index] === 'function') {
-                if (!conditions[index]()) {
-                    return;
+                if (!conditions[index]()) return;
+            }
+            else if (!conditions[index]) return;
+
+            let args = [];
+            if (definitions?.[index]?.args?.length) {
+                for (const arg of definitions[index].args) {
+                    args.push(`{${arg.name}${arg.optional ? '?' : ''}}`);
                 }
             }
-            else if (!conditions[index]) {
-                return;
-            }
+            this.registered_commands.set(command_name, [args.join(' '), definitions[index].description]);
 
             this.client.command(command_name, async (ctx) => handleCommand(ctx, handlers[index], definitions[index]));
-
             if (definitions[index].is_inline) {
                 this.inline_commands.push(command_name);
             }
         });
+
+        this.client.api.setMyCommands(
+            [...this.registered_commands.entries()]
+                .reduce((acc, [command_name, help]) => {
+                    if (help?.length) {
+                        acc.push({command: command_name, description: help.join(' ')});
+                    }
+                    return acc;
+                }, []),
+            {
+                scope: {
+                    type: 'default'
+                }
+            }
+        )
+        .catch(err => {
+            this.logger.error('Error while registering commands', { error: err.stack || err });
+        })
+        .then(registered => {
+            if (registered) this.logger.debug('Received successful response for commands registering');
+            return this.client.api.getMyCommands({ scope: { type: 'default' } });
+        })
+        .catch(err => {
+            this.logger.error('Error while getting registered commands', { error: err.stack || err });
+        })
+        .then(commands => {
+            this.logger.debug(`Received following registered commands: ${JSON.stringify(commands)}`);
+        })
+        ;
 
         this.client.on('inline_query', async (ctx) => new TelegramInteraction(this, 'inline_query', ctx).answer());
     }

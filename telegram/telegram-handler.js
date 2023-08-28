@@ -32,48 +32,51 @@ class TelegramHandler {
         return args;
     }
     
-    /**
-     * `/start` command handler
-     * @returns {[null, String]}
-     */
-    async start() {
-        let message = 'Этот бот что-то может, чтобы узнать что, воспользуйся командой /help';
-        return [null, message];
-    }
+    start = {
+        /**
+         * `/start` command handler
+         * @returns {[null, String]}
+         */
+        handler: async () => {
+            let message = 'Этот бот что-то может, чтобы узнать что, воспользуйся командой /help';
+            return [null, message];
+        },
+        help: []
+    }        
 
-    fizzbuzz = fizzbuzz.bind(this);
+    fizzbuzz = { handler: fizzbuzz.bind(this), help: [] };
 
-    get = get.bind(this);
+    get = { handler: get.bind(this), help: ['{название}', 'Вызвать контент, сохранённый командой /set'] };
 
-    set = set.bind(this);
+    set = { handler: set.bind(this), help: ['{название}', 'Сохранить содержимое сообщения']};
 
-    get_list = getList.bind(this);
+    get_list = { handler: getList.bind(this), help: ['Вызвать список гетов, доступных в этом чате'] };
 
-    del = del.bind(this);
+    del = { handler: del.bind(this), help: ['{название}', 'Удалить гет, доступно только владельцу (если он есть)'] };
     
-    gh = gh.bind(this);
+    gh = { handler: gh.bind(this), help: [] };
 
-    help = help;
+    help = { handler: help, help: ['Вызвать список доступных команд']};
 
-    html = html.bind(this);
+    html = { handler: html.bind(this), help: [] };
 
-    deep = generateImage.bind(this);
+    deep = { handler: generateImage.bind(this), help: ['{описание}', 'Генерирует 4 картинки по описанию (DeepAI)'] };
 
-    info = info.bind(this);
+    info = { handler: info.bind(this), help: ['Вызвать информацию о чате и отправителе'] };
 
-    ytdl = require('./command-handlers/ytdl-handler').ytdl.bind(this);
+    ytdl = { handler: require('./command-handlers/ytdl-handler').ytdl.bind(this), help: [] };
 
-    webapp = require('./command-handlers/webapp-handler').webapp.bind(this);
+    webapp = { handler: require('./command-handlers/webapp-handler').webapp.bind(this), help: [] };
 
-    roundit = require('./command-handlers/roundit-handler').roundit.bind(this);
+    roundit = { handler: require('./command-handlers/roundit-handler').roundit.bind(this), help: ['Превратить видео в кружок'] };
 
-    imagine = require('./command-handlers/imagine-handler').imagine.bind(this);
+    imagine = { handler: require('./command-handlers/imagine-handler').imagine.bind(this), help: ['{описание}', 'Генерирует 4 картинки по описанию (DALL-E)'] };
 
-    new_system_prompt = ChatGPTHandler.handleAdjustSystemPrompt.bind(ChatGPTHandler);
+    new_system_prompt = { handler: ChatGPTHandler.handleAdjustSystemPrompt.bind(ChatGPTHandler), help: ['{промпт}', 'Задать новый системный промпт для ChatGPT и/или проверить, установленный сейчас'] };
 
-    answer = ChatGPTHandler.handleAnswerCommand.bind(ChatGPTHandler);
+    answer = { handler: ChatGPTHandler.handleAnswerCommand.bind(ChatGPTHandler), help: ['{запрос?}', 'Спросить у ChatGPT, можно использовать как реплай'] };
 
-    tree = ChatGPTHandler.handleTreeRequest.bind(ChatGPTHandler);
+    tree = { handler: ChatGPTHandler.handleTreeRequest.bind(ChatGPTHandler), help: ['Запросить контекстное дерево ChatGPT'] };
 }
 
 module.exports = TelegramHandler;
