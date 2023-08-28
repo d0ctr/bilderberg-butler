@@ -9,7 +9,7 @@ const { OpenAIApi, Configuration } = require('openai');
 
 const CHAT_MODEL_NAME = 'gpt-4';
 
-const DEFAULT_SYSTEM_PROMPT = 'you are a chat-assistant\nanswer in english and/or russian languages\nanswer should not exceed 3000 characters\nyou can mention users by `@<username>` and call them by name';
+const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not exceed 3000 characters\neach message starts with user's name and username, username is mentionable with @`;
 /**
    @param {String} input
    @return {String}
@@ -379,7 +379,7 @@ class ChatGPTHandler{
         const context_tree = this._getContextTree(context.chat.id);
         
         if (!new_system_prompt) {
-            [`Нужен не пустой системный промпт.\nПо умолчанию: <code>${DEFAULT_SYSTEM_PROMPT}</code>\nСейчас: <code>${context_tree.root_node.content}</code>`];
+            return [`Нужен не пустой системный промпт.\nПо умолчанию: <code>${DEFAULT_SYSTEM_PROMPT}</code>\nСейчас: <code>${context_tree.root_node.content}</code>`];
         }
 
         context_tree.root_node.content = new_system_prompt;
