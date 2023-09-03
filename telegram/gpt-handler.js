@@ -7,7 +7,7 @@ const { OpenAIApi, Configuration } = require('openai');
 //     strikethrough: 'true'
 // });
 
-const CHAT_MODEL_NAME = 'gpt-4';
+const CHAT_MODEL_NAME = process.env.GPT_MODEL || 'gpt-3.5-turbo';
 
 const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not exceed 3000 characters\neach message starts with user's name and username, username is mentionable with @`;
 /**
