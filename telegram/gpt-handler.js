@@ -7,9 +7,9 @@ const { OpenAIApi, Configuration } = require('openai');
 //     strikethrough: 'true'
 // });
 
-const CHAT_MODEL_NAME = process.env.GPT_MODEL || 'gpt-3.5-turbo';
+const CHAT_MODEL_NAME = process.env.GPT_MODEL || 'gpt-3.5-turbo-16k';
 
-const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not exceed 3000 characters\neach message starts with user's name and username, username is mentionable with @`;
+const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not exceed 4000 characters`;
 /**
    @param {String} input
    @return {String}
@@ -35,12 +35,12 @@ function prepareText(input) {
 }
 
 class ContextNode {
-    constructor({ role, content, message_id, prev_node, /* name */ } = {}) {
+    constructor({ role, content, message_id, prev_node, name } = {}) {
         this.role = role;
         this.content = content;
         this.message_id = message_id;
         this.prev_node = prev_node;
-        // this.name = name?.replace(/ +/g, '_')?.replace(/[^a-zA-Z0-9_-]/g, ''); // name is not used, as only increases payload
+        this.name = name?.replace(/ +/g, '_')?.replace(/[^a-zA-Z0-9_]/g, '')?.slice(0, 64);
     }
 
     getContextMessage() {
@@ -55,7 +55,7 @@ class ContextNode {
         return {
             role: this.role,
             content: this.content,
-            // name: this.name,
+            name: this.name,
             message_id: this.message_id,
             prev_message_id: this.prev_node?.message_id,
         };
@@ -151,7 +151,7 @@ class ChatGPTHandler{
             throw new Error('No chat_id specified to get context tree');
         }
         if (!this.context_trees_map.has(chat_id)) {
-            const system_prompt = (chat_id === -1001625731191 || null) && `${DEFAULT_SYSTEM_PROMPT}\npeople in this chat:[name:Никита] [username:neverovskii],[name:Danila] [username:d0ctr],[name:Миша] [username:mishokll],[name:Влад] [username:vladzasyadko]`;
+            const system_prompt = (chat_id === -1001625731191 || null) && `${DEFAULT_SYSTEM_PROMPT}\npeople in this chat: Никита, Danila, Миша, Влад`;
             this.context_trees_map.set(chat_id, new ContextTree(system_prompt));
         }
         return this.context_trees_map.get(chat_id);
@@ -230,13 +230,13 @@ class ChatGPTHandler{
             }
         }
 
-        const { message_id, from: { first_name: author, username } } = interaction.context.message;
+        const { message_id, from: { first_name: author } } = interaction.context.message;
 
         // appending user's request to the tree
         {
             const text = interaction.context.message.text || interaction.context.message.caption;
     
-            context_tree.appendNode({ role: 'user', content: `[name:${author}] [username:${username}]\n${text}`, message_id, prev_message_id, name: author });
+            context_tree.appendNode({ role: 'user', content: text, message_id, prev_message_id, name: author });
         }
 
         const context = context_tree.getContext(message_id);
@@ -335,16 +335,15 @@ class ChatGPTHandler{
         let prev_message_id = null;
         let message_id = null;
         let author = null;
-        let username = null;
 
         if (context?.message?.reply_to_message) {
             const text = context.message.reply_to_message.text || context.message.reply_to_message.caption;
             if (text?.length) {
-                ({ message_id, from: { first_name: author, username } } = context.message.reply_to_message);
+                ({ message_id, from: { first_name: author } } = context.message.reply_to_message);
                 if (!context_tree.isNodeExisting({ message_id })) {
                     context_tree.appendNode({
                         role: 'user',
-                        content: `[name:${author}] [username:${username}]\n${text}`,
+                        content: text,
                         message_id: message_id,
                         name: author
                     });
@@ -354,10 +353,10 @@ class ChatGPTHandler{
        
         if (command_text?.length) {
            prev_message_id = message_id;
-           ({ message_id, from: { first_name: author, username } } = context.message);
+           ({ message_id, from: { first_name: author } } = context.message);
            context_tree.appendNode({
                role: 'user',
-               content: `[name:${author}] [username:${username}]\n${command_text}`,
+               content: command_text,
                message_id: message_id,
                prev_message_id,
                name: author
@@ -400,13 +399,13 @@ class ChatGPTHandler{
 
         const {
             message_id,
-            from: { first_name: author, username }
+            from: { first_name: author }
         } = interaction.context.message;
 
         if (!context_tree.isNodeExisting({ message_id })) {
             const text = interaction.context.message.text || interaction.context.message.caption;
 
-            context_tree.appendNode({ role: 'user', content: `[name:${author}] [username:${username}]\n${text}`, message_id, name: author });
+            context_tree.appendNode({ role: 'user', content: text, message_id, name: author });
         }
 
         const context = context_tree.getContext(message_id);
