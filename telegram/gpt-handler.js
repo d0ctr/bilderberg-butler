@@ -7,12 +7,28 @@ const { OpenAIApi, Configuration } = require('openai');
 //     strikethrough: 'true'
 // });
 
-const CHAT_MODEL_NAME = process.env.GPT_MODEL || 'gpt-3.5-turbo-16k';
+/**
+ * @typedef {'gpt-3.5-turbo-16k' | 'gpt-4' | 'gpt-4-32k'} Model
+ */
+
+/**
+ * @type {Model[]}
+ */
+const models = [
+    'gpt-3.5-turbo-16k',
+    'gpt-4',
+    'gpt-4-32k',
+];
+
+/** 
+ * @type {Model}
+ */
+const CHAT_MODEL_NAME = models.includes(process.env.GPT_MODEL) ? process.env.GPT_MODEL : 'gpt-3.5-turbo-16k';
 
 const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not exceed 4000 characters`;
 /**
-   @param {String} input
-   @return {String}
+   @param {string} input
+   @return {string}
  */
 function prepareText(input) {
     /** Needs to avoid replacing inside code snippets */
@@ -35,47 +51,103 @@ function prepareText(input) {
 }
 
 class ContextNode {
-    constructor({ role, content, message_id, prev_node, name } = {}) {
+    /**
+     * @param {{
+     *  role: string,
+     *  content: string,
+     *  message_id: string,
+     *  prev_node: ContextNode | null,
+     *  name: string | null,
+     *  model: Model | null
+     * }} 
+     */
+    constructor({ role, content, message_id, prev_node = null, name = null, model = null } = {}) {
         this.role = role;
         this.content = content;
         this.message_id = message_id;
         this.prev_node = prev_node;
         this.name = name?.replace(/ +/g, '_')?.replace(/[^a-zA-Z0-9_]/g, '')?.slice(0, 64);
+        this.model = model;
     }
 
-    getContextMessage() {
-        return {
+    /**
+     * @typedef {{
+     *  role: string,
+     *  content: string,
+     *  name: string | null,
+     * }} NodeMessage
+     */
+
+    /**
+     * Get nodes data applicable as context
+     * @returns {NodeMessage}
+     */
+    getMessage() {
+        const message = {
             role: this.role,
-            // name: this.name,
             content: this.content,
         };
+        if (this.name) message.name = this.name;
+        return message;
     }
 
-    getRawContext() {
-        return {
+    /**
+     * @typedef {{
+     *  role: string,
+     *  content: string,
+     *  name: string,
+     *  message_id: string,
+     *  prev_message_id: string | null,
+     *  model: Model | null,
+     *  name: string | null,
+     * }} NodeRawData
+     */
+
+    /**
+     * Get raw data of the node
+     * @returns {NodeRawData}
+     */
+    getRawData() {
+        const data = {
             role: this.role,
             content: this.content,
-            name: this.name,
             message_id: this.message_id,
-            prev_message_id: this.prev_node?.message_id,
         };
+        if (this.prev_node) data.prev_message_id = this.prev_node.message_id;
+        if (this.model) data.model = this.model;
+        if (this.name) data.name =  this.name;
+        return data;
     }
 }
 
 class ContextTree {
-    constructor(system_prompt) {
+    /**
+     * 
+     * @param {string | null} system_prompt 
+     * @param {Model | null} model 
+     */
+    constructor(system_prompt, model) {
+        this.nodes = new Map();
         this.root_node = new ContextNode({
             role: 'system',
-            content: system_prompt || DEFAULT_SYSTEM_PROMPT
+            content: system_prompt || DEFAULT_SYSTEM_PROMPT,
+            model: model || CHAT_MODEL_NAME
         });
-
-        this.nodes = new Map();
     }
 
+    /**
+     * Get Node by message_id
+     * @param {string} message_id 
+     * @returns {ContextNode | null}
+     */
     getNode(message_id) {
         return this.nodes.has(message_id) ? this.nodes.get(message_id) : null;
     }
 
+    /**
+     * Creates new node and appends to the tree either by the prev_message_id or to the root node
+     * @param {{ role: string, message_id: string, prev_message_id: string, name: string }}
+     */
     appendNode({ role, content, message_id, prev_message_id, name } = {}) {
         let prev_node = this.root_node;
 
@@ -86,7 +158,12 @@ class ContextTree {
         this.nodes.set(message_id, new ContextNode({ role, content, message_id, prev_node, name }));
     }
 
-    isNodeExisting({ node, message_id } = {}) {
+    /**
+     * Checks if node exists either by node's message_id or provided message_id
+     * @param {{ node: ContextNode | null, message_id: string | null }} 
+     * @returns 
+     */
+    isNodeExisting({ node = null, message_id = null } = {}) {
         if (node) {
             message_id = node.message_id;
         }
@@ -94,9 +171,15 @@ class ContextTree {
         return this.nodes.has(message_id);
     }
 
+    /**
+     * Gets the context of the message as an array
+     * @param {string} message_id 
+     * @param {number} limit 
+     * @returns {NodeMessage[]}
+     */
     getContext(message_id, limit = 30) {
         if (!this.isNodeExisting({ message_id })) {
-            return [this.root_node.getContextMessage()]
+            return [this.root_node.getMessage()]
         }
 
         let context = [];
@@ -104,18 +187,24 @@ class ContextTree {
         let last_node = this.getNode(message_id);
 
         while (last_node && context.length <= limit) {
-            context.unshift(last_node.getContextMessage());
+            context.unshift(last_node.getMessage());
             last_node = last_node.prev_node;
         }
 
-        if (context.length === limit && context[0].role === this.root_node.role) {
-            context.unshift(this.root_node.getContextMessage());
+        if (context.length === limit && context[0].role !== this.root_node.role) {
+            context.unshift(this.root_node.getMessage());
         }
 
         return context;
     }
 
-    getRawContext(message_id) {
+
+    /**
+     * Gets the raw context of the message as an array
+     * @param {string | null} message_id 
+     * @returns {NodeRawData[]}
+     */
+    getRawContext(message_id = null) {
         const raw_context = [];
 
         if (!this.isNodeExisting({ message_id })) {
@@ -125,7 +214,7 @@ class ContextTree {
         let last_node = this.getNode(message_id);
 
         while (last_node) {
-            raw_context.unshift(last_node.getRawContext());
+            raw_context.unshift(last_node.getRawData());
             last_node = last_node.prev_node;
         }
 
@@ -143,18 +232,60 @@ class ChatGPTHandler{
         });
         this.openAIApi = new OpenAIApi(api_configuration);
 
+        /**
+         * @type {Map<string, Map<Model, ContextTree>>}
+         */
         this.context_trees_map = new Map();
     }
 
-    _getContextTree(chat_id) {
+    /**
+     * Find tree by chat and message_id
+     * @param {string} chat_id 
+     * @param {string} message_id 
+     * @returns {ContextTree | null}
+     */
+    _findContextTree(chat_id, message_id) {
+        const trees = this.context_trees_map.get(chat_id);
+        for (const tree of trees.values()) {
+            if (tree.isNodeExisting({ message_id })) return tree;
+        }
+        return null;
+    }
+
+    /**
+     * Creates context tree for specified chat and model if needed
+     * @param {string} chat_id 
+     * @param {Model | null} model 
+     */
+    createContextTree(chat_id, model = null) {
+        if (!this.context_trees_map.has(chat_id)) {
+            this.context_trees_map.set(chat_id, new Map());
+        }
+        if (!this.context_trees_map.get(chat_id).has(model || CHAT_MODEL_NAME)) {
+            const system_prompt = chat_id === -1001625731191 ? `${DEFAULT_SYSTEM_PROMPT}\npeople in this chat: Никита, Danila, Миша, Влад` : null;
+            this.context_trees_map.get(chat_id).set(model || CHAT_MODEL_NAME, system_prompt)
+        }
+    }
+
+    /**
+     * Get a context tree fitting the specified arguments
+     * @param {chat_id: string, { message_id: string | null, model: Model | null}} 
+     * @returns 
+     */
+    _getContextTree(chat_id, { message_id = null, model = null }) {
         if (!chat_id) {
             throw new Error('No chat_id specified to get context tree');
         }
-        if (!this.context_trees_map.has(chat_id)) {
-            const system_prompt = (chat_id === -1001625731191 || null) && `${DEFAULT_SYSTEM_PROMPT}\npeople in this chat: Никита, Danila, Миша, Влад`;
-            this.context_trees_map.set(chat_id, new ContextTree(system_prompt));
+        if (model) {
+            this.createContextTree(chat_id, model);
         }
-        return this.context_trees_map.get(chat_id);
+        else if (messsage_id) {
+            let tree = this._findContextTree(chat_id, message_id);
+            if (tree) return tree;
+            this.createContextTree(chat_id);
+        }
+
+        return this.context_trees_map.get(chat_id).get(model || CHAT_MODEL_NAME);
     }
 
     _replyFromContext(interaction, context, context_tree, prev_message_id) {
@@ -165,7 +296,7 @@ class ChatGPTHandler{
         }, 5000);
 
         return this.openAIApi.createChatCompletion({
-            model: CHAT_MODEL_NAME,
+            model: context_tree.root_node.model,
             messages: context
         }).then(({ data, status } = {}) => {
             clearInterval(continiousChatAction);
@@ -419,6 +550,8 @@ class ChatGPTHandler{
                     });
             });
     }
+
+    async handle
 }
 
 module.exports = new ChatGPTHandler();
