@@ -56,7 +56,9 @@ async function getUrbanDefinition(word) {
         return result;
     }
 
-    result = urban_req.data?.list[0];
+    result = urban_req.data?.list
+        .sort((a, b) => (b.thumbs_up + b.thumbs_down) - (a.thumbs_up + a.thumbs_down))
+        .find(v => v.thumbs_up > v.thumbs_down) || urban_req.data?.list[0];
 
     return urbanToHTML(result);
 }

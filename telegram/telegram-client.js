@@ -319,19 +319,19 @@ class TelegramInteraction {
                 return this._reply(err, overrides).catch((err) => {
                     this.logger.error(`Error while replying with an error message to [${this.command_name}]`, { error: err.stack || err });
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
-                }).then(callback).finally(this.deletePlaceholder.bind(this));
+                }).then(callback);
             }
             if (response instanceof String || typeof response === 'string') {
                 return this._reply(response, overrides).catch((err) => {
                     this.logger.error(`Error while replying with response text to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
-                }).then(callback).finally(this.deletePlaceholder.bind(this));
+                }).then(callback);
             }
             if (response instanceof Object) {
                 return this._replyWithMedia(response, overrides).catch((err) => {
                     this.logger.error(`Error while replying with media to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
-                }).then(callback).finally(this.deletePlaceholder.bind(this));
+                }).then(callback);
             }
         }).catch((err) => {
             this.logger.error(`Error while processing command [${this.command_name}]`, { error: err.stack || err });
@@ -615,6 +615,9 @@ class TelegramClient {
         this._registerTelegramCommand('new_system_prompt', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('answer', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('tree', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('context', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('gpt4', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('gpt4_32', process.env.OPENAI_TOKEN);
         // this._registerTelegramCommand('imagine', process.env.OPENAI_TOKEN);
         
         // Registering common commands
