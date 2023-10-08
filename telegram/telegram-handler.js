@@ -77,6 +77,12 @@ class TelegramHandler {
     answer = { handler: ChatGPTHandler.handleAnswerCommand.bind(ChatGPTHandler), help: ['{запрос?}', 'Спросить у ChatGPT, можно использовать как реплай'] };
 
     tree = { handler: ChatGPTHandler.handleTreeRequest.bind(ChatGPTHandler), help: ['Запросить контекстное дерево ChatGPT'] };
+
+    context = { handler: ChatGPTHandler.handleContextRequest.bind(ChatGPTHandler), help: ['Запросить контекст сообщения'] };
+
+    gpt4 = { handler: ChatGPTHandler.handleModeledAnswerCommand.bind(ChatGPTHandler, 'gpt-4'), help: ['{запрос?}', '/answer, но с использованием GPT-4'] };
+
+    gpt4_32 = { handler: ChatGPTHandler.handleModeledAnswerCommand.bind(ChatGPTHandler, 'gpt-4-32k'), help: ['{запрос?}', '/answer, но с использованием GPT-4 с максимумом в 32тыс токенов'] };
 }
 
 module.exports = TelegramHandler;

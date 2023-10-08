@@ -8,6 +8,8 @@ async function generateImage(input, interaction) {
         return [`Не хватает описания картинки`];
     }
 
+    const callback = () => interaction.deletePlaceholder();
+
     try {
         const form = new formData();
         form.append('text', arg);
@@ -34,10 +36,10 @@ async function generateImage(input, interaction) {
         const { output_url } = res.data;
         this.logger.info(`${arg} response ready ${output_url}`, { args: [arg] });
 
-        return [null, { type: 'photo', media: output_url, url: output_url, text: arg }];
+        return [null, { type: 'photo', media: output_url, url: output_url, text: arg }, callback];
     } catch (err) {
         this.logger.error(`Error while deep-aiing`, { error: err.stack || err, args: [arg] })
-        return [`i'm dead fr bruh :\n<code>${err.stack || err}</code>`];
+        return [`i'm dead fr bruh :\n<code>${err.stack || err}</code>`, null, callback];
     }
 }
 

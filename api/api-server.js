@@ -42,11 +42,7 @@ class APIServer {
                 return;
             }
             res.sendStatus(404);
-        })
-
-        if (process.env.WEBHOOK_TELEGRAM_TOKEN) {
-            this.setWebhookMiddleware('/webhook/:app/:telegram_chat_id', handleWebhook);
-        }
+        });
     }
 
     async start() {
