@@ -73,7 +73,7 @@ class ContextNode {
      * @param {{
      *  role: NodeRole,
      *  content: string,
-     *  message_id: string,
+     *  message_id: string | string,
      *  prev_node: ContextNode | null,
      *  name: string | null,
      *  model: Model | null
@@ -82,14 +82,14 @@ class ContextNode {
     constructor({ role, content, message_id, prev_node = null, name = null, model = null } = {}) {
         this.role = role;
         this.content = content;
-        this.message_id = message_id;
-        this._prev_node = null;
-        this.prev_node = prev_node;
-        this.name = name?.replace(/ +/g, '_')?.replace(/[^a-zA-Z0-9_]/g, '')?.slice(0, 64);
-        this.model = model;
-
         /** @type {Set<ContextNode>} */
         this.children = new Set();
+        
+        name && (this.name = name?.replace(/ +/g, '_')?.replace(/[^a-zA-Z0-9_]/g, '')?.slice(0, 64));
+        message_id && (this.message_id = message_id);
+        prev_node && (this.prev_node = prev_node);
+        model && (this.model = model);
+
     }
 
     /**
@@ -345,6 +345,7 @@ class ChatGPTHandler{
      */
     _findContextTree(chat_id, message_id) {
         const trees = this.context_trees_map.get(chat_id);
+        if (!trees) return null;
         for (const tree of trees.values()) {
             if (tree.checkNodeExists({ message_id })) return tree;
         }
@@ -362,7 +363,7 @@ class ChatGPTHandler{
         }
         if (!this.context_trees_map.get(chat_id).has(model)) {
             const system_prompt = chat_id === -1001625731191 ? `${DEFAULT_SYSTEM_PROMPT}\npeople in this chat: Никита, Danila, Миша, Влад` : null;
-            this.context_trees_map.get(chat_id).set(model, system_prompt)
+            this.context_trees_map.get(chat_id).set(model, new ContextTree(system_prompt, model))
         }
     }
 
@@ -371,12 +372,12 @@ class ChatGPTHandler{
      * @param {chat_id: string, { message_id: string | null, model: Model? }} 
      * @returns 
      */
-    _getContextTree(chat_id, { message_id = null, model = CHAT_MODEL_NAME }) {
+    _getContextTree(chat_id, { message_id = null, model = CHAT_MODEL_NAME } = {}) {
         if (!chat_id) {
             throw new Error('No chat_id specified to get context tree');
         }
 
-        if (messsage_id) {
+        if (message_id) {
             let tree = this._findContextTree(chat_id, message_id);
             if (tree) return tree;
         }
@@ -392,7 +393,7 @@ class ChatGPTHandler{
      * @returns ContextTree[]
      */
     _getChatTrees(chat_id) {
-        return [this.context_trees_map.get(chat_id).values()]
+        return this.context_trees_map.has(chat_id) ? [...this.context_trees_map.get(chat_id).values()] : [];
     }
 
     /**
@@ -532,8 +533,8 @@ class ChatGPTHandler{
     async handleTreeRequest(interaction_context) {
         const context_trees = this._getChatTrees(interaction_context.chat.id);
         
-        if (!context_tree.nodes.size) {
-            return ['Пока дерево пустое.'];
+        if (!context_trees.length) {
+            return ['Пока деревьев нет.'];
         }
 
         try {
@@ -555,9 +556,10 @@ class ChatGPTHandler{
     }
 
     async handleAnswerCommand(interaction_context, interaction, model = CHAT_MODEL_NAME) {
-        const command_text = interaction_context.message.text.replace(new RegExp(`\/answer(@${interaction_context.me.username})? *`), '');
+        const command_text = interaction_context.message.text.replace(new RegExp(`\/${interaction.command_name}(@${interaction_context.me.username})? *`), '');
 
-        if (!(context.message.reply_to_message?.text || context.message.reply_to_message?.caption) && !command_text.length) {
+        if (!(interaction_context.message.reply_to_message?.text || interaction_context.message.reply_to_message?.caption) 
+            && !command_text.length) {
             return ['Отправь эту команду как реплай на другое сообщение или напишите запрос в сообщении с командой, чтобы получить ответ.'];
         }
 
@@ -566,16 +568,15 @@ class ChatGPTHandler{
         let prev_message_id = null;
         let message_id = null;
         let author = null;
-        let text = null;
 
         if (interaction_context.message.reply_to_message) {
-            text = interaction_context.message.reply_to_message.text || interaction_context.message.reply_to_message.caption;
+            const text = interaction_context.message.reply_to_message.text || interaction_context.message.reply_to_message.caption;
             if (text?.length) {
                 ({ message_id, from: { first_name: author } } = interaction_context.message.reply_to_message);
                 context_tree = this._getContextTree(interaction_context.chat.id, { message_id, model })
                 if (!context_tree.checkNodeExists({ message_id })) {
                     context_tree.appendNode({
-                        role: 'user',
+                        role: (command_text?.length && interaction_context.from.id === interaction_context.me.id) ? 'assistant' : 'user',
                         content: text,
                         message_id: message_id,
                         name: author
