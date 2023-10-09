@@ -79,7 +79,7 @@ async function redisDel(ctx, name) {
  * @returns {[String | null, Object | null]} [err, message]
  */
 async function get(ctx) {
-    let name = this._parseArgs(ctx, 1)[1];
+    let name = require('./utils').parseArgs(ctx, 1)[1];
     if (!name) {
         return ['Ты забыл указать название гета'];
     }
@@ -91,7 +91,7 @@ async function get(ctx) {
         result = await redisGet(ctx, name);
     }
     catch (err) {
-        this.logger.error(`Error while getting content from redis`, { error: err.stack || err, args: [name] });
+        interaction.logger.error(`Error while getting content from redis`, { error: err.stack || err, args: [name] });
         return [`Что-то случилось во время получения гета:\n<code>${err}</code>`];
     }
     if (!result || !Object.keys(result).length) {
@@ -108,7 +108,7 @@ async function get(ctx) {
  */
 
 async function set(ctx, interaction) {
-    let name = this._parseArgs(ctx, 1)[1];
+    let name = require('./utils').parseArgs(ctx, 1)[1];
     if (!name) {
         return ['Ты забыл указать название гета'];
     }
@@ -130,7 +130,7 @@ async function set(ctx, interaction) {
         await redisSet(ctx, name, parsed_data);
     }
     catch (err) {
-        this.logger.error(`Error while saving content to redis`,{ error: err.stack || err, args: [name], parsed_data });
+        interaction.logger.error(`Error while saving content to redis`,{ error: err.stack || err, args: [name], parsed_data });
         return [`Что-то случилось во время сохранения гета:\n<code>${err}</code>`];
     }
 
@@ -144,13 +144,13 @@ async function set(ctx, interaction) {
  * @returns {[String | null, String | null]}
  */
 
-async function getList(ctx) {
+async function getList(ctx, interaction) {
     let gets;
     try {
         gets = await redisGetList(ctx);
     }
     catch (err) {
-        this.logger.error(`Error while getting list from redis`,{ error: err.stack || err });
+        interaction.logger.error(`Error while getting list from redis`,{ error: err.stack || err });
         return [`Что-то случилось во время получения списка гетов:\n<code>${err}</code>`];
     }
     if (!gets?.length) {
@@ -164,8 +164,8 @@ async function getList(ctx) {
  * @param {GrammyTypes.Context} ctx
  * @returns {[String | null, String | null]}
  */
-async function del(ctx) {
-    let name = this._parseArgs(ctx, 1)[1];
+async function del(ctx, interaction) {
+    let name = require('./utils').parseArgs(ctx, 1)[1];
     if (!name) {
         return ['Ты забыл указать название гета'];
     }
@@ -174,7 +174,7 @@ async function del(ctx) {
         await redisDel(ctx, name);
     }
     catch (err) {
-        this.logger.error(`Error while deleting data from redis`,{ error: err.stack || err, args: [name] });
+        interaction.logger.error(`Error while deleting data from redis`,{ error: err.stack || err, args: [name] });
         return [`Что-то случилось во время удаления гета:\n<code>${err}</code>`];
     }
 

@@ -6,7 +6,7 @@ const GrammyTypes = require('grammy');
  * @returns {[String | null, String | null]}
  */
 async function fizzbuzz(input) {
-    let args = this._parseArgs(input).slice(1);
+    let args = require('./utils').parseArgs(input).slice(1);
     let dict = {};
     if (!args.length || args.length % 2 !== 0) {
         return ['Аргументы команды должны представлять из себя последовательность из комбинаций <code>число</code> <code>слово</code>'];

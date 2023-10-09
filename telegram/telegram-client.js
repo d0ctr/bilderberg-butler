@@ -1,7 +1,7 @@
 const { Bot, Context, webhookCallback, InputFile } = require('grammy');
 const { promises: fs } = require('fs');
 const { hydrateFiles } = require('@grammyjs/files');
-const TelegramHandler = require('./telegram-handler');
+const TelegramHandlers = require('./telegram-handler');
 const config = require('../config.json');
 const { setHealth } = require('../services/health');
 const { handleCommand, getLegacyResponse } = require('../commands/telegram');
@@ -78,7 +78,6 @@ class TelegramInteraction {
         this.logger = require('../logger').child(this.log_meta);
         this.command_name = command_name;
         this.context = context;
-        this.handler = client.handler;
         this._redis = client.redis;
         this._currencies_list = client.currencies_list;
 
@@ -307,14 +306,15 @@ class TelegramInteraction {
      * @returns {undefined | Promise}
      */
     reply() {
-        if (typeof this.handler[this.command_name]?.handler !== 'function') {
+        if (typeof TelegramHandlers[this.command_name]?.handler !== 'function') {
             this.logger.warn(`Received nonsense, how did it get here???`);
             return;
         }
 
         this.logger.info(`Received command: ${this.command_name}`);
 
-        this.handler[this.command_name].handler(this.context, this).then(([err, response, callback = () => {}, overrides]) => {
+        TelegramHandlers[this.command_name].handler(this.context, this).then(([err, response, callback, overrides]) => {
+            if (!callback) callback = () => {};
             if (err) {
                 return this._reply(err, overrides).catch((err) => {
                     this.logger.error(`Error while replying with an error message to [${this.command_name}]`, { error: err.stack || err });
@@ -510,8 +510,8 @@ class TelegramInteraction {
         this.logger.info(`Received eligible inline query, parsed context [${JSON.stringify(parsed_context)}]`);
 
         (async () => {
-            if (this.handler[command_name]?.handler) {
-                return this.handler[command_name].handler(parsed_context, this);
+            if (TelegramHandlers[command_name]?.handler) {
+                return TelegramHandlers[command_name].handler(parsed_context, this);
             }
             const common_command_index = commands.indexOf(command_name);
             if (common_command_index >= 0) {
@@ -561,7 +561,6 @@ class TelegramClient {
         this.redis = app.redis ? app.redis : null;
         this.log_meta = { module: 'telegram-client' };
         this.logger = require('../logger').child(this.log_meta);
-        this.handler = new TelegramHandler(this);
         this.inline_commands = [];
         this.registered_commands = new Map();
     }
@@ -579,7 +578,7 @@ class TelegramClient {
         }
         else if (!condition)  return;
 
-        this.handler[handle_function_name]?.help && this.registered_commands.set(command_name, this.handler[handle_function_name].help);
+        TelegramHandlers[handle_function_name]?.help && this.registered_commands.set(command_name, TelegramHandlers[handle_function_name].help);
 
         this.client.command(command_name, async (ctx) => new TelegramInteraction(this, handle_function_name, ctx).reply());
         if (is_inline) {
@@ -618,6 +617,7 @@ class TelegramClient {
         this._registerTelegramCommand('context', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('gpt4', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('gpt4_32', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('tldr', process.env.YA300_TOKEN && config.YA300_API_BASE, true);
         // this._registerTelegramCommand('imagine', process.env.OPENAI_TOKEN);
         
         // Registering common commands

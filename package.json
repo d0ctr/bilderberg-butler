@@ -29,6 +29,8 @@
     "form-data": "^4.0.0",
     "grammy": "^1.16.0",
     "ioredis": "^5.2.4",
+    "jquery": "^3.7.1",
+    "jsdom": "^22.1.0",
     "mathjs": "^11.4.0",
     "openai": "^3.2.1",
     "showdown": "^2.1.0",

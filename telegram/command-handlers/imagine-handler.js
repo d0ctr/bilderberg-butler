@@ -11,7 +11,7 @@ const getImages = async (prompt, { n = 4, size = '512x512' } = {}) => {
 };
 
 async function imagine(input) {
-    let arg = this._parseArgs(input, 1)[1];
+    let arg = require('./utils').parseArgs(input, 1)[1];
     if (!arg) {
         return ['Нужен промпт'];
     }
