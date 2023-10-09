@@ -85,7 +85,7 @@ class ContextNode {
         /** @type {Set<ContextNode>} */
         this.children = new Set();
         
-        name && (this.name = name?.replace(/ +/g, '_')?.replace(/[^a-zA-Z0-9_]/g, '')?.slice(0, 64));
+        name && (this.name = name?.replace(/ +/g, '_')?.replace(/[^a-zA-Zа-яА-Я0-9_]/g, '')?.slice(0, 64));
         message_id && (this.message_id = message_id);
         prev_node && (this.prev_node = prev_node);
         model && (this.model = model);
