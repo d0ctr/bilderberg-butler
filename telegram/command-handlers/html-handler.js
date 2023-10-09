@@ -7,7 +7,7 @@ const GrammyTypes = require('grammy');
  */
 
 async function html(input) {
-    let text = this._parseArgs(input, 1)[1].trim();
+    let text = require('./utils').parseArgs(input, 1)[1].trim();
     if (!text) {
         return [`Для того чтобы получить текст, нужно дать текст размеченный HTML`]
     }

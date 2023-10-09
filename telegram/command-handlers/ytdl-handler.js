@@ -5,12 +5,12 @@ const axios = require('axios');
  * @param {GrammyTypes.Context | Object} input
  * @returns {[String | null, String | null]} [err, response]
  */
-async function ytdl(input) {
+async function ytdl(input, interaction) {
     if (!process.env.YTDL_URL) {
         return ['Комманда недоступна'];
     }
 
-    let url = this._parseArgs(input, 1)[1];
+    let url = require('./utils').parseArgs(input, 1)[1];
 
     if (url === undefined) {
         return ['Не хватает ссылки на ресурс, например Youtube'];
@@ -26,12 +26,12 @@ async function ytdl(input) {
         );
 
         if (status !== 200) {
-            this.logger.error('Reqeust to YTDL app returned non-200 status code', { error: status });
+            interaction.logger.error('Reqeust to YTDL app returned non-200 status code', { error: status });
             return ['Загрузка сейчас невозможна, попробуйте позже'];
         }
 
         if (body?.status === 'error' || body?.status !== 'ok' || !body?.info) {
-            this.logger.error('Request to YTDL app returned error message', { error: body?.message || body?.status });
+            interaction.logger.error('Request to YTDL app returned error message', { error: body?.message || body?.status });
             return ['У меня что-то сломалось, попробуйте ещё'];
         }
         
@@ -44,7 +44,7 @@ async function ytdl(input) {
         return [null, `Началась загрузка:\n<code>${Object.entries(response).reduce((acc, [k, v]) => acc += `${k}: ${v}\n`, '')}</code>`];
     }
     catch (err) {
-        this.logger.error('Error while sending reqeust to YTDL app', { error: err.stack || err });
+        interaction.logger.error('Error while sending reqeust to YTDL app', { error: err.stack || err });
         return [`Произошла какая-то ошибка\n<code>${err}</code>`];
     }
 }

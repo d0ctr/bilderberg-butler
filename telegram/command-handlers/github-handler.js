@@ -5,7 +5,7 @@
  */
 
 async function gh(input) {
-    let arg = this._parseArgs(input, 1)[1];
+    let arg = require('./utils').parseArgs(input, 1)[1];
     if (!arg) {
         return ['Не хватает ссылки на GitHub'];
     }

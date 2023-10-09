@@ -1,4 +1,4 @@
-async function roundit(ctx) {
+async function roundit(ctx, interaction) {
     if (!ctx.message.reply_to_message) {
         return ['Команду надо отправить в ответ на сообщение с видео.'];
     }
@@ -21,7 +21,7 @@ async function roundit(ctx) {
 
     const path = await file.download();
 
-    this.logger.debug(`Downloaded file to: ${path}`);
+    interaction.logger.debug(`Downloaded file to: ${path}`);
 
     return [null, { type: 'video_note', path, duration, length: width || height, filename: 'temp.mp4' }];
 }
