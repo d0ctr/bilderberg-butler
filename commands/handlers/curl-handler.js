@@ -1,4 +1,4 @@
-const axios = require('axios');
+const { default: axios } = require('axios');
 
 const { url_start_regex } = require("../utils");
 
