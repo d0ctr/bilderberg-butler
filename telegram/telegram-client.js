@@ -12,6 +12,8 @@ const { isNotificationMessage: isEventNotificationMessage } = require('./event-s
 
 const no_tags_regex = /<\/?[^>]+(>|$)/g;
 
+const CLEAR_ERROR_MESSAGE_TIMEOUT = ++process.env.CLEAR_ERROR_MESSAGE_TIMEOUT || 10000;
+
 const media_types = [
     'audio',
     'animation',
@@ -319,6 +321,16 @@ class TelegramInteraction {
                 return this._reply(err, overrides).catch((err) => {
                     this.logger.error(`Error while replying with an error message to [${this.command_name}]`, { error: err.stack || err });
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
+                }).then((response_message) => {
+                    if (CLEAR_ERROR_MESSAGE_TIMEOUT > 0) {
+                        setTimeout(() => {
+                            // clear request message if only command is there
+                            if ((this.context.message.text || this.context.message.caption)?.split(' ')?.length === 1) {
+                                this.context.deleteMessage().catch(() => {});   
+                            }
+                            this.context.api.deleteMessage(response_message.chat.id, response_message.message_id).catch(() => {});
+                        }, CLEAR_ERROR_MESSAGE_TIMEOUT);
+                    }
                 }).then(callback);
             }
             if (response instanceof String || typeof response === 'string') {
