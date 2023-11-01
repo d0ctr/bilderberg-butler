@@ -1,4 +1,4 @@
-const axios = require('axios');
+const { default: axios } = require('axios');
 const formData = require('form-data');
 const config = require('../../config.json');
 

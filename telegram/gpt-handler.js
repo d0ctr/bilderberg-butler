@@ -1,4 +1,4 @@
-const { OpenAIApi, Configuration } = require('openai');
+const { OpenAI } = require('openai');
 
 // const { Converter: MDConverter } = require('showdown');
 
@@ -324,12 +324,11 @@ class ContextTree {
 class ChatGPTHandler{
     constructor() {
         this.logger = require('../logger').child({ module: 'chatgpt-handler' })
-        
-        const api_configuration = new Configuration({
+
+        this.openAI = new OpenAI({
             apiKey: process.env.OPENAI_TOKEN,
             organization: 'org-TDjq9ytBDVcKt4eVSizl0O74'
         });
-        this.openAIApi = new OpenAIApi(api_configuration);
 
         /**
          * @type {Map<string, Map<Model, ContextTree>>}
@@ -414,7 +413,7 @@ class ChatGPTHandler{
             interaction.context.replyWithChatAction('typing');
         }, 5000);
 
-        return this.openAIApi.createChatCompletion({
+        return this.openAI.chat.completions.create({
             model: context_tree.root_node.model,
             messages: context
         }).then(({ data, status } = {}) => {
