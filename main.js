@@ -1,7 +1,4 @@
-require('dotenv-vault-core').config();
-if (process.env.ENV !== 'prod') {
-    require('dotenv').config();
-}
+require('dotenv').config();
 const { startRedis } = require('./services/redis');
 const DiscordClient = require('./discord');
 const { TelegramClient } = require('./telegram');

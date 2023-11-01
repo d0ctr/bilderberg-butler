@@ -1,5 +1,6 @@
 const { InputFile, InlineKeyboard } = require('grammy');
 
+const CLEAR_ERROR_MESSAGE_TIMEOUT = ++process.env.CLEAR_ERROR_MESSAGE_TIMEOUT || 10000;
 /**
  * Turns Telegram context to an object that can be used as an input to a common command handler
  * @param {Object} ctx
@@ -66,10 +67,17 @@ function commonizeContext(ctx, limit) {
     return interaction;
 }
 
+/**
+ * 
+ * @param {import('grammy').Context} ctx 
+ * @param {*} response 
+ * @param {*} logger 
+ * @returns 
+ */
 function replyWithText(ctx, response, logger) {
     logger.info(`Replying with text`, { response });
 
-    ctx.reply(
+    return ctx.reply(
         response.text,
         {
             allow_sending_without_reply: true,
@@ -79,12 +87,20 @@ function replyWithText(ctx, response, logger) {
             ...response.overrides
         }
     ).then((message) => {
-        logger.debug('Replied!', { message_id: message.message_id});
+        logger.debug('Replied!', { message_id: message.message_id });
+        if (CLEAR_ERROR_MESSAGE_TIMEOUT > 0 && response.type === 'error') {
+            setTimeout(() => {
+                if ((ctx.message.text || ctx.message.caption)?.split(' ') === 1) {
+                    ctx.deleteMessage().catch(() => {});
+                }
+                ctx.api.deleteMessage(message.chat.id, message.message_id).catch(() => {});
+            }, CLEAR_ERROR_MESSAGE_TIMEOUT)
+        }
     }).catch(err => {
         logger.error(`Error while replying`, { error: err.stack || err});
         // Try again if only it wasn't an error message
         if (response.type !== 'error') {
-            replyWithText(
+            return replyWithText(
                 ctx,
                 {
                     type: 'error',
@@ -94,7 +110,6 @@ function replyWithText(ctx, response, logger) {
             )
         }
     });
-    
 }
 
 function reply(ctx, response, logger) {
@@ -140,7 +155,7 @@ function reply(ctx, response, logger) {
         media = response.media;
     }
 
-    sendReply(
+    return sendReply(
         media,
         {
             caption: response.text,
@@ -184,7 +199,7 @@ function handleCommand(ctx, handler, definition) {
     logger.info(`Received command: ${common_interaction.text}`);
     handler(common_interaction)
     .then(response => {
-        reply(ctx, response, logger);
+        return reply(ctx, response, logger);
     }).catch((err) => {
         logger.error(`Error while handling`, { error: err.stack || err });
         replyWithText(
