@@ -1,4 +1,32 @@
-const { OpenAI } = require('openai');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: telegram/gpt-handler.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: telegram/gpt-handler.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const { OpenAI } = require('openai');
 
 const Logger = require('../logger');
 
@@ -54,19 +82,19 @@ const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not excee
 function prepareText(input) {
     /** Needs to avoid replacing inside code snippets */
     let res = input
-        .replace(/&/gm, '&amp;')
-        .replace(/>/gm, '&gt;')
-        .replace(/</gm, '&lt;');
+        .replace(/&amp;/gm, '&amp;amp;')
+        .replace(/>/gm, '&amp;gt;')
+        .replace(/&lt;/gm, '&amp;lt;');
 
     // Replace code blocks with language specification
-    res = res.replace(/```(\S*)\n([^]*?)\n```/g, `<pre><code class='$1'>$2</code></pre>`);
+    res = res.replace(/```(\S*)\n([^]*?)\n```/g, `&lt;pre>&lt;code class='$1'>$2&lt;/code>&lt;/pre>`);
 
     // Replace inline code blocks
-    res = res.replace(/`([^`]*?)`/g, '<code>$1</code>');
+    res = res.replace(/`([^`]*?)`/g, '&lt;code>$1&lt;/code>');
     /** too aggressive
      *  let res = mdConverter
      *     .makeHtml(input)
-     *     .replace(/<\/?p>/gm, '');
+     *     .replace(/&lt;\/?p>/gm, '');
      */
     return res;
 }
@@ -92,7 +120,7 @@ class ContextNode {
         /** @type {string} */
         this.content = content;
 
-        /** @type {Set<ContextNode>} */
+        /** @type {Set&lt;ContextNode>} */
         this.children = new Set();
         
         if (name) {
@@ -187,7 +215,7 @@ class ContextTree {
      * @param {Model | null} model 
      */
     constructor(system_prompt, model) {
-        /** @type {Map<string, ContextNode>} */
+        /** @type {Map&lt;string, ContextNode>} */
         this.nodes = new Map();
 
         /** @type {ContextNode} */
@@ -214,7 +242,7 @@ class ContextTree {
     appendNode({ role, content, message_id, prev_message_id, name } = {}) {
         let prev_node = this.root_node;
 
-        if (prev_message_id && this.checkNodeExists({ message_id: prev_message_id })) {
+        if (prev_message_id &amp;&amp; this.checkNodeExists({ message_id: prev_message_id })) {
             prev_node = this.nodes.get(prev_message_id);
         }
 
@@ -249,7 +277,7 @@ class ContextTree {
 
         let last_node = this.getNode(message_id);
 
-        while (last_node && context.length <= limit) {
+        while (last_node &amp;&amp; context.length &lt;= limit) {
             context.unshift(last_node.getMessage());
             last_node = last_node.prev_node;
         }
@@ -301,7 +329,7 @@ class ContextTree {
     /**
      * Detach the branch where node with specified message_id exists, returns the child of a root node and a map of nodes
      * @param {string} message_id
-     * @returns {{node: ContextNode, branch: Map<string, ContextNode>}}
+     * @returns {{node: ContextNode, branch: Map&lt;string, ContextNode>}}
      */
     detachBranch(message_id) {
         if (!this.checkNodeExists({ message_id })) {
@@ -339,7 +367,7 @@ class ContextTree {
     /**
      * Append branch to the tree
      * @param {ContextNode} node leading node (that should be attached to root)
-     * @param {Map<string, ContextNode>} branch map of nodes including node
+     * @param {Map&lt;string, ContextNode>} branch map of nodes including node
      */
     appendBranch(node, branch) {
         node.prev_node = this.root_node;
@@ -363,7 +391,7 @@ class ChatGPTHandler {
             organization: 'org-TDjq9ytBDVcKt4eVSizl0O74'
         });
 
-        /** @type {Map<string, Map<Model, ContextTree>>} */
+        /** @type {Map&lt;string, Map&lt;Model, ContextTree>>} */
         this.context_trees_map = new Map();
     }
 
@@ -456,9 +484,9 @@ class ChatGPTHandler {
         return this.openAI.chat.completions.create({
             model: context_tree.root_node.model,
             messages: context
-        }).then((data) => {
-            if (!data) {
-                this.logger.warn('No response to ChatGPT Completion', { data });
+        }).then(({ data, status } = {}) => {
+            if (status !== 200) {
+                this.logger.warn('Non-200 response to ChatGPT Completion', { data, status });
                 return ['ChatGPT сломался, попробуй спросить позже', null, null, { reply_to_message_id: prev_message_id }];
             }
 
@@ -566,7 +594,7 @@ class ChatGPTHandler {
         }
         catch (err) {
             this.logger.error('Error while sending context', { error: err.stack || err });
-            return [`Ошибка во время отправки контекста:\n<code>${err.message}</code>`];
+            return [`Ошибка во время отправки контекста:\n&lt;code>${err.message}&lt;/code>`];
         }
     }
 
@@ -591,7 +619,7 @@ class ChatGPTHandler {
         }
         catch (err) {
             this.logger.error('Error while generating nodes tree', { error: err.stack || err });
-            return [`Ошибка во время генерирования дерева контекста:\n<code>${err.message}</code>`];
+            return [`Ошибка во время генерирования дерева контекста:\n&lt;code>${err.message}&lt;/code>`];
         }
     }
 
@@ -599,7 +627,7 @@ class ChatGPTHandler {
         const command_text = interaction_context.message.text.replace(new RegExp(`\/${interaction.command_name}(@${interaction_context.me.username})? *`), '');
 
         if (!(interaction_context.message.reply_to_message?.text || interaction_context.message.reply_to_message?.caption) 
-            && !command_text.length) {
+            &amp;&amp; !command_text.length) {
             return ['Отправь эту команду как реплай на другое сообщение или напишите запрос в сообщении с командой, чтобы получить ответ.'];
         }
 
@@ -616,7 +644,7 @@ class ChatGPTHandler {
                 context_tree = this._getContextTree(interaction_context.chat.id, { message_id, model })
                 if (!context_tree.checkNodeExists({ message_id })) {
                     context_tree.appendNode({
-                        role: (command_text?.length && interaction_context.from.id === interaction_context.me.id) ? 'assistant' : 'user',
+                        role: (command_text?.length &amp;&amp; interaction_context.from.id === interaction_context.me.id) ? 'assistant' : 'user',
                         content: text,
                         message_id: message_id,
                         name: author
@@ -656,7 +684,7 @@ class ChatGPTHandler {
         const context_tree = this._getContextTree(context.chat.id);
         
         if (!new_system_prompt) {
-            return [`Нужен не пустой системный промпт.\nПо умолчанию: <code>${DEFAULT_SYSTEM_PROMPT}</code>\nСейчас: <code>${context_tree.root_node.content}</code>`];
+            return [`Нужен не пустой системный промпт.\nПо умолчанию: &lt;code>${DEFAULT_SYSTEM_PROMPT}&lt;/code>\nСейчас: &lt;code>${context_tree.root_node.content}&lt;/code>`];
         }
 
         context_tree.root_node.content = new_system_prompt;
@@ -665,7 +693,7 @@ class ChatGPTHandler {
     }
 
     answerQuestion(interaction) {
-        if (!interaction.context.message.text && !interaction.context.message.caption) {
+        if (!interaction.context.message.text &amp;&amp; !interaction.context.message.caption) {
             return;
         }
 
@@ -704,3 +732,26 @@ class ChatGPTHandler {
 }
 
 module.exports = new ChatGPTHandler();
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ChatGPTHandler.html">ChatGPTHandler</a></li><li><a href="ContextNode.html">ContextNode</a></li><li><a href="ContextTree.html">ContextTree</a></li><li><a href="TelegramClient.html">TelegramClient</a></li><li><a href="TelegramInteraction.html">TelegramInteraction</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CHAT_MODEL_NAME">CHAT_MODEL_NAME</a></li><li><a href="global.html#bot">bot</a></li><li><a href="global.html#clearNotification">clearNotification</a></li><li><a href="global.html#commonizeContext">commonizeContext</a></li><li><a href="global.html#del">del</a></li><li><a href="global.html#editNotificationMessage">editNotificationMessage</a></li><li><a href="global.html#fizzbuzz">fizzbuzz</a></li><li><a href="global.html#generateAPICall">generateAPICall</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#getAhegaoUrl">getAhegaoUrl</a></li><li><a href="global.html#getDiscordNotification">getDiscordNotification</a></li><li><a href="global.html#getList">getList</a></li><li><a href="global.html#getPresenceNotification">getPresenceNotification</a></li><li><a href="global.html#getRedis">getRedis</a></li><li><a href="global.html#getUrbanDefinition">getUrbanDefinition</a></li><li><a href="global.html#gh">gh</a></li><li><a href="global.html#handleCommand">handleCommand</a></li><li><a href="global.html#handler">handler</a></li><li><a href="global.html#help">help</a></li><li><a href="global.html#html">html</a></li><li><a href="global.html#models">models</a></li><li><a href="global.html#parseArgs">parseArgs</a></li><li><a href="global.html#pinNotificationMessage">pinNotificationMessage</a></li><li><a href="global.html#prepareText">prepareText</a></li><li><a href="global.html#replaceWithLink">replaceWithLink</a></li><li><a href="global.html#replyWithText">replyWithText</a></li><li><a href="global.html#sendNotificationMessage">sendNotificationMessage</a></li><li><a href="global.html#set">set</a></li><li><a href="global.html#startRedis">startRedis</a></li><li><a href="global.html#urbanToHTML">urbanToHTML</a></li><li><a href="global.html#ytdl">ytdl</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Thu Nov 09 2023 11:44:18 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node main.js",
-    "deploy": "node deploy-commands.js"
+    "deploy": "node deploy-commands.js",
+    "doc": "jsdoc -c ./jsdoc.conf.js -d ./docs/jsdoc -r ./api ./commands ./discord ./services ./telegram ./*.js"
   },
   "repository": {
     "type": "git",
@@ -29,9 +30,10 @@
     "grammy": "^1.16.0",
     "ioredis": "^5.2.4",
     "jquery": "^3.7.1",
+    "jsdoc": "^4.0.2",
     "jsdom": "^22.1.0",
     "mathjs": "^11.4.0",
-    "openai": "^4.14.0",
+    "openai": "^4.17.0",
     "showdown": "^2.1.0",
     "turndown": "^7.1.1",
     "winston": "^3.8.1",

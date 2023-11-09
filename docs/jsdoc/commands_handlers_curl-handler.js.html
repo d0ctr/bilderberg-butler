@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: commands/handlers/curl-handler.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: commands/handlers/curl-handler.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const { default: axios } = require('axios');
+
+const { url_start_regex } = require("../utils");
+
+const definition = {
+    command_name: 'curl',
+    args: [
+        {
+            name: 'url',
+            type: 'string',
+            description: 'Сссылка на ресурс.'
+        }
+    ],
+    limit: 1,
+    description: 'Возвращает результат GET запроса к заданному ресурсу.',
+    is_inline: false,
+};
+
+const condition = true;
+
+/**
+ * `/curl` command handler
+ * @param {Object} interaction
+ * @returns {[String | null, Object | null]} [error, response]
+ */
+
+async function handler(interaction) {
+    let arg = interaction.args &amp;&amp; interaction.args[0];
+
+    if (!arg) {
+        return {
+            type: 'error',
+            text: `Не хватает URL`
+        };
+    }
+
+    arg = arg.replace(url_start_regex, 'https://');
+
+    let result;
+    try {
+        result = await axios.get(arg,
+            { 
+                responseType: 'arraybuffer' 
+            }
+        );
+    }
+    catch (err) {
+        interaction.logger.error(`Error while curling ${arg}`, { error: err.stack || err });
+    }
+
+    if (!result) {
+        arg = arg.replace(url_start_regex, 'http://');
+        try {
+            result = await axios.get(
+                arg,
+                { 
+                    responseType: 'arraybuffer' 
+                }
+            );
+        }
+        catch (err) {
+            interaction.logger.error(`Error while curling ${arg}`, { error: err.stack || err });
+            return {
+                type: 'error',
+                text: `Что-то пошло не так\nНе могу получить данные по этой ссылке`
+            };
+        }
+    }
+
+    if (!result) {
+        return {
+            type: 'error',
+            text: `Что-то пошло не так\nНе могу получить данные по этой ссылке`
+        };
+    }
+    let filename = arg.split('/').slice(-1)[0] || 'response';
+
+    let type = 'document';
+
+    let caption = `&lt;pre>HTTP/${result.request.res.httpVersion} ${result.status} ${result.statusText}\n`;
+    for (const [key, value] of Object.entries(result.headers)) {
+        caption += `${key}: ${value}\n`;
+    }
+    caption += '&lt;/pre>';
+
+    if (caption.length >= 1024) {
+        caption = `${caption.slice(0, 1015)}...&lt;/pre>`;
+    }
+
+    if (result.headers['content-type'].includes('text/html')) {
+        type = 'document';
+        filename = `${filename}.html`;
+        result = Buffer.from(result.data);
+    }
+    else if (result.headers['content-type'].includes('application/json')) {
+        type = 'document';
+        filename = `${filename}.json`;
+        result = Buffer.from(result.data);
+    }
+    else if (result.headers['content-type'].includes('text/plain')) {
+        type = 'document';
+        filename = `${filename}.txt`;
+        result = Buffer.from(result.data);
+    }
+    else if (result.headers['content-type'].includes('image/png')
+        || result.headers['content-type'].includes('image/jpeg')
+        || result.headers['content-type'].includes('image/jpg')
+        || result.headers['content-type'].includes('image/gif')) {
+        type = 'photo';
+        let extension = result.headers['content-type'].split('/')[1];
+        if (!filename.endsWith(extension)){
+            filename = `${filename}.${extension}`;
+        }
+        result = Buffer.from(result.data);
+    }
+    else {
+        type = 'document';
+        result = Buffer.from(result.data);
+    }
+    return {
+        type: type,
+        media: result,
+        filename: filename,
+        text: caption
+    };
+}
+
+module.exports = {
+    handler,
+    definition,
+    condition
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ChatGPTHandler.html">ChatGPTHandler</a></li><li><a href="ContextNode.html">ContextNode</a></li><li><a href="ContextTree.html">ContextTree</a></li><li><a href="TelegramClient.html">TelegramClient</a></li><li><a href="TelegramInteraction.html">TelegramInteraction</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CHAT_MODEL_NAME">CHAT_MODEL_NAME</a></li><li><a href="global.html#bot">bot</a></li><li><a href="global.html#clearNotification">clearNotification</a></li><li><a href="global.html#commonizeContext">commonizeContext</a></li><li><a href="global.html#del">del</a></li><li><a href="global.html#editNotificationMessage">editNotificationMessage</a></li><li><a href="global.html#fizzbuzz">fizzbuzz</a></li><li><a href="global.html#generateAPICall">generateAPICall</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#getAhegaoUrl">getAhegaoUrl</a></li><li><a href="global.html#getDiscordNotification">getDiscordNotification</a></li><li><a href="global.html#getList">getList</a></li><li><a href="global.html#getPresenceNotification">getPresenceNotification</a></li><li><a href="global.html#getRedis">getRedis</a></li><li><a href="global.html#getUrbanDefinition">getUrbanDefinition</a></li><li><a href="global.html#gh">gh</a></li><li><a href="global.html#handleCommand">handleCommand</a></li><li><a href="global.html#handler">handler</a></li><li><a href="global.html#help">help</a></li><li><a href="global.html#html">html</a></li><li><a href="global.html#models">models</a></li><li><a href="global.html#parseArgs">parseArgs</a></li><li><a href="global.html#pinNotificationMessage">pinNotificationMessage</a></li><li><a href="global.html#prepareText">prepareText</a></li><li><a href="global.html#replaceWithLink">replaceWithLink</a></li><li><a href="global.html#replyWithText">replyWithText</a></li><li><a href="global.html#sendNotificationMessage">sendNotificationMessage</a></li><li><a href="global.html#set">set</a></li><li><a href="global.html#startRedis">startRedis</a></li><li><a href="global.html#urbanToHTML">urbanToHTML</a></li><li><a href="global.html#ytdl">ytdl</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Thu Nov 09 2023 11:44:18 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
