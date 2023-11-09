@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: commands/telegram.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: commands/telegram.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const { InputFile, InlineKeyboard } = require('grammy');
+
+const CLEAR_ERROR_MESSAGE_TIMEOUT = ++process.env.CLEAR_ERROR_MESSAGE_TIMEOUT || 10000;
+/**
+ * Turns Telegram context to an object that can be used as an input to a common command handler
+ * @param {Object} ctx
+ * @param {Integer} limit number of parsable args
+ * @return {Interaction}
+ * 
+ * `limit` is tricky, it makes possible for argument to consist of multiple words
+ * Example: `/foo bar baz bax`
+ *   - if we set limit here to 1, we will limit the number 
+ *     of args to 1 and this function will join all args with 
+ *     spaces, therefore args = ['bar baz bax'].
+ *   - if we set limit to 2, we will have 2 args as follows: 
+ *     args = ['bar', 'baz bax'], and so on.
+ *   - if we set limit to null, we will parse all words as standalone: 
+ *     args = ['bar', 'baz', 'bax'].
+ * 
+ */
+function commonizeContext(ctx, limit) {
+    let args = [];
+
+    // split all words by &lt;space>
+    args = ctx.message.text.replace(/ +/g, ' ').split(' ');
+
+    // remove `/` from the name of the command
+    args[0] = args[0].split('').slice(1).join('');
+
+    // concat args to a single arg
+    if (limit &amp;&amp; (limit + 1) &lt; args.length &amp;&amp; limit > 0) {
+        args[limit] = args.slice(limit).join(' ');
+        args = args.slice(0, limit + 1);
+    }
+
+    // Form interaction object
+    let interaction = {
+        platform: 'telegram',
+        command_name: args[0]
+    };
+
+    if (args.length > 1) {
+        interaction.args = args.slice(1);
+    }
+
+    interaction.from = {
+        id: ctx.from?.id,
+        name: `${ctx.from?.first_name}${ctx.from?.last_name ? ` ${ctx.from.last_name}` : ''}`,
+        username: ctx.from?.username
+    }
+
+    if (ctx.type === 'private') {
+        interaction.space = interaction.from
+        interaction.space.type = 'private'
+    }
+    else {
+        interaction.space = {
+            id: ctx.chat?.id,
+            type: ctx.chat?.type,
+            title: ctx.chat?.title
+        }
+    }
+
+    interaction.id = ctx.message?.message_id;
+    interaction.text = ctx.message?.text;
+    
+    return interaction;
+}
+
+/**
+ * 
+ * @param {import('grammy').Context} ctx 
+ * @param {*} response 
+ * @param {*} logger 
+ * @returns 
+ */
+function replyWithText(ctx, response, logger) {
+    logger.info(`Replying with text`, { response });
+
+    return ctx.reply(
+        response.text,
+        {
+            allow_sending_without_reply: true,
+            reply_to_message_id: ctx.message?.reply_to_message?.message_id || ctx.message?.message_id,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true,
+            ...response.overrides
+        }
+    ).then((message) => {
+        logger.debug('Replied!', { message_id: message.message_id });
+        if (CLEAR_ERROR_MESSAGE_TIMEOUT > 0 &amp;&amp; response.type === 'error') {
+            setTimeout(() => {
+                if ((ctx.message.text || ctx.message.caption)?.split(' ') === 1) {
+                    ctx.deleteMessage().catch(() => {});
+                }
+                ctx.api.deleteMessage(message.chat.id, message.message_id).catch(() => {});
+            }, CLEAR_ERROR_MESSAGE_TIMEOUT)
+        }
+    }).catch(err => {
+        logger.error(`Error while replying`, { error: err.stack || err});
+        // Try again if only it wasn't an error message
+        if (response.type !== 'error') {
+            return replyWithText(
+                ctx,
+                {
+                    type: 'error',
+                    text: `Что-то случилось:\n&lt;code>${err}&lt;/code>`
+                },
+                logger
+            )
+        }
+    });
+}
+
+function reply(ctx, response, logger) {
+    const reply_methods = {
+        'audio': ctx.replyWithAudio.bind(ctx),
+        'animation': ctx.replyWithAnimation.bind(ctx),
+        'chat_action': ctx.replyWithChatAction.bind(ctx),
+        'contact': ctx.replyWithContact.bind(ctx),
+        'dice': ctx.replyWithDice.bind(ctx),
+        'document': ctx.replyWithDocument.bind(ctx),
+        'game': ctx.replyWithGame.bind(ctx),
+        'invoice': ctx.replyWithInvoice.bind(ctx),
+        'location': ctx.replyWithLocation.bind(ctx),
+        'media_group': ctx.replyWithMediaGroup.bind(ctx),
+        'photo': ctx.replyWithPhoto.bind(ctx),
+        'poll': ctx.replyWithPoll.bind(ctx),
+        'sticker': ctx.replyWithSticker.bind(ctx),
+        'venue': ctx.replyWithVenue.bind(ctx),
+        'video': ctx.replyWithVideo.bind(ctx),
+        'video_note': ctx.replyWithVideoNote.bind(ctx),
+        'voice': ctx.replyWithVoice.bind(ctx),
+    };
+
+    const sendReply = reply_methods[response.type];
+
+    if (response?.overrides?.followup &amp;&amp; !response?.overrides?.reply_markup) {
+        const { text, url } = response.overrides.followup;
+        response.overrides.reply_markup = new InlineKeyboard().url(text, url);
+    }
+
+    if (!sendReply) {
+        return replyWithText(ctx, response, logger);
+    }
+
+    let media;
+
+    if (response.filename) {
+        logger.info(`Replying with file of type: ${response.type}`);
+        media = new InputFile(response.media, response.filename);
+    }
+    else {
+        logger.info(`Replying with media of type: ${response.type}`);
+        media = response.media;
+    }
+
+    return sendReply(
+        media,
+        {
+            caption: response.text,
+            allow_sending_without_reply: true,
+            reply_to_message_id: ctx.message?.reply_to_message?.message_id || ctx.message?.message_id,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true,
+            ...response.overrides
+        }
+    ).then((message) => {
+        logger.debug('Replied!', { message_id: message.message_id});
+    }).catch(err => {
+        logger.error(`Error while replying`, { error: err.stack || err});
+        replyWithText(
+            ctx,
+            {
+                type: 'error',
+                text: `Что-то случилось:\n&lt;code>${err}&lt;/code>`
+            },
+            logger
+        )
+    });
+}
+
+/**
+ * 
+ * @param {*} ctx 
+ * @param {*} handler
+ */
+function handleCommand(ctx, handler, definition) {
+    const common_interaction = commonizeContext(ctx, definition?.limit);
+    const log_meta = {
+        module: 'telegram-common-interface-handler',
+        command_name: common_interaction.command_name,
+        platform: common_interaction.platform,
+        interaction: common_interaction
+    }
+    const logger = require('../logger').child(log_meta);
+    common_interaction.logger = logger.child({ ...log_meta, module: `common-handler-${common_interaction.command_name}` });
+
+    logger.info(`Received command: ${common_interaction.text}`);
+    handler(common_interaction)
+    .then(response => {
+        return reply(ctx, response, logger);
+    }).catch((err) => {
+        logger.error(`Error while handling`, { error: err.stack || err });
+        replyWithText(
+            ctx,
+            {
+                type: 'error',
+                text: `Что-то случилось:\n&lt;code>${err}&lt;/code>`
+            },
+            logger
+        )
+    });
+}
+
+async function getLegacyResponse(ctx, handler, definition) {
+    const common_interaction = commonizeContext(ctx, definition?.limit);
+    const log_meta = {
+        module: 'telegram-common-interface-handler',
+        command_name: common_interaction.command_name,
+        platform: common_interaction.platform,
+        interaction: common_interaction
+    }
+    const logger = require('../logger').child(log_meta);
+    common_interaction.logger = logger.child({ ...log_meta, module: `common-handler-${common_interaction.command_name}` });
+
+    logger.info(`Received command: ${common_interaction.text}`);
+    let response = await handler(common_interaction);
+
+    if (response?.overrides?.followup &amp;&amp; !response?.overrides?.reply_markup) {
+        const { text, url } = response.overrides.followup;
+        response.overrides.reply_markup = new InlineKeyboard().url(text, url);
+    }
+
+    return [
+        response.type === 'error' ? response.text : null,
+        response.type === 'text' ? response.text : response,
+        null,
+        response.overrides
+    ];
+}
+
+module.exports = {
+    commonizeContext,
+    handleCommand,
+    getLegacyResponse
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ChatGPTHandler.html">ChatGPTHandler</a></li><li><a href="ContextNode.html">ContextNode</a></li><li><a href="ContextTree.html">ContextTree</a></li><li><a href="TelegramClient.html">TelegramClient</a></li><li><a href="TelegramInteraction.html">TelegramInteraction</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CHAT_MODEL_NAME">CHAT_MODEL_NAME</a></li><li><a href="global.html#bot">bot</a></li><li><a href="global.html#clearNotification">clearNotification</a></li><li><a href="global.html#commonizeContext">commonizeContext</a></li><li><a href="global.html#del">del</a></li><li><a href="global.html#editNotificationMessage">editNotificationMessage</a></li><li><a href="global.html#fizzbuzz">fizzbuzz</a></li><li><a href="global.html#generateAPICall">generateAPICall</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#getAhegaoUrl">getAhegaoUrl</a></li><li><a href="global.html#getDiscordNotification">getDiscordNotification</a></li><li><a href="global.html#getList">getList</a></li><li><a href="global.html#getPresenceNotification">getPresenceNotification</a></li><li><a href="global.html#getRedis">getRedis</a></li><li><a href="global.html#getUrbanDefinition">getUrbanDefinition</a></li><li><a href="global.html#gh">gh</a></li><li><a href="global.html#handleCommand">handleCommand</a></li><li><a href="global.html#handler">handler</a></li><li><a href="global.html#help">help</a></li><li><a href="global.html#html">html</a></li><li><a href="global.html#models">models</a></li><li><a href="global.html#parseArgs">parseArgs</a></li><li><a href="global.html#pinNotificationMessage">pinNotificationMessage</a></li><li><a href="global.html#prepareText">prepareText</a></li><li><a href="global.html#replaceWithLink">replaceWithLink</a></li><li><a href="global.html#replyWithText">replyWithText</a></li><li><a href="global.html#sendNotificationMessage">sendNotificationMessage</a></li><li><a href="global.html#set">set</a></li><li><a href="global.html#startRedis">startRedis</a></li><li><a href="global.html#urbanToHTML">urbanToHTML</a></li><li><a href="global.html#ytdl">ytdl</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Thu Nov 09 2023 11:44:18 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

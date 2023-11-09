@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: telegram/command-handlers/get-set-handlers.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: telegram/command-handlers/get-set-handlers.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const getRegex = /^[a-zA-Zа-яА-Я0-9_-]+$/g;
+
+async function redisGet(ctx, name) {
+    const redis = require('../../services/redis').getRedis();
+    if (!redis) {
+        throw new Error('Storage is offline');
+    }
+    let key = `${ctx.chat?.id || ctx.from.id}:get:${name}`;
+    let result = await redis.hgetall(key);
+    return result.data ? JSON.parse(result.data) : result; // legacy support for not stringified get-s
+}
+
+async function redisSet(ctx, name, data) {
+    const redis = require('../../services/redis').getRedis();
+    if (!redis) {
+        throw new Error('Storage is offline');
+    }
+    let key = `${ctx.chat.id || ctx.from.id}:get:${name}`;
+    for (let i in data) {
+        if (!data[i]) {
+            delete data[i];
+        }
+    }
+    if (!Object.keys(data).length) {
+        throw new Error('Cannot save empty data');
+    }
+
+    let owner;
+
+    if (ctx.chat.id !== ctx.from.id) {
+        owner = ctx.from.id;
+    }
+
+    if (await redis.exists(key)) {
+        throw new Error('This key already exists');
+    }
+
+    return redis.hset(key, { data: JSON.stringify(data), owner });
+}
+
+async function redisGetList(ctx) {
+    const redis = require('../../services/redis').getRedis();
+    if (!redis) {
+        throw new Error('Storage is offline');
+    }
+    let key = `${ctx.chat?.id || ctx.from.id}:get:*`;
+    let r_keys = await redis.keys(key);
+    let keys = [];
+    for (let r_key of r_keys) {
+        keys.push(r_key.split(':').slice(-1)[0]);
+    }
+    return keys;
+}
+
+async function redisDel(ctx, name) {
+    const redis = require('../../services/redis').getRedis();
+    if (!redis) {
+        throw new Error('Storage is offline');
+    }
+
+    let key = `${ctx.chat?.id || ctx.from.id}:get:${name}`;
+
+    if (!await redis.exists(key)) {
+        throw new Error('No such key');
+    }
+
+    let owner_id = await redis.hget(key, 'owner');
+
+    if (owner_id &amp;&amp; `${owner_id}` !== `${ctx.from.id}`) {
+        throw new Error('Can be deleted only by the owner');
+    }
+
+    await redis.del(key);
+}
+
+/**
+ * `/get` command handler
+ * @param {GrammyTypes.Context | Object} ctx
+ * @returns {[String | null, Object | null]} [err, message]
+ */
+async function get(ctx) {
+    let name = require('./utils').parseArgs(ctx, 1)[1];
+    if (!name) {
+        return ['Ты забыл указать название гета'];
+    }
+    if (!name.match(getRegex)) {
+        return ['Название гета может состоять только из букв латинского, русского алфавитов, цифр и символов -, _'];
+    }
+    let result = null;
+    try {
+        result = await redisGet(ctx, name);
+    }
+    catch (err) {
+        interaction.logger.error(`Error while getting content from redis`, { error: err.stack || err, args: [name] });
+        return [`Что-то случилось во время получения гета:\n&lt;code>${err}&lt;/code>`];
+    }
+    if (!result || !Object.keys(result).length) {
+        return [`Такого гета нет, можешь быть первым кто его сделает`];
+    }
+    return [null, result];
+}
+
+/**
+ * `/set` command handler
+ * @param {GrammyTypes.Context | Object} ctx
+ * @param {Object} interaction
+ * @returns {[String | null, String | null]}
+ */
+
+async function set(ctx, interaction) {
+    let name = require('./utils').parseArgs(ctx, 1)[1];
+    if (!name) {
+        return ['Ты забыл указать название гета'];
+    }
+    if (!name.match(getRegex)) {
+        return ['Название гета может состоять только из букв латинского, русского алфавитов, цифр и символов -, _'];
+    }
+    if (!ctx.message.reply_to_message) {
+        return ['Чтобы сохранить гет, ответьте на какое-нибудь сообщение с помощью &lt;code>/set {название гета}&lt;/code>'];
+    }
+
+    const parsed_data = interaction._parseMessageMedia(ctx.message.reply_to_message);
+
+    if (!parsed_data.type) {
+        return [`Такое сохранить не получится, сейчас поддерживаются только следующие форматы:
+Простой текст, изображение, гифки, аудио, видео, документы, стикеры, голосовые и видео сообщения`];
+    }
+
+    try {
+        await redisSet(ctx, name, parsed_data);
+    }
+    catch (err) {
+        interaction.logger.error(`Error while saving content to redis`,{ error: err.stack || err, args: [name], parsed_data });
+        return [`Что-то случилось во время сохранения гета:\n&lt;code>${err}&lt;/code>`];
+    }
+
+    return [null, `Гет был сохранён, теперь его можно вызвать командой:\n&lt;code>/get ${name}&lt;/code>${
+        ctx.chat.id === ctx.from.id ? `\nТак же можешь вызвать этот гет написав &lt;code>@${ctx.me.username} /get ${name}&lt;/code> в поле ввода сообщения` : ''}`];
+}
+
+/**
+ * `/get_list` command handler
+ * @param {GrammyTypes.Context} ctx
+ * @returns {[String | null, String | null]}
+ */
+
+async function getList(ctx, interaction) {
+    let gets;
+    try {
+        gets = await redisGetList(ctx);
+    }
+    catch (err) {
+        interaction.logger.error(`Error while getting list from redis`,{ error: err.stack || err });
+        return [`Что-то случилось во время получения списка гетов:\n&lt;code>${err}&lt;/code>`];
+    }
+    if (!gets?.length) {
+        return [`В этом чате ещё нет ни однго гета`];
+    }
+    return [null, `Геты доступные в этом чате:\n\n${gets.join(', ')}`, `${gets.join(', ')}`];
+}
+
+/**
+ * `/del` command handler
+ * @param {GrammyTypes.Context} ctx
+ * @returns {[String | null, String | null]}
+ */
+async function del(ctx, interaction) {
+    let name = require('./utils').parseArgs(ctx, 1)[1];
+    if (!name) {
+        return ['Ты забыл указать название гета'];
+    }
+
+    try {
+        await redisDel(ctx, name);
+    }
+    catch (err) {
+        interaction.logger.error(`Error while deleting data from redis`,{ error: err.stack || err, args: [name] });
+        return [`Что-то случилось во время удаления гета:\n&lt;code>${err}&lt;/code>`];
+    }
+
+    return [null, `Гет &lt;b>${name}&lt;/b> успешно удалён`];
+}
+
+module.exports = {
+    get, set, getList, del
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ChatGPTHandler.html">ChatGPTHandler</a></li><li><a href="ContextNode.html">ContextNode</a></li><li><a href="ContextTree.html">ContextTree</a></li><li><a href="TelegramClient.html">TelegramClient</a></li><li><a href="TelegramInteraction.html">TelegramInteraction</a></li></ul><h3>Global</h3><ul><li><a href="global.html#CHAT_MODEL_NAME">CHAT_MODEL_NAME</a></li><li><a href="global.html#bot">bot</a></li><li><a href="global.html#clearNotification">clearNotification</a></li><li><a href="global.html#commonizeContext">commonizeContext</a></li><li><a href="global.html#del">del</a></li><li><a href="global.html#editNotificationMessage">editNotificationMessage</a></li><li><a href="global.html#fizzbuzz">fizzbuzz</a></li><li><a href="global.html#generateAPICall">generateAPICall</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#getAhegaoUrl">getAhegaoUrl</a></li><li><a href="global.html#getDiscordNotification">getDiscordNotification</a></li><li><a href="global.html#getList">getList</a></li><li><a href="global.html#getPresenceNotification">getPresenceNotification</a></li><li><a href="global.html#getRedis">getRedis</a></li><li><a href="global.html#getUrbanDefinition">getUrbanDefinition</a></li><li><a href="global.html#gh">gh</a></li><li><a href="global.html#handleCommand">handleCommand</a></li><li><a href="global.html#handler">handler</a></li><li><a href="global.html#help">help</a></li><li><a href="global.html#html">html</a></li><li><a href="global.html#models">models</a></li><li><a href="global.html#parseArgs">parseArgs</a></li><li><a href="global.html#pinNotificationMessage">pinNotificationMessage</a></li><li><a href="global.html#prepareText">prepareText</a></li><li><a href="global.html#replaceWithLink">replaceWithLink</a></li><li><a href="global.html#replyWithText">replyWithText</a></li><li><a href="global.html#sendNotificationMessage">sendNotificationMessage</a></li><li><a href="global.html#set">set</a></li><li><a href="global.html#startRedis">startRedis</a></li><li><a href="global.html#urbanToHTML">urbanToHTML</a></li><li><a href="global.html#ytdl">ytdl</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Thu Nov 09 2023 11:44:18 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
