@@ -63,7 +63,7 @@ function replyWithText(interaction, response, logger) {
     //     response.embeds = [embed];
     // }
 
-    interaction.reply({ content: response.text, components: response?.components })
+    interaction.editReply({ content: response.text, components: response?.components })
     .then((messsage) => {
         logger.debug('Replied!', { message_id: messsage.id });
     }).catch(err => {
@@ -105,7 +105,7 @@ function replyWithEmbed(interaction, response, logger) {
         payload.embeds = [embed];
     }
 
-    interaction.reply(payload)
+    interaction.editReply(payload)
     .then((messsage) => {
         logger.debug('Replied!', { message_id: messsage.id });
     }).catch(err => {
@@ -137,7 +137,7 @@ function replyWithFile(interaction, response, logger) {
         payload.files = [{ name: response.filename, attachment: response.media }];
     }
 
-    interaction.reply(payload)
+    interaction.editReply(payload)
     .then((messsage) => {
         logger.debug('Replied!', { message_id: messsage.id });
     }).catch(err => {
@@ -224,7 +224,8 @@ function handleCommand(interaction, handler ,definition) {
 
     logger.info(`Received command: ${common_interaction.text}`);
 
-    handler(common_interaction)
+    interaction.deferReply()
+    .then(() => handler(common_interaction))
     .then(response => {
         if (response.text) {
             response.text = turndownService.turndown(response.text.replace(/(\n|\\n)/gm, '<br/>'));

@@ -64,7 +64,7 @@ exports.handler = async (interaction) => {
         .then(async (res) => {
             interaction.logger.silly(`Received response from RAWG/games`);
             if (!res.ok) {
-                interaction.logger.error(`Non-200 response from RAWG [status:${res.status}] [statusText:${res.statusText}]`, { api_response: JSON.stringify(res)});
+                interaction.logger.error(`Non-200 response from RAWG [status:${res.status}] [statusText:${res.statusText}]`, { api_response: JSON.stringify(res) });
                 return {
                     type: 'error',
                     text: 'Что-то не задалось с поиском, попробуй ещё раз'
@@ -81,6 +81,9 @@ exports.handler = async (interaction) => {
         })
         .catch((err) => {
             interaction.logger.error(`Error while getting game details from RAWG`, { error: err.stack || err});
-            throw err;
+            return {
+                type: 'error',
+                text: 'Что-то у меня поломалось, можешь попробовать ещё раз'
+            };
         });
 };

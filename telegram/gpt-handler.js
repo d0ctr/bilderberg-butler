@@ -1,5 +1,7 @@
 const { OpenAI } = require('openai');
 
+const Logger = require('../logger');
+
 // const { Converter: MDConverter } = require('showdown');
 
 // const mdConverter = new MDConverter({
@@ -15,7 +17,7 @@ const { OpenAI } = require('openai');
  * @typedef {{
  *  role: NodeRole,
  *  content: string,
- *  name: string | null,
+ *  name: string | null
  * }} NodeMessage
  * 
  * @typedef {{
@@ -25,13 +27,13 @@ const { OpenAI } = require('openai');
  *  message_id: string,
  *  prev_message_id: string | null,
  *  model: Model | null,
- *  name: string | null,
+ *  name: string | null
  * }} NodeRawData
+ * 
+ * @typedef {[null | string, null | string, null | function, any]} CommandResponse
  */
 
-/**
- * @type {Model[]}
- */
+/** @type {Model[]} */
 const models = [
     'gpt-3.5-turbo-16k',
     'gpt-4',
@@ -44,9 +46,10 @@ const models = [
 const CHAT_MODEL_NAME = models.includes(process.env.GPT_MODEL) ? process.env.GPT_MODEL : 'gpt-3.5-turbo-16k';
 
 const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not exceed 4000 characters`;
+
 /**
-   @param {string} input
-   @return {string}
+ * @param {string} input
+ * @return {string}
  */
 function prepareText(input) {
     /** Needs to avoid replacing inside code snippets */
@@ -68,6 +71,9 @@ function prepareText(input) {
     return res;
 }
 
+/**
+ * @class
+ */
 class ContextNode {
     /**
      * @param {{
@@ -80,15 +86,32 @@ class ContextNode {
      * }} 
      */
     constructor({ role, content, message_id, prev_node = null, name = null, model = null } = {}) {
+        /** @type {string} */
         this.role = role;
+
+        /** @type {string} */
         this.content = content;
+
         /** @type {Set<ContextNode>} */
         this.children = new Set();
         
-        name && (this.name = name?.replace(/ +/g, '_')?.replace(/[^a-zA-Z0-9_]/g, '')?.slice(0, 64));
-        message_id && (this.message_id = message_id);
-        prev_node && (this.prev_node = prev_node);
-        model && (this.model = model);
+        if (name) {
+            /** @type {string | undefined} */
+            this.name = name?.replace(/ +/g, '_')?.replace(/[^a-zA-Z0-9_]/g, '')?.slice(0, 64);
+        };
+
+        if (message_id) {
+            /** @type {string | undefined} */
+            this.message_id = message_id;
+        };
+        if (prev_node) {
+            /** @type {ContextNode | undefined} */
+            this.prev_node = prev_node;
+        }
+        if (model) {
+            /** @type {Model | undefined} */
+            this.model = model;
+        }
 
     }
 
@@ -154,6 +177,9 @@ class ContextNode {
     }
 }
 
+/**
+ * @class
+ */
 class ContextTree {
     /**
      * 
@@ -163,6 +189,8 @@ class ContextTree {
     constructor(system_prompt, model) {
         /** @type {Map<string, ContextNode>} */
         this.nodes = new Map();
+
+        /** @type {ContextNode} */
         this.root_node = new ContextNode({
             role: 'system',
             content: system_prompt || DEFAULT_SYSTEM_PROMPT,
@@ -196,7 +224,7 @@ class ContextTree {
     /**
      * Checks if node exists either by node's message_id or provided message_id
      * @param {{ node: ContextNode | null, message_id: string | null }} 
-     * @returns 
+     * @returns {boolean}
      */
     checkNodeExists({ node = null, message_id = null } = {}) {
         if (node) {
@@ -258,7 +286,7 @@ class ContextTree {
 
     /**
      * Get node by id and remove it from tree (relinks node's children to node's parent)
-     * @param {message_id: string} message_id
+     * @param {string} message_id
      * @returns {ContextNode | null}
      */
     detachNode(message_id) {
@@ -273,7 +301,7 @@ class ContextTree {
     /**
      * Detach the branch where node with specified message_id exists, returns the child of a root node and a map of nodes
      * @param {string} message_id
-     * @returns {{node: ContextNode, branch: Map<string, ContextNode}}
+     * @returns {{node: ContextNode, branch: Map<string, ContextNode>}}
      */
     detachBranch(message_id) {
         if (!this.checkNodeExists({ message_id })) {
@@ -321,18 +349,21 @@ class ContextTree {
     }
 }
 
-class ChatGPTHandler{
+/**
+ * @class
+ */
+class ChatGPTHandler {
     constructor() {
-        this.logger = require('../logger').child({ module: 'chatgpt-handler' })
+        /** @type {Logger} */
+        this.logger = Logger.child({ module: 'chatgpt-handler' });
 
+        /** @type {OpenAI} */
         this.openAI = new OpenAI({
             apiKey: process.env.OPENAI_TOKEN,
             organization: 'org-TDjq9ytBDVcKt4eVSizl0O74'
         });
 
-        /**
-         * @type {Map<string, Map<Model, ContextTree>>}
-         */
+        /** @type {Map<string, Map<Model, ContextTree>>} */
         this.context_trees_map = new Map();
     }
 
@@ -368,8 +399,9 @@ class ChatGPTHandler{
 
     /**
      * Get a context tree fitting the specified arguments
-     * @param {chat_id: string, { message_id: string | null, model: Model? }} 
-     * @returns 
+     * @param {string} chat_id
+     * @param {{message_id: string | null, model: Model?}} 
+     * @returns {ContextTree}
      */
     _getContextTree(chat_id, { message_id = null, model = CHAT_MODEL_NAME } = {}) {
         if (!chat_id) {
@@ -389,7 +421,7 @@ class ChatGPTHandler{
     /**
      * Get array of trees associated with chat
      * @param {string} chat_id 
-     * @returns ContextTree[]
+     * @returns {ContextTree[]}
      */
     _getChatTrees(chat_id) {
         return this.context_trees_map.has(chat_id) ? [...this.context_trees_map.get(chat_id).values()] : [];
@@ -406,6 +438,14 @@ class ChatGPTHandler{
         destination_context_tree.appendBranch(node, branch);
     }
 
+    /**
+     * Makes an OpenAI API request with provided context and returnes response as text
+     * @param {*} interaction 
+     * @param {NodeMessage[]} context 
+     * @param {ContextTree} context_tree 
+     * @param {string} prev_message_id 
+     * @returns {CommandResponse}
+     */
     _replyFromContext(interaction, context, context_tree, prev_message_id) {
         interaction.context.replyWithChatAction('typing');
 
@@ -416,10 +456,10 @@ class ChatGPTHandler{
         return this.openAI.chat.completions.create({
             model: context_tree.root_node.model,
             messages: context
-        }).then(({ data, status } = {}) => {
-            if (status !== 200) {
-                this.logger.warn('Non-200 response to ChatGPT Completion', { data, status });
-                return ['ChatGPT сломался попробуй спросить позже', null, null, { reply_to_message_id: prev_message_id }];
+        }).then((data) => {
+            if (!data) {
+                this.logger.warn('No response to ChatGPT Completion', { data });
+                return ['ChatGPT сломался, попробуй спросить позже', null, null, { reply_to_message_id: prev_message_id }];
             }
 
             if (!data?.choices?.length) {

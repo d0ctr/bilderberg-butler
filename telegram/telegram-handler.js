@@ -47,8 +47,6 @@ module.exports = {
 
     roundit: { handler: require('./command-handlers/roundit-handler').roundit, help: ['Превратить видео в кружок'] },
 
-    imagine: { handler: require('./command-handlers/imagine-handler').imagine, help: ['{описание}', 'Генерирует 4 картинки по описанию (DALL-E)'] },
-
     new_system_prompt: { handler: (...args) => ChatGPTHandler.handleAdjustSystemPrompt(...args), help: ['{промпт}', 'Задать новый системный промпт для ChatGPT и/или проверить, установленный сейчас'] },
 
     answer: { handler: (...args) => ChatGPTHandler.handleAnswerCommand(...args), help: ['{запрос?}', 'Спросить у ChatGPT, можно использовать как реплай'] },

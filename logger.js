@@ -91,6 +91,4 @@ if (ENABLE_LOKI) {
     )
 }
 
-const logger = createLogger(logger_options);
-
-module.exports = logger;
+module.exports = createLogger(logger_options);

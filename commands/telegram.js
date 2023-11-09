@@ -36,7 +36,8 @@ function commonizeContext(ctx, limit) {
     // Form interaction object
     let interaction = {
         platform: 'telegram',
-        command_name: args[0]
+        command_name: args[0],
+        ctx: ctx,
     };
 
     if (args.length > 1) {
@@ -109,6 +110,10 @@ function replyWithText(ctx, response, logger) {
                 logger
             )
         }
+    }).finally(() => {
+        if (typeof response.callback === 'function') {
+            response.callback();
+        }
     });
 }
 
@@ -169,7 +174,7 @@ function reply(ctx, response, logger) {
         logger.debug('Replied!', { message_id: message.message_id});
     }).catch(err => {
         logger.error(`Error while replying`, { error: err.stack || err});
-        replyWithText(
+        return replyWithText(
             ctx,
             {
                 type: 'error',
@@ -177,6 +182,10 @@ function reply(ctx, response, logger) {
             },
             logger
         )
+    }).finally(() => {
+        if (typeof response.callback === 'function') {
+            response.callback();
+        }
     });
 }
 
