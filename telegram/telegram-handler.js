@@ -58,6 +58,8 @@ module.exports = {
     gpt4: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4'] },
 
     gpt4_32: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4-32k', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4 с максимумом в 32тыс токенов'] },
+    
+    vision: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4-vision-preview', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4 с функцией обработки фотографии'] },
 
     tldr: { handler: require('./command-handlers/tldr-handler').tldr, help: ['{url?}', 'Возвращает краткий персказ сгенерированный YandexGPT'] }
 }

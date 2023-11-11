@@ -625,10 +625,11 @@ class TelegramClient {
         this._registerTelegramCommand('roundit', true);
         this._registerTelegramCommand('new_system_prompt', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('answer', process.env.OPENAI_TOKEN);
-        this._registerTelegramCommand('tree', process.env.OPENAI_TOKEN);
+        // this._registerTelegramCommand('tree', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('context', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('gpt4', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('gpt4_32', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('vision', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('tldr', process.env.YA300_TOKEN && config.YA300_API_BASE, true);
         // this._registerTelegramCommand('imagine', process.env.OPENAI_TOKEN);
         
@@ -781,23 +782,20 @@ class TelegramClient {
             return;
         }
 
-        if (process.env?.ENV === 'dev') {
-            this.client = new Bot(process.env.TELEGRAM_TOKEN, {
-                client: {
-                    buildUrl: (root, token, method) => `${root}/bot${token}/test/${method}`
-                }
-            });
-        }
-        else {
-            this.client = new Bot(process.env.TELEGRAM_TOKEN);
-        }
+        this.client = new Bot(process.env.TELEGRAM_TOKEN, {
+            client: {
+                buildUrl: (root, token, method) => `${root}/bot${token}${process.env?.ENV === 'dev' ? '/test' : ''}/${method}`
+            }
+        });
 
         this.client.catch((err) => {
             this.logger.error(`High level middleware error in bot`, { error: err.stack || err });
         });
 
         // plugins
-        this.client.api.config.use(hydrateFiles(process.env.TELEGRAM_TOKEN));
+        this.client.api.config.use(hydrateFiles(process.env.TELEGRAM_TOKEN, {
+            buildFileUrl: (root, token, path) => `${root}/file/bot${token}${process.env?.ENV === 'dev' ? '/test' : ''}/${path}`
+        }));
 
         // filters
         this._filterServiceMessages();
