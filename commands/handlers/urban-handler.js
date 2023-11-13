@@ -20,7 +20,7 @@ function urbanToHTML(urban_definition) {
 
 ${urban_definition.definition}
 
-<i>${urban_definition.example}</i>
+<blockquote>${urban_definition.example}</blockquote>
 
 ${urban_definition.thumbs_up} 👍|👎 ${urban_definition.thumbs_down}`;
 

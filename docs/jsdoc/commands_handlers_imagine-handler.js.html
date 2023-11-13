@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: commands/handlers/calc-handler.js</title>
+    <title>JSDoc: Source: commands/handlers/imagine-handler.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: commands/handlers/calc-handler.js</h1>
+    <h1 class="page-title">Source: commands/handlers/imagine-handler.js</h1>
 
     
 
@@ -26,61 +26,116 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>const mathjs = require("mathjs");
+            <pre class="prettyprint source linenums"><code>const { OpenAI } = require('openai');
 
-const definition = {
-    command_name: 'calc',
-    args: [
-        {
-            name: 'math_line',
-            type: 'string',
-            description: 'Математическое выражение.'
-        }
-    ],
-    limit: 1,
-    description: 'Возвращает результат переданного математического выражения.',
-    is_inline: true,
+// OpenAI rules
+const allowedSizes = ['1024x1024', '1792x1024', '1024x1792'];
+
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_TOKEN,
+    organization: 'org-TDjq9ytBDVcKt4eVSizl0O74',
+});
+
+const getImages = async (prompt, { size = allowedSizes[0] } = {}) => {
+    return openai.images.generate({
+        model: 'dall-e-3',
+        prompt,
+        size
+    });
 };
 
-const condition = true;
+exports.definition = {
+    command_name: 'imagine',
+    args: [
+        {
+            name: 'query',
+            type: 'string',
+            description: 'Запрос для генерации',
+            optional: false,
+        },
+        // {
+        //     name: 'size',
+        //     type: 'string',
+        //     description: 'Размер изображения, например [512x512]',
+        //     optional: true,
+        // },
+    ],
+    limit: 1,
+    is_inline: false,
+    description: 'Генерирует картинку с помощью DALL-E 3'
+};
 
-/**
- * `/calc` command handler
- * @param {Object} interaction
- * @returns {Object} 
- */
-async function handler(interaction) {
-    const math_line = interaction.args &amp;&amp; interaction.args[0];
+exports.condition = !!process.env.OPENAI_TOKEN;
 
-    if (!math_line) {
+exports.handler = async (interaction) => {
+    /** @type {string} */
+    let args = interaction.args?.[0];
+    if (!args) {
         return {
             type: 'error',
-            text: 'Напиши хоть что-нибудь, типа: 1+1'
+            text: 'Нужен промпт',
         };
     }
-    let result = null;
+
+    const providedSize = args.match('\[[0-9]+x[0-9]+\]')?.[0]?.slice(1, -1);
+
+    let size = allowedSizes[0];
+    let prompt = args;
+    
+    if (providedSize) {
+        prompt = args.replace(`[${providedSize}]`, '').trim();
+        const [w, h] = providedSize.split('x').map(v => +v);
+        // telegram rules
+        if ((w > h ? w / h : h / w) &lt;= 20 &amp;&amp; w + h &lt;= 10000 &amp;&amp; allowedSizes.includes(providedSize)) {
+            size = providedSize;
+        }
+    }
+
+    if (!prompt) {
+        return {
+            type: 'error',
+            text: 'Нужен промпт',
+        };
+    }
+    let callback;
+
+    if (interaction.platform === 'telegram') {
+        interaction.ctx.replyWithChatAction('upload_photo');
+        const continiousChatAction = setInterval(() => {
+            interaction.ctx.replyWithChatAction('upload_photo');
+        }, 5000);
+    
+        callback = () => {
+            clearInterval(continiousChatAction);
+        };
+    }
+
     try {
-        result = `${math_line} = ${mathjs.evaluate(math_line)}`;
+        const { data } = await getImages(prompt, { size });
+    
+        if (!data?.[0]?.url) {
+            return {
+                type: 'error',
+                text: 'Не получилось ничего сгенерировать, попробуй ещё',
+                callback,
+            };
+        };
+        return {
+            type: 'photo',
+            media: data[0].url,
+            text: data[0].revised_prompt || args,
+            callback,
+        }
     }
     catch (err) {
-        interaction.logger.error(`Error while calculating`, { error: err.stack || err });
+        interaction.logger.error(`Failed to generate image: ${err.message}`, { error: err.stack || err });
         return {
             type: 'error',
-            text: 'Что-то ты не то написал, этой командой можно считать только математические выражения'
+            text: 'Неполадки с сервисом, попробу позже',
+            callback,
         };
     }
-    return {
-        type: 'text',
-        text: result
-    };
-}
-
-module.exports = {
-    handler,
-    definition,
-    condition
-}
-</code></pre>
+};</code></pre>
         </article>
     </section>
 

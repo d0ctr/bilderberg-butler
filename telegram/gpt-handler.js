@@ -1,6 +1,7 @@
 const { OpenAI } = require('openai');
+const { default: axios } = require('axios');
 
-const Logger = require('../logger');
+const logger = require('../logger').child({ module: 'chatgpt-handler' });
 
 // const { Converter: MDConverter } = require('showdown');
 
@@ -10,46 +11,103 @@ const Logger = require('../logger');
 // });
 
 /**
- * @typedef {'gpt-3.5-turbo-16k' | 'gpt-4' | 'gpt-4-32k'} Model
- * 
- * @typedef {'system' | 'assistant' | 'user'} NodeRole
- * 
- * @typedef {{
- *  role: NodeRole,
- *  content: string,
- *  name: string | null
- * }} NodeMessage
- * 
- * @typedef {{
- *  role: NodeRole,
- *  content: string,
- *  name: string,
- *  message_id: string,
- *  prev_message_id: string | null,
- *  model: Model | null,
- *  name: string | null
- * }} NodeRawData
- * 
- * @typedef {[null | string, null | string, null | function, any]} CommandResponse
+ * ChatGPT
+ * @namespace ChatGPT
  */
 
-/** @type {Model[]} */
+/** 
+ * Model name
+ * @typedef {('gpt-3.5-turbo-16k' | 'gpt-4' | 'gpt-4-32k' | 'gpt-4-vision-preview')} Model
+ * @memberof ChatGPT
+ */
+/** 
+ * Chat member role name
+ * @typedef {('system' | 'assistant' | 'user')} NodeRole
+ * @memberof ChatGPT
+ */
+/** 
+ * Complex structure for ChatGPT content
+ * @typedef {{type: 'text', text: string}} ComplexContentText
+ * @typedef {{type: 'image_url', image_url: string}} ComplexContentImage
+ * @typedef {(ComplexContentText | ComplexContentImage)} ComplexContent
+ * @memberof ChatGPT
+ */
+/** 
+ * GPT Message content
+ * @typedef {(string | ComplexContent[])} NodeContent
+ * @memberof ChatGPT
+ */
+/** 
+ * @typedef {import('./telegram-client').TelegramInteraction} TelegramInteraction
+ * @memberof ChatGPT
+ */
+/** 
+ * @typedef {import('@grammyjs/files').FileFlavor<import('grammy').Context>} GrammyContext
+ * @memberof ChatGPT
+ */
+/**
+ * @typedef {import('grammy/types').Message} TelegramMessage
+ * @memberof ChatGPT
+ */
+/** 
+ * Message, recognisable by ChatGPT
+ * @typedef {{
+ *  role: NodeRole,
+ *  content: NodeContent,
+ *  name: (string | null)
+ * }} NodeMessage
+ * @memberof ChatGPT
+ */
+/**
+ * Full context node data
+ * @typedef {{
+ *  role: NodeRole,
+ *  content: NodeContent,
+ *  name: string,
+ *  message_id: string,
+ *  prev_message_id: (string | null),
+ *  model: (Model | null),
+ *  name: (string | null)
+ * }} NodeRawData
+* @memberof ChatGPT
+*/
+
+/** 
+ * @typedef {[null | string, null | string | any, null | function, any]} CommandResponse
+ * @memberof ChatGPT
+ */
+
+/** 
+ * List of available models
+ * @type {Model[]}
+ * @memberof ChatGPT
+ */
 const models = [
     'gpt-3.5-turbo-16k',
     'gpt-4',
     'gpt-4-32k',
+    'gpt-4-vision-preview'
 ];
 
+const max_tokens = {
+    'gpt-3.5-turbo-16k': undefined,
+    'gpt-4': undefined,
+    'gpt-4-32k': undefined,
+    'gpt-4-vision-preview': 4096,
+}
 /** 
  * @type {Model}
+ * @memberof ChatGPT
  */
 const CHAT_MODEL_NAME = models.includes(process.env.GPT_MODEL) ? process.env.GPT_MODEL : 'gpt-3.5-turbo-16k';
 
 const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not exceed 4000 characters`;
 
 /**
+ * Convert Markdown based text to HTML
  * @param {string} input
  * @return {string}
+ * @memberof ChatGPT
  */
 function prepareText(input) {
     /** Needs to avoid replacing inside code snippets */
@@ -72,13 +130,83 @@ function prepareText(input) {
 }
 
 /**
+ * Get text from telegram message
+ * @param {import('grammy/types').Message} message 
+ * @returns {(string | null)}
+ * @memberof ChatGPT
+ */
+function getText(message) {
+    return message?.text || message?.caption || null;
+}
+
+/**
+ * Get content of the message, will return either text or an array
+ * @param {GrammyContext}
+ * @param {'text' | 'vision'} type
+ * @param {TelegramMessage} message
+ * @returns {Promise<NodeContent>}
+ * @memberof ChatGPT
+ */
+async function getContent({ api, c_message }, type = 'text', message = c_message) {
+    if (type === 'vision' && message.photo?.[0]) {
+        const [file_buffer, content_type] = 
+            await api.getFile(message.photo
+                .sort((p1, p2) => (p2.height + p2.width) - (p1.height + p1.width))[0].file_id)
+            .then(f => f.getUrl())
+            .then(file_path => axios.get(
+                file_path,
+                { 
+                    responseType: 'arraybuffer',
+                }
+            ))
+            .then(({ data, headers }) => [
+                Buffer.from(data).toString('base64'),
+                headers['Content-Type'] || 'image/jpeg'
+            ])
+            .catch(err => {
+                logger.error('Failed get image as buffer', { error: err.stack || err });
+                return [];
+            });
+        if (!(file_buffer || content_type)) {
+            return getText(message);
+        }
+        /** @type {ComplexContent[]} */
+        const content = [{
+            type: 'image_url',
+            image_url: `data:${content_type};base64,${file_buffer}`
+        }];
+
+        if (message.caption) {
+            content.push({
+                type: 'text',
+                text: message.caption
+            });
+        }
+
+        return content;
+    }
+    return getText(message);
+}
+
+/**
+ * Get model type based on model name
+ * @param {Model} model 
+ * @returns {'vision' | 'text'}
+ * @memberof ChatGPT
+ */
+function getModelType(model) {
+    return model.includes('vision') ? 'vision' : 'text';
+}
+
+/**
  * @class
+ * @memberof ChatGPT
  */
 class ContextNode {
     /**
      * @param {{
      *  role: NodeRole,
-     *  content: string,
+     *  content: NodeContent,
      *  message_id: string | string,
      *  prev_node: ContextNode | null,
      *  name: string | null,
@@ -89,7 +217,7 @@ class ContextNode {
         /** @type {string} */
         this.role = role;
 
-        /** @type {string} */
+        /** @type {NodeContent} */
         this.content = content;
 
         /** @type {Set<ContextNode>} */
@@ -167,7 +295,13 @@ class ContextNode {
     getRawData() {
         const data = {
             role: this.role,
-            content: this.content,
+            content: Array.isArray(this.content) ?
+                this.content.map(c => 
+                    c.image_url.startsWith('data:') ?
+                    {...c, image_url: '...buffer...'} :
+                    c
+                ) :
+                this.content,
             message_id: this.message_id,
         };
         if (this.prev_node) data.prev_message_id = this.prev_node.message_id;
@@ -179,6 +313,7 @@ class ContextNode {
 
 /**
  * @class
+ * @memberof ChatGPT
  */
 class ContextTree {
     /**
@@ -209,7 +344,7 @@ class ContextTree {
 
     /**
      * Creates new node and appends to the tree either by the prev_message_id or to the root node
-     * @param {{ role: NodeRole, message_id: string, prev_message_id: string, name: string }}
+     * @param {{ role: NodeRole, content: NodeContent, message_id: string, prev_message_id: string, name: string }}
      */
     appendNode({ role, content, message_id, prev_message_id, name } = {}) {
         let prev_node = this.root_node;
@@ -339,7 +474,7 @@ class ContextTree {
     /**
      * Append branch to the tree
      * @param {ContextNode} node leading node (that should be attached to root)
-     * @param {Map<string, ContextNode>} branch map of nodes including node
+     * @param {Map<string, ContextNode>} branch map of nodes including {@link node}
      */
     appendBranch(node, branch) {
         node.prev_node = this.root_node;
@@ -347,15 +482,24 @@ class ContextTree {
             this.nodes.set(message_id, node);
         });
     }
+
+    /**
+     * Get type of the model used for the tree
+     * @returns {'text' | 'vision'}
+     */
+    getModelType() {
+        return getModelType(this.root_node.model);
+    }
 }
 
 /**
  * @class
+ * @memberof ChatGPT
  */
 class ChatGPTHandler {
     constructor() {
         /** @type {Logger} */
-        this.logger = Logger.child({ module: 'chatgpt-handler' });
+        this.logger = logger;
 
         /** @type {OpenAI} */
         this.openAI = new OpenAI({
@@ -385,7 +529,7 @@ class ChatGPTHandler {
     /**
      * Creates context tree for specified chat and model if needed
      * @param {string} chat_id 
-     * @param {Model?} model 
+     * @param {Model} model 
      */
     _createContextTree(chat_id, model = CHAT_MODEL_NAME) {
         if (!this.context_trees_map.has(chat_id)) {
@@ -400,7 +544,7 @@ class ChatGPTHandler {
     /**
      * Get a context tree fitting the specified arguments
      * @param {string} chat_id
-     * @param {{message_id: string | null, model: Model?}} 
+     * @param {{message_id: string | null, model: Model}} 
      * @returns {ContextTree}
      */
     _getContextTree(chat_id, { message_id = null, model = CHAT_MODEL_NAME } = {}) {
@@ -440,7 +584,7 @@ class ChatGPTHandler {
 
     /**
      * Makes an OpenAI API request with provided context and returnes response as text
-     * @param {*} interaction 
+     * @param {TelegramInteraction} interaction 
      * @param {NodeMessage[]} context 
      * @param {ContextTree} context_tree 
      * @param {string} prev_message_id 
@@ -455,7 +599,8 @@ class ChatGPTHandler {
 
         return this.openAI.chat.completions.create({
             model: context_tree.root_node.model,
-            messages: context
+            messages: context,
+            max_tokens: max_tokens[context_tree.root_node.model]
         }).then((data) => {
             if (!data) {
                 this.logger.warn('No response to ChatGPT Completion', { data });
@@ -494,8 +639,17 @@ class ChatGPTHandler {
         });
     }
 
-    answerReply(interaction) {
-        if (!interaction?.context?.message?.reply_to_message || !(interaction?.context?.message?.text || interaction?.context?.message?.caption)) {
+    /**
+     * Answer request received via reply
+     * @param {TelegramInteraction} interaction
+     * @returns {Promise}
+     */
+    async answerReply(interaction) {
+        if (
+            !interaction.context?.message?.reply_to_message
+            || !getText(interaction.context?.message) 
+            || getText(interaction.context?.message).startsWith('/ ')
+        ) {
             return;
         }
 
@@ -506,12 +660,17 @@ class ChatGPTHandler {
         let prev_message_id = interaction.context.message.reply_to_message.message_id;
 
         const context_tree = this._getContextTree(interaction.context.chat.id, { message_id: prev_message_id });
+        const model_type = context_tree.getModelType();
         
         if (!context_tree.checkNodeExists({ message_id: prev_message_id })) {
-            const text = interaction.context.message.reply_to_message.text || interaction.context.message.reply_to_message.caption;
+            const content = await getContent(interaction.context, model_type, interaction.context.message.reply_to_message)
+                .catch(err => {
+                    interaction.logger.error('Failed to acquire content for reply message', { error: err.stack || err});
+                    return getText(interaction.context.message.reply_to_message);
+                });
 
-            if (text) {
-                context_tree.appendNode({ role: 'assistant', content: text, message_id: prev_message_id, name: interaction.context.me.first_name });
+            if (content) {
+                context_tree.appendNode({ role: 'assistant', content, message_id: prev_message_id, name: interaction.context.me.first_name });
             }
             else {
                 prev_message_id = null;
@@ -522,9 +681,13 @@ class ChatGPTHandler {
 
         // appending user's request to the tree
         {
-            const text = interaction.context.message.text || interaction.context.message.caption;
+            const content = await getContent(interaction.context, model_type)
+                .catch(err => {
+                    interaction.logger.error('Failed to acquire content for message', { error: err.stack || err });
+                    return getText(interaction.context.message);
+                });
     
-            context_tree.appendNode({ role: 'user', content: text, message_id, prev_message_id, name: author });
+            context_tree.appendNode({ role: 'user', content, message_id, prev_message_id, name: author });
         }
 
         const context = context_tree.getContext(message_id);
@@ -539,14 +702,19 @@ class ChatGPTHandler {
             });
     }
 
-    async handleContextRequest(interaction_context) {
-        if (!interaction_context?.message?.reply_to_message) {
+    /**
+     * Respond with file containing context of the message
+     * @param {GrammyContext} interaction 
+     * @returns {CommandResponse}
+     */
+    async handleContextRequest(interaction) {
+        if (!interaction?.message?.reply_to_message) {
             return ['Эта команда работает только при реплае на сообщение'];
         }
         
-        const message_id = interaction_context.message.reply_to_message.message_id;
+        const message_id = interaction.message.reply_to_message.message_id;
 
-        const context_tree = this._getContextTree(interaction_context.chat.id, { message_id });
+        const context_tree = this._getContextTree(interaction.chat.id, { message_id });
 
         const raw_context = context_tree.getRawContext(message_id);
 
@@ -570,8 +738,13 @@ class ChatGPTHandler {
         }
     }
 
-    async handleTreeRequest(interaction_context) {
-        const context_trees = this._getChatTrees(interaction_context.chat.id);
+    /**
+     * Respond with file containing context trees of the chat
+     * @param {GrammyContext} interaction 
+     * @returns {CommandResponse}
+     */
+    async handleTreeRequest(interaction) {
+        const context_trees = this._getChatTrees(interaction.chat.id);
         
         if (!context_trees.length) {
             return ['Пока деревьев нет.'];
@@ -595,11 +768,24 @@ class ChatGPTHandler {
         }
     }
 
+    /**
+     * Respond with ChatGPT response based on provided model, content of the replied message and/or text provided with the command
+     * @param {GrammyContext} interaction_context 
+     * @param {TelegramInteraction} interaction 
+     * @param {Model} model 
+     * @returns {Promise}
+     */
     async handleAnswerCommand(interaction_context, interaction, model = CHAT_MODEL_NAME) {
         const command_text = interaction_context.message.text.replace(new RegExp(`\/${interaction.command_name}(@${interaction_context.me.username})? *`), '');
+        const model_type = getModelType(model);
 
-        if (!(interaction_context.message.reply_to_message?.text || interaction_context.message.reply_to_message?.caption) 
-            && !command_text.length) {
+        if ((getModelType(model) === 'text'
+            && !(getText(interaction_context.message.reply_to_message)))
+            || (getModelType(model) === 'vision'
+            && !(interaction_context.message.reply_to_message?.photo?.length
+                || getText(interaction_context.message.reply_to_message)))
+            && !command_text.length)
+            {
             return ['Отправь эту команду как реплай на другое сообщение или напишите запрос в сообщении с командой, чтобы получить ответ.'];
         }
 
@@ -610,17 +796,23 @@ class ChatGPTHandler {
         let author = null;
 
         if (interaction_context.message.reply_to_message) {
-            const text = interaction_context.message.reply_to_message.text || interaction_context.message.reply_to_message.caption;
-            if (text?.length) {
-                ({ message_id, from: { first_name: author } } = interaction_context.message.reply_to_message);
-                context_tree = this._getContextTree(interaction_context.chat.id, { message_id, model })
+            ({ message_id, from: { first_name: author } } = interaction_context.message.reply_to_message);
+            context_tree = this._getContextTree(interaction_context.chat.id, { message_id, model })
+            const content = await getContent(interaction_context, model_type, interaction_context.message.reply_to_message);
+            if (typeof content === 'string' && model_type === 'vision') {
+                return ['Не смог обработать картинку, попробуй позже'];
+            }
+            else if (content.length) {
                 if (!context_tree.checkNodeExists({ message_id })) {
                     context_tree.appendNode({
                         role: (command_text?.length && interaction_context.from.id === interaction_context.me.id) ? 'assistant' : 'user',
-                        content: text,
+                        content,
                         message_id: message_id,
                         name: author
                     });
+                }
+                else if (context_tree.getModelType() !== model_type) {
+                    context_tree.getNode(message_id).content = content;
                 }
             }
         }
@@ -650,6 +842,11 @@ class ChatGPTHandler {
         return this._replyFromContext(interaction, context, context_tree, message_id);
     }
 
+    /**
+     * Change the system prompt for the chat's context trees
+     * @param {TelegramInteraction} context 
+     * @returns {ComplexContent}
+     */
     async handleAdjustSystemPrompt(context) {
         const new_system_prompt = context.message.text.split(' ').slice(1).join(' ');
         
@@ -664,8 +861,13 @@ class ChatGPTHandler {
         return [null, 'Обновил'];
     }
 
-    answerQuestion(interaction) {
-        if (!interaction.context.message.text && !interaction.context.message.caption) {
+    /**
+     * Answer request received by DM
+     * @param {TelegramInteraction} interaction 
+     * @returns {Promise}
+     */
+    async answerQuestion(interaction) {
+        if (!getText(interaction.context.message)) {
             return;
         }
 
@@ -674,6 +876,7 @@ class ChatGPTHandler {
         logger.info(`Processing ChatGPT request received by direct message`);
 
         const context_tree = this._getContextTree(interaction.context.chat.id);
+        const model_type = context_tree.getModelType();
 
         const {
             message_id,
@@ -681,9 +884,9 @@ class ChatGPTHandler {
         } = interaction.context.message;
 
         if (!context_tree.checkNodeExists({ message_id })) {
-            const text = interaction.context.message.text || interaction.context.message.caption;
+            const content = await getContent(interaction.context, model_type);
 
-            context_tree.appendNode({ role: 'user', content: text, message_id, name: author });
+            context_tree.appendNode({ role: 'user', content, message_id, name: author });
         }
 
         const context = context_tree.getContext(message_id);
@@ -698,6 +901,13 @@ class ChatGPTHandler {
             });
     }
 
+    /**
+     * Proxy to {@link ChatGPTHandler#handleAnswerCommand handleAnswerCommand}, mainly used to specify model
+     * @param {Model} model 
+     * @param {GrammyContext} context 
+     * @param {TelegramInteraction} interaction 
+     * @returns {Promise}
+     */
     async handleModeledAnswerCommand(model, context, interaction) {
         return await this.handleAnswerCommand(context, interaction, model);
     }
