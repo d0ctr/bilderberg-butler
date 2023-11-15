@@ -147,7 +147,7 @@ function getText(message) {
  * @returns {Promise<NodeContent>}
  * @memberof ChatGPT
  */
-async function getContent({ api, c_message }, type = 'text', message = c_message) {
+async function getContent({ api, message: c_message }, type = 'text', message = c_message) {
     if (type === 'vision' && message.photo?.[0]) {
         const [file_buffer, content_type] = 
             await api.getFile(message.photo
