@@ -776,15 +776,19 @@ class ChatGPTHandler {
      * @returns {Promise}
      */
     async handleAnswerCommand(interaction_context, interaction, model = CHAT_MODEL_NAME) {
-        const command_text = interaction_context.message.text.replace(new RegExp(`\/${interaction.command_name}(@${interaction_context.me.username})? *`), '');
+        const command_text = interaction_context.message.text.split(' ').slice(1).join(' ');
         const model_type = getModelType(model);
 
-        if ((getModelType(model) === 'text'
-            && !(getText(interaction_context.message.reply_to_message)))
-            || (getModelType(model) === 'vision'
-            && !(interaction_context.message.reply_to_message?.photo?.length
-                || getText(interaction_context.message.reply_to_message)))
-            && !command_text.length)
+        if ((
+                (
+                    getModelType(model) === 'text' 
+                    && !(getText(interaction_context.message.reply_to_message))
+                ) || (
+                    getModelType(model) === 'vision' 
+                    && !(interaction_context.message.reply_to_message?.photo?.length 
+                    || getText(interaction_context.message.reply_to_message))
+                )
+            ) && !command_text.length)
             {
             return ['Отправь эту команду как реплай на другое сообщение или напишите запрос в сообщении с командой, чтобы получить ответ.'];
         }
