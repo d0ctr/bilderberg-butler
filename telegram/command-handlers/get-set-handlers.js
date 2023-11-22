@@ -154,7 +154,7 @@ async function getList(ctx, interaction) {
         return [`Что-то случилось во время получения списка гетов:\n<code>${err}</code>`];
     }
     if (!gets?.length) {
-        return [`В этом чате ещё нет ни однго гета`];
+        return [`В этом чате ещё нет ни одного гета`];
     }
     return [null, `Геты доступные в этом чате:\n\n${gets.join(', ')}`, `${gets.join(', ')}`];
 }

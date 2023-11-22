@@ -632,6 +632,7 @@ class TelegramClient {
         this._registerTelegramCommand('vision', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('tldr', process.env.YA300_TOKEN && config.YA300_API_BASE, true);
         // this._registerTelegramCommand('imagine', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('voice', process.env.OPENAI_TOKEN);
         
         // Registering common commands
         commands.forEach((command_name, index) => {
