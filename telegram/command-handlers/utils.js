@@ -1,6 +1,6 @@
 /**
 * Parse command line
-* @param {GrammyTypes.Context | Object} input
+* @param {import('grammy').Context} input
 * @param {Integer} limit number of parsable args
 * @return {Array<String>} [0] is always a command name
 */

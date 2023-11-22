@@ -61,5 +61,7 @@ module.exports = {
     
     vision: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4-vision-preview', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4 с функцией обработки фотографии'] },
 
-    tldr: { handler: require('./command-handlers/tldr-handler').tldr, help: ['{url?}', 'Возвращает краткий персказ сгенерированный YandexGPT'] }
+    tldr: { handler: require('./command-handlers/tldr-handler').tldr, help: ['{url?}', 'Возвращает краткий персказ сгенерированный YandexGPT'] },
+    
+    voice: { handler: require('./command-handlers/voice-handler').voice, help: ['Генерирует голосове сообщение из текста'] },
 }
