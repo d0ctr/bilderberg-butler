@@ -175,7 +175,7 @@ function getText(message) {
  * @returns {Promise&lt;NodeContent>}
  * @memberof ChatGPT
  */
-async function getContent({ api, c_message }, type = 'text', message = c_message) {
+async function getContent({ api, message: c_message }, type = 'text', message = c_message) {
     if (type === 'vision' &amp;&amp; message.photo?.[0]) {
         const [file_buffer, content_type] = 
             await api.getFile(message.photo
@@ -804,15 +804,19 @@ class ChatGPTHandler {
      * @returns {Promise}
      */
     async handleAnswerCommand(interaction_context, interaction, model = CHAT_MODEL_NAME) {
-        const command_text = interaction_context.message.text.replace(new RegExp(`\/${interaction.command_name}(@${interaction_context.me.username})? *`), '');
+        const command_text = interaction_context.message.text.split(' ').slice(1).join(' ');
         const model_type = getModelType(model);
 
-        if ((getModelType(model) === 'text'
-            &amp;&amp; !(getText(interaction_context.message.reply_to_message)))
-            || (getModelType(model) === 'vision'
-            &amp;&amp; !(interaction_context.message.reply_to_message?.photo?.length
-                || getText(interaction_context.message.reply_to_message)))
-            &amp;&amp; !command_text.length)
+        if ((
+                (
+                    getModelType(model) === 'text' 
+                    &amp;&amp; !(getText(interaction_context.message.reply_to_message))
+                ) || (
+                    getModelType(model) === 'vision' 
+                    &amp;&amp; !(interaction_context.message.reply_to_message?.photo?.length 
+                    || getText(interaction_context.message.reply_to_message))
+                )
+            ) &amp;&amp; !command_text.length)
             {
             return ['Отправь эту команду как реплай на другое сообщение или напишите запрос в сообщении с командой, чтобы получить ответ.'];
         }
@@ -952,13 +956,13 @@ module.exports = new ChatGPTHandler();
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="ChatGPT.html">ChatGPT</a></li></ul><h3>Classes</h3><ul><li><a href="ChatGPT.ChatGPTHandler.html">ChatGPTHandler</a></li><li><a href="ChatGPT.ContextNode.html">ContextNode</a></li><li><a href="ChatGPT.ContextTree.html">ContextTree</a></li><li><a href="TelegramClient.html">TelegramClient</a></li><li><a href="TelegramInteraction.html">TelegramInteraction</a></li></ul><h3>Global</h3><ul><li><a href="global.html#bot">bot</a></li><li><a href="global.html#clearNotification">clearNotification</a></li><li><a href="global.html#commonizeContext">commonizeContext</a></li><li><a href="global.html#del">del</a></li><li><a href="global.html#editNotificationMessage">editNotificationMessage</a></li><li><a href="global.html#fizzbuzz">fizzbuzz</a></li><li><a href="global.html#generateAPICall">generateAPICall</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#getAhegaoUrl">getAhegaoUrl</a></li><li><a href="global.html#getDiscordNotification">getDiscordNotification</a></li><li><a href="global.html#getList">getList</a></li><li><a href="global.html#getPresenceNotification">getPresenceNotification</a></li><li><a href="global.html#getRedis">getRedis</a></li><li><a href="global.html#getUrbanDefinition">getUrbanDefinition</a></li><li><a href="global.html#gh">gh</a></li><li><a href="global.html#handleCommand">handleCommand</a></li><li><a href="global.html#handler">handler</a></li><li><a href="global.html#help">help</a></li><li><a href="global.html#html">html</a></li><li><a href="global.html#parseArgs">parseArgs</a></li><li><a href="global.html#pinNotificationMessage">pinNotificationMessage</a></li><li><a href="global.html#replaceWithLink">replaceWithLink</a></li><li><a href="global.html#replyWithText">replyWithText</a></li><li><a href="global.html#sendNotificationMessage">sendNotificationMessage</a></li><li><a href="global.html#set">set</a></li><li><a href="global.html#startRedis">startRedis</a></li><li><a href="global.html#urbanToHTML">urbanToHTML</a></li><li><a href="global.html#ytdl">ytdl</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="ChatGPT.html">ChatGPT</a></li></ul><h3>Classes</h3><ul><li><a href="ChatGPT.ChatGPTHandler.html">ChatGPTHandler</a></li><li><a href="ChatGPT.ContextNode.html">ContextNode</a></li><li><a href="ChatGPT.ContextTree.html">ContextTree</a></li><li><a href="TelegramClient.html">TelegramClient</a></li><li><a href="TelegramInteraction.html">TelegramInteraction</a></li></ul><h3>Global</h3><ul><li><a href="global.html#bot">bot</a></li><li><a href="global.html#clearNotification">clearNotification</a></li><li><a href="global.html#commonizeContext">commonizeContext</a></li><li><a href="global.html#del">del</a></li><li><a href="global.html#editNotificationMessage">editNotificationMessage</a></li><li><a href="global.html#fizzbuzz">fizzbuzz</a></li><li><a href="global.html#generateAPICall">generateAPICall</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#getAhegaoUrl">getAhegaoUrl</a></li><li><a href="global.html#getDiscordNotification">getDiscordNotification</a></li><li><a href="global.html#getList">getList</a></li><li><a href="global.html#getPresenceNotification">getPresenceNotification</a></li><li><a href="global.html#getRedis">getRedis</a></li><li><a href="global.html#getUrbanDefinition">getUrbanDefinition</a></li><li><a href="global.html#gh">gh</a></li><li><a href="global.html#handleCommand">handleCommand</a></li><li><a href="global.html#handler">handler</a></li><li><a href="global.html#help">help</a></li><li><a href="global.html#html">html</a></li><li><a href="global.html#parseArgs">parseArgs</a></li><li><a href="global.html#pinNotificationMessage">pinNotificationMessage</a></li><li><a href="global.html#replaceWithLink">replaceWithLink</a></li><li><a href="global.html#replyWithText">replyWithText</a></li><li><a href="global.html#sendNotificationMessage">sendNotificationMessage</a></li><li><a href="global.html#set">set</a></li><li><a href="global.html#startRedis">startRedis</a></li><li><a href="global.html#urbanToHTML">urbanToHTML</a></li><li><a href="global.html#voice">voice</a></li><li><a href="global.html#ytdl">ytdl</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Sat Nov 11 2023 17:19:41 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Wed Nov 22 2023 22:44:07 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
