@@ -10,7 +10,7 @@ const logger = require('../../logger').child({ module: 'tinkov-handler' });
  * @param {number} n limit
  * @returns {Promise<[name: string, FileData][]>}
  */
-async function getBest(pattern = null, n = 10) {
+async function getBest(pattern = null, n = 50) {
     const redis = require('../../services/redis').getRedis();
     if (!redis) {
         throw new Error('Storage is offline');
