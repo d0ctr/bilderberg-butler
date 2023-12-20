@@ -64,4 +64,6 @@ module.exports = {
     tldr: { handler: require('./command-handlers/tldr-handler').tldr, help: ['{url?}', 'Возвращает краткий персказ сгенерированный YandexGPT'] },
     
     voice: { handler: require('./command-handlers/voice-handler').voice, help: ['Генерирует голосове сообщение из текста'] },
+    
+    tinkov: { handler: require('./command-handlers/tinkov-handler'), help: ['{запрос?} Даёт возможность поделится умными словами'] },
 }
