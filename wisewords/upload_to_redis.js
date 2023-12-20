@@ -1,6 +1,6 @@
 const { default: Redis } = require('ioredis');
 
-const REDIS_URL = "redis://default:mAKjN2CmG2loLGaC2nB1jiEp41PMBfPG@monorail.proxy.rlwy.net:27700";
+const REDIS_URL = "";
 
 const redis = new Redis(REDIS_URL);
 
