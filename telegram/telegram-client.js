@@ -9,6 +9,7 @@ const { commands, conditions, definitions, handlers } = require('../commands/han
 const ChatGPTHandler = require('./gpt-handler');
 const { isNotificationMessage: isChannelNotificationMessage } = require('./channel-subscriber.js');
 const { isNotificationMessage: isEventNotificationMessage } = require('./event-subscriber.js');
+const { used: tinkovUsed } = require('./command-handlers/tinkov-handler.js');
 
 const no_tags_regex = /<\/?[^>]+(>|$)/g;
 
@@ -527,7 +528,7 @@ class TelegramInteraction {
             type: 'private'
         };
 
-        this.logger.info(`Received eligible inline query, parsed context [${JSON.stringify(parsed_context)}]`);
+        this.logger.info(`Received eligible inline query, will call handler`);
 
         (async () => {
             if (TelegramHandlers[command_name]?.handler) {
@@ -682,23 +683,24 @@ class TelegramClient {
                     type: 'default'
                 }
             }
-        )
-        .catch(err => {
+        ).catch(err => {
             this.logger.error('Error while registering commands', { error: err.stack || err });
-        })
-        .then(registered => {
+        }).then(registered => {
             if (registered) this.logger.debug('Received successful response for commands registering');
             return this.client.api.getMyCommands({ scope: { type: 'default' } });
-        })
-        .catch(err => {
+        }).catch(err => {
             this.logger.error('Error while getting registered commands', { error: err.stack || err });
-        })
-        .then(commands => {
+        }).then(commands => {
             this.logger.debug(`Received following registered commands: ${JSON.stringify(commands)}`);
-        })
-        ;
+        });
 
         this.client.on('inline_query', async (ctx) => new TelegramInteraction(this, 'inline_query', ctx).answer());
+
+        this.client.on('chosen_inline_result', (ctx) => {
+            if (ctx.chosenInlineResult?.result_id?.startsWith('tinkov:')) {
+                tinkovUsed(ctx.chosenInlineResult.result_id);
+            }
+        })
     }
 
     async _saveInterruptedWebhookURL() {

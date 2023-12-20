@@ -20,7 +20,7 @@ function isSimilar(name, pattern) {
  * Get array of files, that suffice the pattern if specified
  * @param {string?} pattern search pattern 
  * @param {number} n limit
- * @returns {Promise<[name: string, FileData][]>}
+ * @returns {Promise<[string, FileData][]>}
  */
 async function getBest(pattern = null, n = 50) {
     const redis = require('../../services/redis').getRedis();
@@ -30,7 +30,7 @@ async function getBest(pattern = null, n = 50) {
 
     const names = [];
     try {
-        if (pattern === null) {
+        if (pattern == null) {
             const result = await redis.zrange('tinkov:ratings', 0, n - 1, 'REV');
             names.push(...result);
         }
@@ -45,43 +45,57 @@ async function getBest(pattern = null, n = 50) {
     if (!names.length) return [];
 
     const data = await redis.hmget('tinkov:data', names)
-        .catch(err => {logger.error('Failed to get data for names from [tinkov:data]', { error: err.stack || err })});
+        .catch(err => {
+            logger.error('Failed to get data for names from [tinkov:data]', { error: err.stack || err });
+            return [];
+        });
 
-    return data.filter(d => !!d).map((d, i) => [names[i], JSON.parse(d)]);
+    return data.map((d, i) => [names[i], !!d ? JSON.parse(d) : null]).filter(([_, d]) => d != null);
 }
 
 /**
  * Increment the rank values since file was used
- * @param {string} name 
+ * @param {string} file_unique_id 
  */
-async function used(name) {
+async function used(file_unique_id) {
     const redis = require('../../services/redis').getRedis();
     if (!redis) {
-        throw new Error('Storage is offline');
+        logger.error('Attempted to update the rank of a result, but the storage is offline');
+        return;
     }
+    if (file_unique_id.startsWith('tinkov:')) file_unique_id = file_unique_id.slice('tinkov:'.length);
+
+    const name = await redis.hget('tinkov:map', file_unique_id).catch(err => {
+        logger.error(`Could not find the name for the file_unique_id [${file_unique_id}]`, { error: err.stack || err });
+        return null;
+    });
+    if (name == null) return;
 
     redis.zincrby('tinkov:ratings', 1, name)
-        .catch(err => logger.error(`Failed to incr rating of name [${name}] in [tinkov:data]`, { error: err.stack || err }));
+        .catch(err => logger.error(`Failed to increment rating of name [${name}] in [tinkov:data]`, { error: err.stack || err }));
 }
 
 async function tinkov(input) {
     let pattern = require('./utils').parseArgs(input, 1)[1];
 
-    if (!pattern || !pattern.length) pattern = null;
+    if (!pattern || !pattern?.length) pattern = null;
 
     try {
         const results = await getBest(pattern);
         if (!results.length) return ['Ничего не нашлось'];
 
-        return [null, results.map(r => ({
-            type: 'video',
-            media: r[1].file_id,
-            text: r[0],
-            overrides: {
-                caption: null,
-                id: r[1].file_unique_id,
-            }
-        }))]
+        return [
+            null,
+            results.map(r => ({
+                type: 'video',
+                media: r[1].file_id,
+                text: r[0],
+                overrides: {
+                    caption: null,
+                    id: `tinkov:${r[1].file_unique_id}`,
+                }
+            })),
+        ]
     }
     catch (err) {
         this.logger.error('Failed to get files data', { error: err.stack || err });
@@ -89,4 +103,7 @@ async function tinkov(input) {
     }
 }
 
-module.exports = tinkov;
+module.exports = { 
+    tinkov,
+    used
+};
