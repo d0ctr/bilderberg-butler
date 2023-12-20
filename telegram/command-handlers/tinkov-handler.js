@@ -5,6 +5,18 @@ const logger = require('../../logger').child({ module: 'tinkov-handler' });
  */
 
 /**
+ * Checks if a given name includes all the specified words in a pattern.
+ *
+ * @param {string} name - The name to check.
+ * @param {string} pattern - The pattern containing words to check against the name.
+ * @returns {boolean} True if the name includes all words in the pattern, false otherwise.
+ */
+function isSimilar(name, pattern) {
+    const words = pattern.split(/[ ,.]+/);
+    return words.every(word => name.includes(word));
+}
+
+/**
  * Get array of files, that suffice the pattern if specified
  * @param {string?} pattern search pattern 
  * @param {number} n limit
@@ -24,7 +36,7 @@ async function getBest(pattern = null, n = 50) {
         }
         else {
             const result = await redis.zrange('tinkov:ratings', 0, -1, 'REV')
-            names.push(...result.filter(r => r.includes(pattern.toLowerCase())).slice(0, 10))
+            names.push(...result.filter(r => isSimilar(r, pattern.toLowerCase())).slice(0, 10))
         }
     }
     catch (err) {
