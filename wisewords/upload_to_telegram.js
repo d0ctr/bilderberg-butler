@@ -3,8 +3,8 @@ const { join } = require('node:path');
 
 const { Bot, InputFile } = require('grammy');
 
-const TELEGRAM_TOKEN = "5477409830:AAG2-oIKtC7IJcPX9IGe3SV_k0DdeKVyVf0";
-const MY_CHAT_ID = "159334260";
+const TELEGRAM_TOKEN = "";
+const MY_CHAT_ID = "";
 
 const bot = new Bot(TELEGRAM_TOKEN, {
     client: {
