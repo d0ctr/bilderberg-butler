@@ -68,6 +68,7 @@ This bot talks with you in Russian (because I've decided so, fill free to add tr
   - /gh {link} — convert GitHub link to a GitHub link with Instant View
   - /deep {prompt} — generates an image based on prompt with DeepAI
   - /fizzbuzz {number_1} {word_1} ... {number_n} {word_n} - fizzbuzz from 1 to 101
+  - /t {query?} - get wise man's words
 
 ### Inline Query
 
@@ -86,6 +87,7 @@ Here is the list of supported inline commands:
   - /gh
   - /curl
   - /wiki
+  - /t
 
 ### ChatGPT integration
 
