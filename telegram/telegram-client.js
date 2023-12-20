@@ -646,9 +646,7 @@ class TelegramClient {
         this._registerTelegramCommand('tldr', process.env.YA300_TOKEN && config.YA300_API_BASE, true);
         // this._registerTelegramCommand('imagine', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('voice', process.env.OPENAI_TOKEN);
-
-        this._registerTelegramCommand('tinkov', this.app && this.app.redis, true);
-        this._registerTelegramCommand('t', this.app && this.app.redis, true, 'tinkov');
+        this._registerTelegramCommand('t', this.app && this.app.redis, true);
         
         // Registering common commands
         commands.forEach((command_name, index) => {
