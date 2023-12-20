@@ -241,7 +241,8 @@ class TelegramInteraction {
             caption: message.text,
             ...this._getBasicMessageOptions(),
             ...this._getTextOptions(),
-            ...overrides
+            ...overrides,
+            ...message.overrides
         };
 
         let media;
@@ -333,13 +334,19 @@ class TelegramInteraction {
                     }
                 }).then(callback);
             }
-            if (response instanceof String || typeof response === 'string') {
+            else if (response instanceof String || typeof response === 'string') {
                 return this._reply(response, overrides).catch((err) => {
                     this.logger.error(`Error while replying with response text to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
                 }).then(callback);
             }
-            if (response instanceof Object) {
+            else if (Array.isArray(response)) {
+                this._replyWithMedia(response[0], overrides).catch(err => {
+                    this.logger.error(`Error while replying with single media from array to [${this.command_name}]`);
+                    this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
+                })
+            }
+            else if (response instanceof Object) {
                 return this._replyWithMedia(response, overrides).catch((err) => {
                     this.logger.error(`Error while replying with media to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
@@ -400,6 +407,7 @@ class TelegramInteraction {
             thumbnail_url,
             ...this._getTextOptions(),
             ...overrides,
+            ...media.overrides
         };
         result[`${inline_type}${suffix}`] = data;
 
@@ -544,7 +552,12 @@ class TelegramInteraction {
                             this.logger.error(`Error while responsing to inline query with text`, { error: err.stack || err })
                         );
                     }
-                    if (response instanceof Object) {
+                    else if (Array.isArray(response)) {
+                        return this._answerQuery(response.map(r => this._generateInlineMedia(r, overrides))).catch(err => 
+                            this.logger.error('Error while responding to inline query with array', { error: err.stack || err })
+                        );
+                    }
+                    else if (response instanceof Object) {
                         return this._answerQuery([this._generateInlineMedia(
                             response,
                             overrides
@@ -633,6 +646,7 @@ class TelegramClient {
         this._registerTelegramCommand('tldr', process.env.YA300_TOKEN && config.YA300_API_BASE, true);
         // this._registerTelegramCommand('imagine', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('voice', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('t', this.app && this.app.redis, true);
         
         // Registering common commands
         commands.forEach((command_name, index) => {
