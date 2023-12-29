@@ -16,13 +16,10 @@ function urbanToHTML(urban_definition) {
     urban_definition.definition = replaceWithLink(urban_definition.definition);
     urban_definition.example = replaceWithLink(urban_definition.example);
 
-    let html = `<a href="${urban_definition.permalink}">${urban_definition.word}</a>
-
-${urban_definition.definition}
-
-<blockquote>${urban_definition.example}</blockquote>
-
-${urban_definition.thumbs_up} 👍|👎 ${urban_definition.thumbs_down}`;
+    let html = `<a href="${urban_definition.permalink}">${urban_definition.word}</a>\n\n`
+        + `${urban_definition.definition}\n\n`
+        + `<blockquote>${urban_definition.example}</blockquote>\n\n`
+        + `${urban_definition.thumbs_up} 👍|👎 ${urban_definition.thumbs_down}`;
 
     return html;
 }
@@ -35,7 +32,7 @@ function replaceWithLink(line) {
     let result = line;
     let matches = line.matchAll(/\[(?<term>[^\[\]]+)\]/gm);
     for (const [match, term] of matches) {
-        result = result.replace(match, `<a href="${URBAN_DEFINITION_URL}${new URLSearchParams({term})}">${term}</a>`);
+        result = result.replace(match, `<a href="${URBAN_DEFINITION_URL}?${new URLSearchParams({term})}">${term}</a>`);
     }
     return result;
 }

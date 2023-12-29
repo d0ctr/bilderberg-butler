@@ -3,10 +3,11 @@ const { EmbedBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle, MessagePaylo
 
 const turndownService = new TurndownService({
     codeBlockStyle: 'fenced',
+    br: ' '
 });
 
 turndownService.addRule('a', {
-    filter: ['a'],
+    filter: 'a',
     replacement: (content, node) => {
         const href = node.getAttribute('href');
         return `[${content}](<${href}>)`;
@@ -63,7 +64,7 @@ function replyWithText(interaction, response, logger) {
     //     response.embeds = [embed];
     // }
 
-    interaction.editReply({ content: response.text, components: response?.components })
+    interaction.editReply({ content: response.text, components: response?.components, embeds: response?.embeds })
     .then((messsage) => {
         logger.debug('Replied!', { message_id: messsage.id });
     }).catch(err => {
@@ -83,7 +84,7 @@ function replyWithText(interaction, response, logger) {
 }
 
 function replyWithEmbed(interaction, response, logger) {
-    const payload = {};
+    const payload = { embeds: [] };
 
     const embed = new EmbedBuilder();
 
@@ -102,7 +103,10 @@ function replyWithEmbed(interaction, response, logger) {
     else {
         logger.info(`Replying with media of type: ${response.type}`);
         embed.setImage(response.media);
-        payload.embeds = [embed];
+        payload.embeds.push(embed);
+    }
+    if (response?.embeds) {
+        payload.embeds.unshift(...response.embeds);
     }
 
     interaction.editReply(payload)
@@ -122,7 +126,7 @@ function replyWithEmbed(interaction, response, logger) {
 }
 
 function replyWithFile(interaction, response, logger) {
-    const payload = {};
+    const payload = { embeds: [] };
 
     if (response.text) {
         payload.content = response.text;
@@ -135,6 +139,9 @@ function replyWithFile(interaction, response, logger) {
     if (response.filename) {
         logger.info(`Replying with file of type: ${response.type}`);
         payload.files = [{ name: response.filename, attachment: response.media }];
+    }
+    if (response?.embeds) {
+        payload.embeds.unshift(...response.embeds);
     }
 
     interaction.editReply(payload)
@@ -154,7 +161,6 @@ function replyWithFile(interaction, response, logger) {
 }
 
 function reply(interaction, response, logger) {
-
     if (response?.overrides?.followup) {
         const { text, url } = response.overrides.followup;
         const components = [
@@ -167,6 +173,25 @@ function reply(interaction, response, logger) {
                 )
         ];
         response.components = components;
+    }
+
+    if (response.overrides?.buttons) {
+        if (!response.components) response.components = [];
+        
+        response.components.push(...response.overrides.buttons.map(row => {
+            const actionRow = new ActionRowBuilder();
+            actionRow.addComponents(...row.map(button => {
+                return new ButtonBuilder()
+                    .setLabel(button.name)
+                    .setCustomId(button.callback)
+                    .setStyle(ButtonStyle.Primary);
+            }));
+            return actionRow;
+        }));
+    }
+
+    if (response?.overrides?.embeded_image) {
+        response.embeds = [new EmbedBuilder().setImage(response?.overrides?.embeded_image)];
     }
 
     while (response?.text?.length >= 2000) response.text = response.text.split('\n').slice(0, -1).join('\n');
@@ -228,7 +253,9 @@ function handleCommand(interaction, handler ,definition) {
     .then(() => handler(common_interaction))
     .then(response => {
         if (response.text) {
-            response.text = turndownService.turndown(response.text.replace(/(\n|\\\\n)/gm, '<br>'));
+            response.text = response.text.replace(/\n|\\n/gm, '<br/>');
+            response.text = turndownService.turndown(response.text);
+            response.text = response.text.replace(/( *\n *){2,}/gm, '\n\n')
         }
         reply(interaction, response, logger);
     }).catch(err => {

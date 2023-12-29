@@ -17,7 +17,7 @@ const getGamesFromRAWG = async ({ search, ...args } = {}) => {
 const getTextFromGameDetail = (game) => {
     return (/** game?.background_image ? getInvisibleLink(game.background_image) : **/ '')
         + `🎮 <a href="${RAWG_BASE}/games/${game?.slug}">${game.name}</a>\n`
-        + (game?.released ? `Дата релиза: ${(new Date(game.released)).toLocaleDateString('en-GB')}\n` : '' )
+        + (game?.released ? `Дата релиза: ${(new Date(game.released)).toLocaleDateString('de-DE')}\n` : '' )
         + (game?.metacritic ? `Metacritic: ${game.metacritic}\n` : '')
         + (game?.playtime ? `Среднее время прохождения: ${game.playtime} часов\n` : '')
         + (game?.platforms?.length ? `Платформы: ${game.platforms.filter(v => v.platform?.name).map(v => v?.platform.name).join(', ')}\n` : '')
@@ -141,44 +141,45 @@ exports.handler = async (interaction) => {
             const key = genKey();
 
             let buttons = null;
-            if (json.results > 0) {
+            if (json.results.length > 0) {
                 try {
-                    await saveResults(json.results.slice(0, 10));
+                    await saveResults(`game:${key}`, json.results.slice(0, 10));
                 }
                 catch (err) {
-                    interaction.logger('Failed to save game results', { error: err.stack || err });
+                    interaction.logger.error('Failed to save game results', { error: err.stack || err });
                 }
 
-                buttons = json.results.slice(1, 4).map((game, next) => ({
+                buttons = json.results.slice(1, 4).map((game, next) => ([{
                     name: `${game.name} (${new Date(game.released).getFullYear()})`,
                     callback: getCallbackData({ key, next })
-                }));
+                }]));
 
                 if (json.results.length == 5) {
                     const game = json.results[4];
-                    buttons.push({
+                    buttons.push([{
                         name: `${game.name} (${new Date(game.released).getFullYear()})`,
                         callback: getCallbackData({ key, next: 4 })
-                    })
+                    }])
                 }
                 else if (json.results.length > 4) {
-                    buttons.push({
+                    buttons.push([{
                         name: '⏬',
                         callback: getCallbackData({ key, next: `>4`})
-                    });
+                    }]);
                 }
             }
 
             return {
                 type: 'text',
                 text: getTextFromGameDetail(json.results[0]),
-                buttons,
                 overrides: {
                     link_preview_options: {
                         is_disabled: false,
                         show_above_text: true,
-                        url: json.results[0]?.background_image
-                    }
+                        url: json.results[0]?.background_image,
+                    },
+                    buttons,
+                    embeded_image: json.results[0]?.background_image,
                 }
             };
         })

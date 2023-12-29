@@ -81,11 +81,17 @@ function replyWithText(ctx, response, logger) {
     return ctx.reply(
         response.text,
         {
-            allow_sending_without_reply: true,
-            reply_to_message_id: ctx.message?.reply_to_message?.message_id || ctx.message?.message_id,
             parse_mode: 'HTML',
-            disable_web_page_preview: true,
-            ...response.overrides
+            ...response.overrides,
+            reply_parameters: {
+                allow_sending_without_reply: true,
+                message_id: ctx.message?.reply_to_message?.message_id || ctx.message?.message_id,
+                ...response.overrides?.reply_parameters
+            },
+            link_preview_options: {
+                is_disabled: true,
+                ...response.overrides?.link_preview_options
+            },
         }
     ).then((message) => {
         logger.debug('Replied!', { message_id: message.message_id });
@@ -145,6 +151,17 @@ function reply(ctx, response, logger) {
         response.overrides.reply_markup = new InlineKeyboard().url(text, url);
     }
 
+    if (response.overrides?.buttons) {
+        if (!response.overrides.reply_markup) response.overrides.reply_markup = new InlineKeyboard();
+        response.overrides.reply_markup.row();
+        for (const row of response.overrides.buttons) {
+            for (const button of row) {
+                response.overrides.reply_markup.text(button.name, button.callback);
+            }
+            response.overrides.reply_markup.row();
+        }
+    }
+
     if (!sendReply) {
         return replyWithText(ctx, response, logger);
     }
@@ -164,11 +181,17 @@ function reply(ctx, response, logger) {
         media,
         {
             caption: response.text,
-            allow_sending_without_reply: true,
-            reply_to_message_id: ctx.message?.reply_to_message?.message_id || ctx.message?.message_id,
             parse_mode: 'HTML',
-            disable_web_page_preview: true,
-            ...response.overrides
+            ...response.overrides,
+            reply_parameters: {
+                allow_sending_without_reply: true,
+                message_id: ctx.message?.reply_to_message?.message_id || ctx.message?.message_id,
+                ...response.overrides?.reply_parameters
+            },
+            link_preview_options: {
+                is_disabled: true,
+                ...response.overrides?.link_preview_options
+            },
         }
     ).then((message) => {
         logger.debug('Replied!', { message_id: message.message_id});
