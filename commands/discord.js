@@ -228,7 +228,7 @@ function handleCommand(interaction, handler ,definition) {
     .then(() => handler(common_interaction))
     .then(response => {
         if (response.text) {
-            response.text = turndownService.turndown(response.text.replace(/(\n|\\n)/gm, '<br/>'));
+            response.text = turndownService.turndown(response.text.replace(/(\n|\\\\n)/gm, '<br>'));
         }
         reply(interaction, response, logger);
     }).catch(err => {

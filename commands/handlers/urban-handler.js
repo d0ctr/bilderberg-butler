@@ -2,7 +2,7 @@ const { default: axios } = require('axios');
 
 const config = require('../../config.json');
 
-const URBAN_DEFINITION_URL = "https://www.urbandictionary.com/define.php?term=";
+const URBAN_DEFINITION_URL = "https://www.urbandictionary.com/define.php";
 
 /**
  * Convert urban_definition by urban dictionary API to text HTML
@@ -35,7 +35,7 @@ function replaceWithLink(line) {
     let result = line;
     let matches = line.matchAll(/\[(?<term>[^\[\]]+)\]/gm);
     for (const [match, term] of matches) {
-        result = result.replace(match, `<a href="${URBAN_DEFINITION_URL}${term}">${term}</a>`);
+        result = result.replace(match, `<a href="${URBAN_DEFINITION_URL}${new URLSearchParams({term})}">${term}</a>`);
     }
     return result;
 }
