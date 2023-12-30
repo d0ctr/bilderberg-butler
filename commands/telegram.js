@@ -309,10 +309,12 @@ async function getLegacyResponse(ctx, handler, definition) {
  * @param {*} response 
  */
 async function answerCallback(ctx, response) {
-    if (response.type === 'error') {
+    if (response.type === 'error' || response.type === 'delete_buttons') {
         return ctx.answerCallbackQuery({
             text: response.text
-        });
+        }).then(() => ctx.editMessageReplyMarkup({
+            reply_markup: null
+        }));
     }
 
     ctx.answerCallbackQuery();

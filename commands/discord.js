@@ -340,6 +340,11 @@ async function answerCallback(interaction, response) {
                 components: response.components,
                 files: response.files,
             })
+        case 'delete_buttons':
+            return interaction.followUp(response.text)
+                .then(() => interaction.editReply({
+                    components: []
+                }));
         case 'edit_buttons':
             return interaction.editReply({
                 components: response.components

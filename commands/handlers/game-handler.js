@@ -1,5 +1,5 @@
 const { RAWG_API_BASE, RAWG_BASE } = require('../../config.json');
-const { genKey, range } = require('../utils');
+const { genKey, range, encodeCallbackData, listingMenuCallback } = require('../utils');
 const { getRedis } = require('../../services/redis');
 const logger = require('../../logger').child({ module: 'game-handler' });
 
@@ -56,7 +56,7 @@ const saveResults = async (key, games) => {
  * @param {number?} stop 
  * @returns {Promise<[{[number]: {url: string?, text: string, name: string, released: string}}, number] | [null]>}
  */
-const getGamesFromRedis = async (key, start, stop = start + 3, except) => {
+const getGamesFromRedis = async (key, start, stop = start + 2) => {
     const redis = getRedis();
     if (redis == null) {
         logger.error('Can not get game results, redis is unavailable');
@@ -64,12 +64,6 @@ const getGamesFromRedis = async (key, start, stop = start + 3, except) => {
     }
 
     let indexes = range(start, stop + 1);
-    if (except != null && start <= except && except <= stop) {
-        if (start === 0) indexes.push(stop++);
-        else indexes.push(start--);
-
-        delete indexes[indexes.indexOf(except)];
-    }
 
     try {
         const data = await redis.hmget(`games:${key}`, ...indexes);
@@ -88,36 +82,12 @@ const getGamesFromRedis = async (key, start, stop = start + 3, except) => {
 }
 
 /**
- * Generate callback data of the form `prefix:key:current:next`
- * @param {{ prefix: string?, key: string, current: number?, next: number | string }}
- */
-const getCallbackData = ({ prefix = exports.definition.command_name, key, current = 0, next }) => {
-    return `${prefix}:${key}:${current}:${next}`;
-}
-
-/**
  * 
- * @param {'prefix:key:current:next'} data
- *  @returns {{ prefix: string, key: string, current: number, next: number | string }}
+ * @param {{ key: string, current: number, next: string | number }} data 
+ * @returns 
  */
-const parseCallbackData = (data) => {
-    return data.split(':').reduce((acc, value, i) => {
-        switch(i) {
-            case 0:
-                acc.prefix = value;
-                break;
-            case 1:
-                acc.key = value;
-                break;
-            case 2:
-                acc.current = parseInt(value);
-                break
-            case 3:
-                acc.next = ['<', '>'].includes(value[0]) ? value : parseInt(value);
-                break;
-        }
-        return acc;
-    }, {});
+const getCallbackData = (data) => {
+    return encodeCallbackData({ prefix: 'game', ...data});
 }
 
 exports.definition = {
@@ -181,22 +151,15 @@ exports.handler = async (interaction) => {
                     interaction.logger.error('Failed to save game results', { error: err.stack || err });
                 }
 
-                buttons = json.results.slice(1, 4).map((game, i) => ([{
-                    name: `${game.name} (${new Date(game.released).getFullYear()})`,
-                    callback: getCallbackData({ key, next: i + 1 })
+                buttons = json.results.slice(0, 3).map((game, i) => ([{
+                    name: `${i === 0 ? '☑️ ' : '' }${game.name} (${new Date(game.released).getFullYear()})`,
+                    callback: getCallbackData({ key, current: 0, next: i + 1 })
                 }]));
 
-                if (json.results.length == 5) {
-                    const game = json.results[4];
-                    buttons.push([{
-                        name: `${game.name} (${new Date(game.released).getFullYear()})`,
-                        callback: getCallbackData({ key, next: 4 })
-                    }])
-                }
-                else if (json.results.length > 4) {
+                if (json.results.length > 4) {
                     buttons.push([{
                         name: '⏬',
-                        callback: getCallbackData({ key, next: `>4`})
+                        callback: getCallbackData({ key, current: 0, next: `>4`})
                     }]);
                 }
             }
@@ -229,90 +192,5 @@ exports.handler = async (interaction) => {
  * @param {import('../utils').Interaction} interaction 
  */
 exports.callback = async (interaction) => {
-    const { key, ...data} = parseCallbackData(interaction.data);
-    let current = data.current;
-    let next = data.next;
-
-    let start;
-    let stop;
-    let except = null;
-
-    if (typeof next === 'number') {
-        start = next;
-        stop = start + 4;
-        current = next;
-    }
-    else {
-        const direction = next[0];
-        start = parseInt(next.slice(1));
-
-        if (direction === '>') {
-            stop = start + 3;
-        }
-        else if (direction === '<') {
-            start = start - 3 > 0 ? start - 3 : 0; 
-            stop = start + 3;
-        }
-        except = current;
-    }
-
-    const [games, size] = await getGamesFromRedis(key, start, stop, except);
-    
-    let buttons = [];
-    let indexes = Object.keys(games).map(v => +v);
-    
-    start = indexes[0];
-    stop = indexes.slice(-1)[0];
-
-    if (start > 0 && current !== 0) {
-        buttons.push([{
-            name: '⏫',
-            callback: getCallbackData({ key, current, next: `<${start - 1}` })
-        }]);
-    }
-
-    for (const i of indexes.slice(next === current ? 1 : 0, -1)) {
-        buttons.push([{
-            name: games[i].name,
-            callback: getCallbackData({ key, current, next: i })
-        }]);
-    }
-    
-    if (stop === size - 1 && stop !== current) {
-        const game = games[stop];
-        buttons.push([{
-            name: game.name,
-            callback: getCallbackData({ key, current, next: stop})
-        }]);
-    }
-    else if (stop + 1 < size) {
-        buttons.push([{
-            name: `⏬`,
-            callback: getCallbackData({ key, current, next: `>${stop + 1}` })
-        }]);
-    }
-
-    if (next === current) {
-        return {
-            type: 'edit_text',
-            text: games[current].text,
-            overrides: {
-                link_preview_options: {
-                    is_disabled: false,
-                    show_above_text: true,
-                    url: games[current].url
-                },
-                buttons,
-                embeded_image: games[current].url
-            }
-        }
-    }
-    else {
-        return {
-            type: 'edit_buttons',
-            overrides: {
-                buttons
-            }
-        };
-    }
+    return listingMenuCallback(interaction, getGamesFromRedis);
 }
