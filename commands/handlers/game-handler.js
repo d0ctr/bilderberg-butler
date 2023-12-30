@@ -160,7 +160,7 @@ exports.handler = async (interaction) => {
                 callback: getCallbackData({ key, current: 0, next: i })
             }]));
 
-            if (json.results.length > 4) {
+            if (json.results.length > 3) {
                 buttons.push([{
                     name: '⏬',
                     callback: getCallbackData({ key, current: 0, next: `>3`})
