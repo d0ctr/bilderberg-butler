@@ -4,8 +4,8 @@ const { hydrateFiles } = require('@grammyjs/files');
 const TelegramHandlers = require('./telegram-handler');
 const config = require('../config.json');
 const { setHealth } = require('../services/health');
-const { handleCommand, getLegacyResponse } = require('../commands/telegram');
-const { commands, conditions, definitions, handlers } = require('../commands/handlers-exporter');
+const { handleCommand, getLegacyResponse, handleCallback } = require('../commands/telegram');
+const { commands, conditions, definitions, handlers, callbacks } = require('../commands/handlers-exporter');
 const ChatGPTHandler = require('./gpt-handler');
 const { isNotificationMessage: isChannelNotificationMessage } = require('./channel-subscriber.js');
 const { isNotificationMessage: isEventNotificationMessage } = require('./event-subscriber.js');
@@ -589,6 +589,7 @@ class TelegramClient {
         this.logger = require('../logger').child(this.log_meta);
         this.inline_commands = [];
         this.registered_commands = new Map();
+        this.callbacks = {};
     }
 
     /**
@@ -667,6 +668,9 @@ class TelegramClient {
             this.client.command(command_name, async (ctx) => handleCommand(ctx, handlers[index], definitions[index]));
             if (definitions[index].is_inline) {
                 this.inline_commands.push(command_name);
+            }
+            if (callbacks[index] != null) {
+                this.callbacks[command_name] = callbacks[index];
             }
         });
 
@@ -793,6 +797,15 @@ class TelegramClient {
 
     }
 
+    _registerCallbacks() {
+        this.client.on('callback_query:data', async (ctx) => {
+            const prefix = ctx.callbackQuery.data.split(':')[0];
+            if (this.callbacks[prefix] != null) {
+                return handleCallback(ctx, this.callbacks[prefix]);
+            }
+        });
+    }
+
     async start() {
         if (!process.env.TELEGRAM_TOKEN) {
             this.logger.warn(`Token for Telegram wasn't specified, client is not started.`);
@@ -820,6 +833,7 @@ class TelegramClient {
         // handlers
         this._registerCommands();
         this._registerGPTAnswers();
+        this._registerCallbacks();
 
         if (process.env.ENV?.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
             await this._startPolling();

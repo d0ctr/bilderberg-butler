@@ -16,3 +16,5 @@ const genKey = () => {
 module.exports = {
     urlStartRegex, russianAlphabetRegex, invisibleSymbol, getInvisibleLink, genKey
 }
+
+/** @typedef { (import('./telegram').TelegramInteraction | import('./discord').DiscordInteraction) & { logger: import('../logger') }} Interaction */

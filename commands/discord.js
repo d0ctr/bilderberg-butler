@@ -14,6 +14,38 @@ turndownService.addRule('a', {
     }
 });
 
+/** @typedef {import('discord.js').Interaction} Interaction */
+
+/**
+ * @typedef {{
+ * platform: 'discord',
+ * command_name: string?,
+ * text: string,
+ * args: any[]?,
+ * from: {
+ *  id: string?,
+ *  username: string?,
+ *  name: string?
+ * },
+ * space: {
+ *  type: 'guild',
+ *  id: string,
+ *  title: string
+ * } | {
+ *  id: string?,
+ *  username: string?
+ * },
+ * id: string,
+ * data: string?
+ * }} DiscordInteraction
+ */
+
+/**
+ * 
+ * @param {Interaction} interaction 
+ * @param {*} definition 
+ * @returns {DiscordInteraction}
+ */
 function commonizeInteraction(interaction, definition) {
     let common_interaction = {
         platform: 'discord',
@@ -49,6 +81,7 @@ function commonizeInteraction(interaction, definition) {
     }
 
     common_interaction.id = interaction.id;
+    common_interaction.data = interaction.customId;
 
     return common_interaction;
 }
@@ -236,7 +269,7 @@ function reply(interaction, response, logger) {
     );
 }
 
-function handleCommand(interaction, handler ,definition) {
+function handleCommand(interaction, handler, definition) {
     const common_interaction = commonizeInteraction(interaction, definition);
     const log_meta = {
         module: 'discord-common-interface-handler',
@@ -271,7 +304,12 @@ function handleCommand(interaction, handler ,definition) {
     });
 };
 
+async function handleCallback(interaction, handle) {
+    
+}
+
 module.exports = {
     commonizeInteraction,
-    handleCommand
+    handleCommand,
+    handleCallback,
 };

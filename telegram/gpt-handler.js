@@ -871,7 +871,7 @@ class ChatGPTHandler {
      * @returns {Promise}
      */
     async answerQuestion(interaction) {
-        if (!getText(interaction.context.message)) {
+        if (!getText(interaction.context.message) || getText(interaction.context.message).startsWith('/ ')) {
             return;
         }
 

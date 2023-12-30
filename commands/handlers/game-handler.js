@@ -15,8 +15,7 @@ const getGamesFromRAWG = async ({ search, ...args } = {}) => {
 }
 
 const getTextFromGameDetail = (game) => {
-    return (/** game?.background_image ? getInvisibleLink(game.background_image) : **/ '')
-        + `🎮 <a href="${RAWG_BASE}/games/${game?.slug}">${game.name}</a>\n`
+    return `🎮 <a href="${RAWG_BASE}/games/${game?.slug}">${game.name}</a>\n`
         + (game?.released ? `Дата релиза: ${(new Date(game.released)).toLocaleDateString('de-DE')}\n` : '' )
         + (game?.metacritic ? `Metacritic: ${game.metacritic}\n` : '')
         + (game?.playtime ? `Среднее время прохождения: ${game.playtime} часов\n` : '')
@@ -35,15 +34,27 @@ const saveResults = async (key, games) => {
         throw { message: 'Redis is unavailable' };
     }
 
-    const data = games.map(getTextFromGameDetail);
+    const data = games.map(game => ({
+        text: getTextFromGameDetail(game),
+        url: game.background_image,
+        name: game.name,
+        released: game.released
+    })).map(data => JSON.stringify(data));
 
     return redis.multi()
-        .rpush(key, data)
-        .expire(key, 24 * 60 * 60)
+        .rpush(`games:${key}`, data)
+        .expire(`games:${key}`, 24 * 60 * 60)
         .exec();
 }
 
-const getGamesFromRedis = async (key, start, stop = start + 3 ) => {
+/**
+ * 
+ * @param {string} key 
+ * @param {number} start 
+ * @param {number?} stop 
+ * @returns {Promise<[{url: string?, text: string, name: string, released: string}[], number] | [null]>}
+ */
+const getGamesFromRedis = async (key, start, stop = start + 4 ) => {
     const redis = getRedis();
     if (redis == null) {
         logger.error('Can not get game results, redis is unavailable');
@@ -51,12 +62,13 @@ const getGamesFromRedis = async (key, start, stop = start + 3 ) => {
     }
 
     try {
-        const data = await redis.lrange(key, start, stop);
-        return data;
+        const data = await redis.lrange(`games:${key}`, start, stop);
+        const size = await redis.llen(`games:${key}`);
+        return [data.map(data => JSON.parse(data)), size];
     }
     catch (err) {
         logger.error(`Failed to get games details from [${key}] in range [${start}-${stop}]`, { error: err.stack || err });
-        return null
+        return [null];
     }
 }
 
@@ -71,7 +83,7 @@ const getCallbackData = ({ prefix = exports.definition.command_name, key, curren
 /**
  * 
  * @param {'prefix:key:current:next'} data
- *  @returns {{ prefix: string, key: string, current: number, next: number }}
+ *  @returns {{ prefix: string, key: string, current: number, next: number | string }}
  */
 const parseCallbackData = (data) => {
     return data.split(':').reduce((acc, value, i) => {
@@ -86,7 +98,7 @@ const parseCallbackData = (data) => {
                 acc.current = parseInt(value);
                 break
             case 3:
-                acc.next = value;
+                acc.next = ['<', '>'].includes(value[0]) ? value : parseInt(value);
                 break;
         }
         return acc;
@@ -110,6 +122,11 @@ exports.definition = {
 
 exports.condition = !!process.env.RAWG_TOKEN;
 
+/**
+ * 
+ * @param {import('../utils').Interaction} interaction 
+ * @returns 
+ */
 exports.handler = async (interaction) => {
     const args = interaction.args?.[0];
     
@@ -143,15 +160,15 @@ exports.handler = async (interaction) => {
             let buttons = null;
             if (json.results.length > 0) {
                 try {
-                    await saveResults(`game:${key}`, json.results.slice(0, 10));
+                    await saveResults(key, json.results.slice(0, 10));
                 }
                 catch (err) {
                     interaction.logger.error('Failed to save game results', { error: err.stack || err });
                 }
 
-                buttons = json.results.slice(1, 4).map((game, next) => ([{
+                buttons = json.results.slice(1, 4).map((game, i) => ([{
                     name: `${game.name} (${new Date(game.released).getFullYear()})`,
-                    callback: getCallbackData({ key, next })
+                    callback: getCallbackData({ key, next: i + 1 })
                 }]));
 
                 if (json.results.length == 5) {
@@ -191,3 +208,138 @@ exports.handler = async (interaction) => {
             };
         });
 };
+
+/**
+ * 
+ * @param {import('../utils').Interaction} interaction 
+ */
+exports.callback = async (interaction) => {
+    const { key, current, next} = parseCallbackData(interaction.data);
+    
+    if (typeof next === 'number') {
+        const [games, size] = await getGamesFromRedis(key, next);
+
+        if (games === null) {
+            return {
+                type: 'error',
+                text: 'Невозможно выполнить этот запрос, попробуйте другой'
+            };
+        }
+
+        let buttons = [];
+
+        if (next !== 0) {
+            buttons.push([{
+                name: '⏫',
+                callback: getCallbackData({ key, current: next, next: `<${next - 1}` })
+            }]);
+        }
+
+        if (games.length) {
+            buttons.push(...games.slice(1, 4).map((game, i) => ([{
+                name: `${game.name} (${new Date(game.released).getFullYear()})`,
+                callback: getCallbackData({ key, current: next, next: i + next + 1})
+            }])))
+        }
+
+        if (games.length > 4 && games.length + next === size) {
+            const game = games.slice(-1)[0];
+            buttons.push([{
+                name: `${game.name} (${new Date(game.released).getFullYear()})`,
+                callback: getCallbackData({ key, current: next, next: size - 1})
+            }]);
+        }
+        else if (games.length !== 0 && games.length < size - next) {
+            buttons.push([{
+                name: `⏬`,
+                callback: getCallbackData({ key, current: next, next: `>${games.length + next - 1}` })
+            }]);
+        }
+
+        return {
+            type: 'edit_text',
+            text: games[0].text,
+            overrides: {
+                link_preview_options: {
+                    is_disabled: false,
+                    show_above_text: true,
+                    url: games[0].url
+                },
+                buttons,
+                embeded_image: games[0].url
+            }
+        }
+    }
+    else {
+        const direction = next[0];
+        let start = parseInt(next.slice(1));
+
+        const buttons = [];
+        let games = null;
+        let size;
+
+        let stop;
+
+        if (direction === '>') {
+            stop = start + 2;
+        }
+        else if (direction === '<') {
+            start = start - 2 > 0 ? start - 2 : 0; 
+            stop = start + 2;
+        }
+
+        if (start > current || stop < current) {
+            ([games, size] = await getGamesFromRedis(key, start, stop));
+        }
+        else if (start === 0) {
+            stop++;
+            ([games, size] = await getGamesFromRedis(key, start, stop));
+            games = games.map((v, i) => ((i + start) !== current) ? v : null)
+        }
+        else {
+            start--;
+            ([games, size] = await getGamesFromRedis(key, start, stop));
+            games = games.map((v, i) => ((i + start) !== current) ? v : null)
+        }
+
+        if (games == null) {
+            return {
+                type: 'error',
+                text: 'Невозможно выполнить этот запрос, попробуйте другой'
+            };
+        }
+
+        if (start !== 0 && (start < current || start > current)) {
+            buttons.push([{
+                name: '⏫',
+                callback: getCallbackData({ key, current, next: `<${start - 1}`})
+            }]);
+        }
+        if (games.length) {
+            buttons.push(...games.slice(0, 4).map((game, i) => game != null ? ([{
+                name: `${game.name} (${new Date(game.released).getFullYear()})`,
+                callback: getCallbackData({ key, current, next: start + i })
+            }]) : [null]))
+        }
+        // if (stop !== current && stop === size - 1 && games[stop - start + 1] !== null) {
+        //     const game = games.slice(-1)[0];
+        //     buttons.push([{
+        //         name: `${game.name} (${new Date(game.released).getFullYear()})`,
+        //         callback: getCallbackData({ key, current, next: stop })
+        //     }])
+        // }
+        if (stop + 1 < size && current !== size - 1) {
+            buttons.push([{
+                name: '⏬',
+                callback: getCallbackData({ key, current, next: `>${stop + 1}`})
+            }]);
+        }
+
+        return {
+            type: 'edit_buttons',
+            overrides: {
+                buttons
+            }
+        };
+    }
+}
