@@ -71,7 +71,7 @@ exports.handler = async (interaction) => {
 
             const releases = [...json.results];
 
-            // list can be to long, limitting to 30 items with page_size query param
+            // list can be too long, limitting to 30 items with page_size query param
             // while (json?.next) {
             //     const next = await fetch(json.next);
             //     if (!next.ok) break;
