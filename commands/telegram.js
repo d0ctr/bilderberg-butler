@@ -310,7 +310,7 @@ async function getLegacyResponse(ctx, handler, definition) {
  */
 async function answerCallback(ctx, response) {
     if (response.type === 'error') {
-        ctx.answerCallbackQuery({
+        return ctx.answerCallbackQuery({
             text: response.text
         });
     }

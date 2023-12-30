@@ -86,6 +86,43 @@ function commonizeInteraction(interaction, definition) {
     return common_interaction;
 }
 
+function transformOverrides(response) {
+    if (response?.overrides?.followup) {
+        const { text, url } = response.overrides.followup;
+        const components = [
+            new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setLabel(text)
+                        .setURL(url)
+                        .setStyle(ButtonStyle.Link)
+                )
+        ];
+        response.components = components;
+    }
+
+    if (response.overrides?.buttons) {
+        if (!response.components) response.components = [];
+        
+        response.components.push(...response.overrides.buttons.map(row => {
+            const actionRow = new ActionRowBuilder();
+            actionRow.addComponents(...row.map(button => {
+                return new ButtonBuilder()
+                    .setLabel(button.name)
+                    .setCustomId(button.callback)
+                    .setStyle(ButtonStyle.Primary);
+            }));
+            return actionRow;
+        }));
+    }
+
+    if (response?.overrides?.embeded_image) {
+        response.embeds = [new EmbedBuilder().setImage(response?.overrides?.embeded_image)];
+    }
+
+    return response;
+}
+
 function replyWithText(interaction, response, logger) {
     logger.info(`Replying with text`, { response });
 
@@ -194,39 +231,6 @@ function replyWithFile(interaction, response, logger) {
 }
 
 function reply(interaction, response, logger) {
-    if (response?.overrides?.followup) {
-        const { text, url } = response.overrides.followup;
-        const components = [
-            new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setLabel(text)
-                        .setURL(url)
-                        .setStyle(ButtonStyle.Link)
-                )
-        ];
-        response.components = components;
-    }
-
-    if (response.overrides?.buttons) {
-        if (!response.components) response.components = [];
-        
-        response.components.push(...response.overrides.buttons.map(row => {
-            const actionRow = new ActionRowBuilder();
-            actionRow.addComponents(...row.map(button => {
-                return new ButtonBuilder()
-                    .setLabel(button.name)
-                    .setCustomId(button.callback)
-                    .setStyle(ButtonStyle.Primary);
-            }));
-            return actionRow;
-        }));
-    }
-
-    if (response?.overrides?.embeded_image) {
-        response.embeds = [new EmbedBuilder().setImage(response?.overrides?.embeded_image)];
-    }
-
     while (response?.text?.length >= 2000) response.text = response.text.split('\n').slice(0, -1).join('\n');
 
     if (['text', 'error'].includes(response.type)) {
@@ -272,18 +276,19 @@ function reply(interaction, response, logger) {
 function handleCommand(interaction, handler, definition) {
     const common_interaction = commonizeInteraction(interaction, definition);
     const log_meta = {
-        module: 'discord-common-interface-handler',
+        module: 'discord-common-command-handler',
         command_name: common_interaction.command_name,
         platform: common_interaction.platform,
         interaction: common_interaction
     };
     const logger = require('../logger').child(log_meta);
-    common_interaction.logger = logger.child({ ...log_meta, module: `common-handler-${common_interaction.command_name}` });
+    common_interaction.logger = logger.child({ ...log_meta, module: `common-command-${common_interaction.command_name}` });
 
     logger.info(`Received command: ${common_interaction.text}`);
 
     interaction.deferReply()
     .then(() => handler(common_interaction))
+    .then(transformOverrides)
     .then(response => {
         if (response.text) {
             response.text = response.text.replace(/\n|\\n/gm, '<br/>');
@@ -304,8 +309,68 @@ function handleCommand(interaction, handler, definition) {
     });
 };
 
+/**
+ * 
+ * @param {import('discord.js').Interaction} interaction 
+ * @param {*} response 
+ */
+async function answerCallback(interaction, response) {
+    if (response.type === 'error') {
+        return interaction.followUp(response.text);
+    }
+
+    switch(response.type) {
+        case 'edit_text':
+        case 'edit_caption':
+            return interaction.editReply({
+                content: response.text,
+                components: response.components,
+                embeds: response.embeds
+            });
+        case 'edit_media':
+            if (response.filename) {
+                response.files = [{ name: response.filename, attachment: response.media }];
+            }
+            else {
+                if (!response.embdes) response.embeds = [];
+                response.embeds.push(new EmbedBuilder().setImage(response.media));
+            }
+            return interaction.editReply({
+                embeds: response.embeds,
+                components: response.components,
+                files: response.files,
+            })
+        case 'edit_buttons':
+            return interaction.editReply({
+                components: response.components
+            });
+    }
+}
+
 async function handleCallback(interaction, handle) {
-    
+    const common_interaction = commonizeInteraction(interaction);
+    const log_meta = {
+        module: 'discord-common-interface-handler',
+        command_name: common_interaction.command_name,
+        platform: common_interaction.platform,
+        interaction: common_interaction
+    };
+    const logger = require('../logger').child(log_meta);
+    common_interaction.logger = logger.child({ ...log_meta, module: `common-handler-${common_interaction.command_name}` });
+
+    logger.info(`Received callback: ${common_interaction.data}`);
+
+    interaction.deferUpdate()
+    .then(() => handle(common_interaction))
+    .then(transformOverrides)
+    .then(response => {
+        if (response.text) {
+            response.text = response.text.replace(/\n|\\n/gm, '<br/>');
+            response.text = turndownService.turndown(response.text);
+            response.text = response.text.replace(/( *\n *){2,}/gm, '\n\n')
+        }
+        return answerCallback(interaction, response);
+    })
 }
 
 module.exports = {
