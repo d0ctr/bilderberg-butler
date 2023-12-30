@@ -1,11 +1,44 @@
 const { InputFile, InlineKeyboard } = require('grammy');
 
 const CLEAR_ERROR_MESSAGE_TIMEOUT = ++process.env.CLEAR_ERROR_MESSAGE_TIMEOUT || 10000;
+
+/** 
+ * @typedef {import('grammy').Context} Context
+ */
+
+/**
+ * @typedef {{ 
+ * platform: 'telegram', 
+ * command_name: string?, 
+ * ctx: Context, 
+ * args: any[], 
+ * from: { 
+ *  id: number?, 
+ *  name: string?, 
+ *  username: string? 
+ * }, 
+ * space: { 
+ *  type: 'private', 
+ *  id: number?, 
+ *  name: string?, 
+ *  username: string? 
+ * } | { 
+ *  type: 'group' | 'supergroup' | 'channel', 
+ *  id: number | string | null,
+ *  title: string 
+ * }, 
+ * id: number | string | null, 
+ * text: string?, 
+ * data: string?, 
+ * callbakc_id: string? 
+ * }} TelegramInteraction
+ */
+
 /**
  * Turns Telegram context to an object that can be used as an input to a common command handler
- * @param {Object} ctx
- * @param {Integer} limit number of parsable args
- * @return {Interaction}
+ * @param {Context} ctx
+ * @param {number} limit number of parsable args
+ * @return {TelegramInteraction}
  * 
  * `limit` is tricky, it makes possible for argument to consist of multiple words
  * Example: `/foo bar baz bax`
@@ -22,25 +55,26 @@ function commonizeContext(ctx, limit) {
     let args = [];
 
     // split all words by <space>
-    args = ctx.message.text.replace(/ +/g, ' ').split(' ');
+    args = ctx.message?.text?.replace(/ +/g, ' ')?.split(' ');
 
     // remove `/` from the name of the command
-    args[0] = args[0].split('').slice(1).join('');
-
-    // concat args to a single arg
-    if (limit && (limit + 1) < args.length && limit > 0) {
-        args[limit] = args.slice(limit).join(' ');
-        args = args.slice(0, limit + 1);
+    if (args?.length) {
+        args[0] = args[0].split('').slice(1).join('');
+        // concat args to a single arg
+        if (limit && (limit + 1) < args.length && limit > 0) {
+            args[limit] = args.slice(limit).join(' ');
+            args = args.slice(0, limit + 1);
+        }
     }
 
     // Form interaction object
     let interaction = {
         platform: 'telegram',
-        command_name: args[0],
+        command_name: args?.[0],
         ctx: ctx,
     };
 
-    if (args.length > 1) {
+    if (args?.length > 1) {
         interaction.args = args.slice(1);
     }
 
@@ -51,42 +85,75 @@ function commonizeContext(ctx, limit) {
     }
 
     if (ctx.type === 'private') {
-        interaction.space = interaction.from
-        interaction.space.type = 'private'
+        interaction.space = interaction.from;
+        interaction.space.type = 'private';
     }
     else {
         interaction.space = {
-            id: ctx.chat?.id,
+            id: ctx.chat?.id || ctx.callbackQuery?.chat_instance,
             type: ctx.chat?.type,
             title: ctx.chat?.title
         }
     }
 
-    interaction.id = ctx.message?.message_id;
+    interaction.id = ctx.message?.message_id || ctx.callbackQuery?.inline_message_id;
     interaction.text = ctx.message?.text;
+    interaction.data = ctx.callbackQuery?.data;
+    interaction.callback_id = ctx.callbackQuery?.id;
     
     return interaction;
 }
 
+function getDefaultOther(ctx, overrides) {
+    return {
+        parse_mode: 'HTML',
+        ...overrides,
+        reply_parameters: {
+            allow_sending_without_reply: true,
+            message_id: ctx.message?.reply_to_message?.message_id || ctx.message?.message_id,
+            ...overrides?.reply_parameters
+        },
+        link_preview_options: {
+            is_disabled: true,
+            ...overrides?.link_preview_options
+        },
+    }
+}
+
+function transformOverrides(response) {
+    if (response.overrides?.followup && !response.overrides?.reply_markup) {
+        const { text, url } = response.overrides.followup;
+        response.overrides.reply_markup = new InlineKeyboard().url(text, url);
+    }
+
+    if (response.overrides?.buttons) {
+        if (!response.overrides.reply_markup) response.overrides.reply_markup = new InlineKeyboard();
+        response.overrides.reply_markup.row();
+        for (const row of response.overrides.buttons) {
+            for (const button of row) {
+                if (button !== null) {
+                    response.overrides.reply_markup.text(button.name, button.callback);
+                }
+            }
+            response.overrides.reply_markup.row();
+        }
+    }
+    return response;
+}
+
 /**
  * 
- * @param {import('grammy').Context} ctx 
+ * @param {Context} ctx 
  * @param {*} response 
  * @param {*} logger 
  * @returns 
  */
-function replyWithText(ctx, response, logger) {
+async function replyWithText(ctx, response, logger) {
     logger.info(`Replying with text`, { response });
 
     return ctx.reply(
         response.text,
-        {
-            allow_sending_without_reply: true,
-            reply_to_message_id: ctx.message?.reply_to_message?.message_id || ctx.message?.message_id,
-            parse_mode: 'HTML',
-            disable_web_page_preview: true,
-            ...response.overrides
-        }
+        getDefaultOther(ctx, response.overrides)
     ).then((message) => {
         logger.debug('Replied!', { message_id: message.message_id });
         if (CLEAR_ERROR_MESSAGE_TIMEOUT > 0 && response.type === 'error') {
@@ -117,7 +184,7 @@ function replyWithText(ctx, response, logger) {
     });
 }
 
-function reply(ctx, response, logger) {
+async function reply(ctx, response, logger) {
     const reply_methods = {
         'audio': ctx.replyWithAudio.bind(ctx),
         'animation': ctx.replyWithAnimation.bind(ctx),
@@ -140,11 +207,6 @@ function reply(ctx, response, logger) {
 
     const sendReply = reply_methods[response.type];
 
-    if (response?.overrides?.followup && !response?.overrides?.reply_markup) {
-        const { text, url } = response.overrides.followup;
-        response.overrides.reply_markup = new InlineKeyboard().url(text, url);
-    }
-
     if (!sendReply) {
         return replyWithText(ctx, response, logger);
     }
@@ -164,11 +226,7 @@ function reply(ctx, response, logger) {
         media,
         {
             caption: response.text,
-            allow_sending_without_reply: true,
-            reply_to_message_id: ctx.message?.reply_to_message?.message_id || ctx.message?.message_id,
-            parse_mode: 'HTML',
-            disable_web_page_preview: true,
-            ...response.overrides
+            ...getDefaultOther(ctx, response.overrides)
         }
     ).then((message) => {
         logger.debug('Replied!', { message_id: message.message_id});
@@ -191,22 +249,23 @@ function reply(ctx, response, logger) {
 
 /**
  * 
- * @param {*} ctx 
- * @param {*} handler
+ * @param {Context} ctx 
+ * @param {(interaction: TelegramInteraction) => Promise} handler
  */
 function handleCommand(ctx, handler, definition) {
     const common_interaction = commonizeContext(ctx, definition?.limit);
     const log_meta = {
-        module: 'telegram-common-interface-handler',
+        module: 'telegram-common-command-handler',
         command_name: common_interaction.command_name,
         platform: common_interaction.platform,
         interaction: common_interaction
     }
     const logger = require('../logger').child(log_meta);
-    common_interaction.logger = logger.child({ ...log_meta, module: `common-handler-${common_interaction.command_name}` });
+    common_interaction.logger = logger.child({ ...log_meta, module: `common-command-${common_interaction.command_name}` });
 
     logger.info(`Received command: ${common_interaction.text}`);
     handler(common_interaction)
+    .then(transformOverrides)
     .then(response => {
         return reply(ctx, response, logger);
     }).catch((err) => {
@@ -225,21 +284,16 @@ function handleCommand(ctx, handler, definition) {
 async function getLegacyResponse(ctx, handler, definition) {
     const common_interaction = commonizeContext(ctx, definition?.limit);
     const log_meta = {
-        module: 'telegram-common-interface-handler',
+        module: 'telegram-common-command-handler',
         command_name: common_interaction.command_name,
         platform: common_interaction.platform,
         interaction: common_interaction
     }
     const logger = require('../logger').child(log_meta);
-    common_interaction.logger = logger.child({ ...log_meta, module: `common-handler-${common_interaction.command_name}` });
+    common_interaction.logger = logger.child({ ...log_meta, module: `common-command-${common_interaction.command_name}` });
 
     logger.info(`Received command: ${common_interaction.text}`);
-    let response = await handler(common_interaction);
-
-    if (response?.overrides?.followup && !response?.overrides?.reply_markup) {
-        const { text, url } = response.overrides.followup;
-        response.overrides.reply_markup = new InlineKeyboard().url(text, url);
-    }
+    let response = await handler(common_interaction).then(transformOverrides);
 
     return [
         response.type === 'error' ? response.text : null,
@@ -249,8 +303,71 @@ async function getLegacyResponse(ctx, handler, definition) {
     ];
 }
 
+/**
+ * 
+ * @param {Context} ctx 
+ * @param {*} response 
+ */
+async function answerCallback(ctx, response) {
+    if (response.type === 'error' || response.type === 'delete_buttons') {
+        return ctx.answerCallbackQuery({
+            text: response.text
+        }).then(() => ctx.editMessageReplyMarkup({
+            reply_markup: null
+        }));
+    }
+
+    ctx.answerCallbackQuery();
+
+    switch(response.type) {
+        case 'edit_text':
+            return ctx.editMessageText(response.text, getDefaultOther(ctx, response.overrides));
+        case 'edit_media':
+            let media;
+            if (response.filename) {
+                media = new InputFile(response.media, response.filename);
+            }
+            else {
+                media = response.media;
+            }
+            return ctx.editMessageMedia(media, getDefaultOther(ctx, response.overrides));
+        case 'edit_caption':
+            return ctx.editMessageCaption({ caption: response.text, ...getDefaultOther(ctx, response.overrides) });
+        case 'edit_buttons':
+            return ctx.editMessageReplyMarkup(getDefaultOther(ctx, response.overrides));
+    }
+}
+
+/**
+ * Handle callback for button press
+ * @param {Context} ctx 
+ * @param {(interaction: TelegramInteraction) => Promise} handler 
+ */
+async function handleCallback(ctx, handler) {
+    const common_interaction = commonizeContext(ctx);
+    const log_meta = {
+        module: 'telegram-common-callback-handler',
+        callback_data: common_interaction.data,
+        platform: common_interaction.platform,
+        interaction: common_interaction
+    }
+    const logger = require('../logger').child(log_meta);
+    common_interaction.logger = logger.child({ ...log_meta, module: `common-callback-${common_interaction.command_name}` });
+
+    logger.info(`Received callback: ${common_interaction.data}`);
+
+    handler(common_interaction)
+    .then(transformOverrides)
+    .then(response => answerCallback(ctx, response))
+    .catch(err => {
+        logger.error('Failed to answer callback', { error: err.stack || err });
+        ctx.answerCallbackQuery({ text: 'Что-то сломалось' }).catch(() => {});
+    })
+}
+
 module.exports = {
     commonizeContext,
     handleCommand,
-    getLegacyResponse
+    getLegacyResponse,
+    handleCallback,
 }

@@ -21,8 +21,8 @@ const {
 } = require('./event-subscriber');
 
 const { setHealth } = require('../services/health');
-const { commands, conditions, definitions, handlers } = require('../commands/handlers-exporter');
-const { handleCommand } = require('../commands/discord');
+const { commands, conditions, definitions, handlers, callbacks } = require('../commands/handlers-exporter');
+const { handleCommand, handleCallback } = require('../commands/discord');
 
 class DiscordInteraction {
     constructor(interaction, handler) {
@@ -134,7 +134,7 @@ class DiscordClient {
                     GatewayIntentBits.Guilds,
                     GatewayIntentBits.GuildVoiceStates,
                     GatewayIntentBits.GuildScheduledEvents,
-                    GatewayIntentBits.GuildPresences
+                    GatewayIntentBits.GuildPresences,
                 ]
         });
 
@@ -167,24 +167,42 @@ class DiscordClient {
         });
 
         this.client.on('interactionCreate', async interaction => {
-            if (!interaction.isChatInputCommand()) return;
-
-            // Handling for common commands
-            if (commands.indexOf(interaction.commandName) !== -1) {
-                let index = commands.indexOf(interaction.commandName);
-                if (typeof conditions[index] === 'function') {
-                    if (!conditions[index]()) {
+            if (interaction.isChatInputCommand()) {
+                // Handling for common commands
+                if (commands.indexOf(interaction.commandName) !== -1) {
+                    let index = commands.indexOf(interaction.commandName);
+                    if (typeof conditions[index] === 'function') {
+                        if (!conditions[index]()) {
+                            return;
+                        }
+                    }
+                    else if (!conditions[index]) {
                         return;
                     }
+    
+                    return handleCommand(interaction, handlers[index], definitions[index]);
                 }
-                else if (!conditions[index]) {
-                    return;
+    
+                return new DiscordInteraction(interaction, this.handler).reply();
+            }
+            if (interaction.isButton()) {
+                const prefix = interaction.customId.split(':')[0];
+                if (commands.indexOf(prefix) !== -1) {
+                    let index = commands.indexOf(prefix);
+                    if (callbacks[index] == null) return;
+                    if (typeof conditions[index] === 'function') {
+                        if (!conditions[index]()) {
+                            return;
+                        }
+                    }
+                    else if (!conditions[index]) {
+                        return;
+                    }
+    
+                    return handleCallback(interaction, callbacks[index]);
                 }
-
-                return handleCommand(interaction, handlers[index], definitions[index]);
             }
 
-            return new DiscordInteraction(interaction, this.handler).reply();
         });
 
         this.client.on('voiceStateUpdate', async (prev_state, new_state) => {

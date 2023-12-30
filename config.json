@@ -15,5 +15,6 @@
     "DEFAULT_THUMBNAIL_URL": "https://github.com/d0ctr/bilderberg-butler/raw/main/docs/bilderberg-butler.jpg",
     "RAWG_API_BASE": "https://api.rawg.io/api",
     "RAWG_BASE": "https://rawg.io",
-    "YA300_API_BASE": "https://300.ya.ru/api/sharing-url"
+    "YA300_API_BASE": "https://300.ya.ru/api/sharing-url",
+    "GENIUS_API_BASE": "https://api.genius.com"
 }
