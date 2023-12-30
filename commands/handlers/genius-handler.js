@@ -159,10 +159,10 @@ exports.handler = async (interaction) => {
 
             buttons = songs.slice(0, 3).map((song, i) => ([{
                 name: getNameForButton(song, i, 0),
-                callback: encodeCallbackData({ prefix, key, current: 0, next: i + 1})
+                callback: encodeCallbackData({ prefix, key, current: 0, next: i})
             }]));
 
-            if (songs.length > 4) {
+            if (songs.length > 3) {
                 buttons.push([{
                     name: '⏬',
                     callback: encodeCallbackData({ prefix, key, current: 0, next: '>3' })
