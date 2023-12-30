@@ -37,7 +37,7 @@ const saveResults = async (key, games) => {
     const data = games.map(game => ({
         text: getTextFromGameDetail(game),
         url: game.background_image,
-        name: `${game.name} (${new Date(game.released).getFullYear()})`,
+        name: getNameForButton(game),
     })).reduce((acc, data, i) => {
         acc[i] = JSON.stringify(data);
         return acc;
@@ -88,6 +88,10 @@ const getGamesFromRedis = async (key, start, stop = start + 2) => {
  */
 const getCallbackData = (data) => {
     return encodeCallbackData({ prefix: 'game', ...data});
+}
+
+const getNameForButton = (game, index = null, selected = null) => {
+    return `${(index != null && index === selected) ? '☑️ ' : '' }${game.name} (${new Date(game.released).getFullYear()})`
 }
 
 exports.definition = {
@@ -143,25 +147,24 @@ exports.handler = async (interaction) => {
             const key = genKey();
 
             let buttons = null;
-            if (json.results.length > 0) {
-                try {
-                    await saveResults(key, json.results.slice(0, 10));
-                }
-                catch (err) {
-                    interaction.logger.error('Failed to save game results', { error: err.stack || err });
-                }
 
-                buttons = json.results.slice(0, 3).map((game, i) => ([{
-                    name: `${i === 0 ? '☑️ ' : '' }${game.name} (${new Date(game.released).getFullYear()})`,
-                    callback: getCallbackData({ key, current: 0, next: i + 1 })
-                }]));
+            try {
+                await saveResults(key, json.results.slice(0, 10));
+            }
+            catch (err) {
+                interaction.logger.error('Failed to save game results', { error: err.stack || err });
+            }
 
-                if (json.results.length > 4) {
-                    buttons.push([{
-                        name: '⏬',
-                        callback: getCallbackData({ key, current: 0, next: `>4`})
-                    }]);
-                }
+            buttons = json.results.slice(0, 3).map((game, i) => ([{
+                name: getNameForButton(game, i, 0),
+                callback: getCallbackData({ key, current: 0, next: i })
+            }]));
+
+            if (json.results.length > 4) {
+                buttons.push([{
+                    name: '⏬',
+                    callback: getCallbackData({ key, current: 0, next: `>3`})
+                }]);
             }
 
             return {
