@@ -2,6 +2,7 @@ const { OpenAI } = require('openai');
 const { default: axios } = require('axios');
 
 const logger = require('../logger').child({ module: 'chatgpt-handler' });
+const { to } = require('../utils');
 
 // const { Converter: MDConverter } = require('showdown');
 
@@ -117,16 +118,43 @@ function prepareText(input) {
         .replace(/</gm, '&lt;');
 
     // Replace code blocks with language specification
-    res = res.replace(/```(\S*)\n([^]*?)\n```/g, `<pre><code class='$1'>$2</code></pre>`);
+    res = res.replace(/```(\S*)\n(.*?)\n```/g, `<pre><code class='$1'>$2</code></pre>`);
 
     // Replace inline code blocks
-    res = res.replace(/`([^`]*?)`/g, '<code>$1</code>');
+    res = res.replace(/[^(<pre>)].*`([^`]*?)`.*[^(</pre>)]/g, '<code>$1</code>');
     /** too aggressive
      *  let res = mdConverter
      *     .makeHtml(input)
      *     .replace(/<\/?p>/gm, '');
      */
     return res;
+}
+
+function getWithEntities(message) {
+    let goodEntities = (message.entities || message.caption_entities)?.filter(e => [
+        'bold', 'italic', 'underline', 'strikethrough', 'spoiler', 
+        'blockquote', 'code', 'pre', 'text_link'
+    ].includes(e.type));
+    let original = message.text || message.caption;
+    if (!goodEntities.length) return original;
+
+    if (!original.length) return;
+    let text = '';
+
+    let cursor = 0;
+    let entities = goodEntities.sort((a, b) => a.offset - b.offset || b.length - a.length);
+    for (const entity of entities) {
+        if (cursor < entity.offset) {
+            text += original.slice(cursor, entity.offset);
+        }
+        text += to[entity.type](original.slice(entity.offset, entity.offset + entity.length), 'html', entity);
+        cursor = entity.offset + entity.length;
+    }
+
+    if (cursor < entities.slice(-1).offset) {
+        text += original.slice(entity.offset + entity.length);
+    }
+    return text;
 }
 
 /**

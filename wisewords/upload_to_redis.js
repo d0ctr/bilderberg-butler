@@ -1,10 +1,10 @@
 const { default: Redis } = require('ioredis');
 
-const REDIS_URL = "redis://default:G6ecFGCMoKgenIOg1CKe5Bll53Ej2AlH@monorail.proxy.rlwy.net:44686";
+const REDIS_URL = "";
 
 const redis = new Redis(REDIS_URL);
 
-const data = require('./upload.prod.json');
+const data = require('');
 
 /**
  * 

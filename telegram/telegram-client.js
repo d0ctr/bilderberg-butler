@@ -10,6 +10,7 @@ const ChatGPTHandler = require('./gpt-handler');
 const { isNotificationMessage: isChannelNotificationMessage } = require('./channel-subscriber.js');
 const { isNotificationMessage: isEventNotificationMessage } = require('./event-subscriber.js');
 const { used: tinkovUsed } = require('./command-handlers/tinkov-handler.js');
+const { to } = require('../utils');
 
 const no_tags_regex = /<\/?[^>]+(>|$)/g;
 
@@ -125,12 +126,51 @@ class TelegramInteraction {
         return this.client.client.api;
     }
 
+    /**
+     * 
+     * @param {import('grammy/types').Message} message 
+     */
+    getWithEntities(message, goodEntities) {
+        let original = message.text || message.caption;
+        if (!original.length) return;
+        let text = '';
+
+        let cursor = 0;
+        let entities = goodEntities.sort((a, b) => a.offset - b.offset || b.length - a.length);
+        for (const entity of entities) {
+            if (cursor < entity.offset) {
+                text += original.slice(cursor, entity.offset);
+            }
+            text += to[entity.type](original.slice(entity.offset, entity.offset + entity.length), 'html', entity);
+            cursor = entity.offset + entity.length;
+        }
+
+        if (cursor < entities.slice(-1).offset) {
+            text += original.slice(entity.offset + entity.length);
+        }
+        return text;
+    }
+
+    /**
+     * 
+     * @param {import('grammy/types').Message} message 
+     * @returns 
+     */
     _parseMessageMedia(message) {
         if (!message) return;
 
         const parsed_media = {};
 
         parsed_media.text = message.text || message.caption;
+        
+        let goodEntities = (message.entities || message.caption_entities)?.filter(e => [
+            'bold', 'italic', 'underline', 'strikethrough', 'spoiler', 
+            'blockquote', 'code', 'pre', 'text_link'
+        ].includes(e.type));
+
+        if (goodEntities.length) {
+            parsed_media.text = this.getWithEntities(message, goodEntities);
+        }
 
         parsed_media.type = Object.keys(message).filter(key => media_types.includes(key))[0];
 

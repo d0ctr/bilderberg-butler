@@ -19,6 +19,9 @@ function main() {
         }
     });
 
+    // update daily
+    setInterval(() =>  fetchCurrenciesList(), 24 * 60 * 60 * 1000);
+
     app.discord_client = new DiscordClient(app);
 
     app.telegram_client = new TelegramClient(app);
