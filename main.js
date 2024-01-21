@@ -19,6 +19,9 @@ function main() {
         }
     });
 
+    // update daily
+    setInterval(() =>  fetchCurrenciesList(), 24 * 60 * 60 * 1000);
+
     app.discord_client = new DiscordClient(app);
 
     app.telegram_client = new TelegramClient(app);
@@ -46,9 +49,9 @@ process.on('warning', (warning) => {
     process_logger.warn(warning.message);
 });
 
-process.on('uncaughtException', (error) => {
-    process_logger.error('Got unhandledException:', error);
-});
+// process.on('uncaughtException', (error) => {
+//     process_logger.error('Got unhandledException:', error);
+// });
 
 process.on('beforeExit', async () => {
     process_logger.info('Gracefully shutdowning application...');

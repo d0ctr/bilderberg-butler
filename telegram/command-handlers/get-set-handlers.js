@@ -102,8 +102,8 @@ async function get(ctx) {
 
 /**
  * `/set` command handler
- * @param {GrammyTypes.Context | Object} ctx
- * @param {Object} interaction
+ * @param {import('grammy').Context} ctx
+ * @param {import('../telegram-client').TelegramInteraction} interaction
  * @returns {[String | null, String | null]}
  */
 
