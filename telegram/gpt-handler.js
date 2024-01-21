@@ -102,7 +102,7 @@ const max_tokens = {
  */
 const CHAT_MODEL_NAME = models.includes(process.env.GPT_MODEL) ? process.env.GPT_MODEL : 'gpt-3.5-turbo-16k';
 
-const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not exceed 4000 characters`;
+const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not exceed 4000 characters\nuse html syntax for markdown`;
 
 /**
  * Convert Markdown based text to HTML
@@ -112,26 +112,26 @@ const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not excee
  */
 function prepareText(input) {
     /** Needs to avoid replacing inside code snippets */
-    let res = input
-        .replace(/&/gm, '&amp;')
-        .replace(/>/gm, '&gt;')
-        .replace(/</gm, '&lt;');
+    // let res = input
+    //     .replace(/&/gm, '&amp;')
+    //     .replace(/>/gm, '&gt;')
+    //     .replace(/</gm, '&lt;');
 
-    // Replace code blocks with language specification
-    res = res.replace(/```(\S*)\n(.*?)\n```/g, `<pre><code class='$1'>$2</code></pre>`);
+    // // Replace code blocks with language specification
+    // res = res.replace(/```(\S*)\n(.*?)\n```/g, `<pre><code class='$1'>$2</code></pre>`);
 
-    // Replace inline code blocks
-    res = res.replace(/[^(<pre>)].*`([^`]*?)`.*[^(</pre>)]/g, '<code>$1</code>');
-    /** too aggressive
-     *  let res = mdConverter
-     *     .makeHtml(input)
-     *     .replace(/<\/?p>/gm, '');
-     */
-    return res;
+    // // Replace inline code blocks
+    // res = res.replace(/[^(<pre>)].*`([^`]*?)`.*[^(</pre>)]/g, '<code>$1</code>');
+    // /** too aggressive
+    //  *  let res = mdConverter
+    //  *     .makeHtml(input)
+    //  *     .replace(/<\/?p>/gm, '');
+    //  */
+    return input;
 }
 
 function getWithEntities(message) {
-    let goodEntities = (message.entities || message.caption_entities)?.filter(e => [
+    let goodEntities = (message.entities || message.caption_entities || [])?.filter(e => [
         'bold', 'italic', 'underline', 'strikethrough', 'spoiler', 
         'blockquote', 'code', 'pre', 'text_link'
     ].includes(e.type));
@@ -147,7 +147,7 @@ function getWithEntities(message) {
         if (cursor < entity.offset) {
             text += original.slice(cursor, entity.offset);
         }
-        text += to[entity.type](original.slice(entity.offset, entity.offset + entity.length), 'html', entity);
+        text += to[entity.type](original.slice(entity.offset, entity.offset + entity.length), 'markdown', entity);
         cursor = entity.offset + entity.length;
     }
 
@@ -196,7 +196,7 @@ async function getContent({ api, message: c_message }, type = 'text', message = 
                 return [];
             });
         if (!(file_buffer || content_type)) {
-            return getText(message);
+            return getWithEntities(message);
         }
         /** @type {ComplexContent[]} */
         const content = [{
@@ -213,7 +213,7 @@ async function getContent({ api, message: c_message }, type = 'text', message = 
 
         return content;
     }
-    return getText(message);
+    return getWithEntities(message);
 }
 
 /**
@@ -642,7 +642,7 @@ class ChatGPTHandler {
 
             return [
                 null,
-                prepareText(data.choices[0].message.content),
+                data.choices[0].message.content,
                 ({ message_id: new_message_id, text }) => {
                     context_tree.appendNode({
                         role: 'assistant',
@@ -652,7 +652,10 @@ class ChatGPTHandler {
                         prev_message_id
                     });
                 },
-                { reply_to_message_id: prev_message_id }
+                {
+                    reply_to_message_id: prev_message_id,
+                    parse_mode: 'Markdown'
+                }
             ];
         }).catch(err => {
             if (err?.response) {
@@ -675,8 +678,8 @@ class ChatGPTHandler {
     async answerReply(interaction) {
         if (
             !interaction.context?.message?.reply_to_message
-            || !getText(interaction.context?.message) 
-            || getText(interaction.context?.message).startsWith('/ ')
+            || !getWithEntities(interaction.context?.message) 
+            || getWithEntities(interaction.context?.message).startsWith('/ ')
         ) {
             return;
         }
@@ -694,7 +697,7 @@ class ChatGPTHandler {
             const content = await getContent(interaction.context, model_type, interaction.context.message.reply_to_message)
                 .catch(err => {
                     interaction.logger.error('Failed to acquire content for reply message', { error: err.stack || err});
-                    return getText(interaction.context.message.reply_to_message);
+                    return getWithEntities(interaction.context.message.reply_to_message);
                 });
 
             if (content) {
@@ -712,7 +715,7 @@ class ChatGPTHandler {
             const content = await getContent(interaction.context, model_type)
                 .catch(err => {
                     interaction.logger.error('Failed to acquire content for message', { error: err.stack || err });
-                    return getText(interaction.context.message);
+                    return getWithEntities(interaction.context.message);
                 });
     
             context_tree.appendNode({ role: 'user', content, message_id, prev_message_id, name: author });
@@ -810,11 +813,11 @@ class ChatGPTHandler {
         if ((
                 (
                     getModelType(model) === 'text' 
-                    && !(getText(interaction_context.message.reply_to_message))
+                    && !(getWithEntities(interaction_context.message.reply_to_message))
                 ) || (
                     getModelType(model) === 'vision' 
                     && !(interaction_context.message.reply_to_message?.photo?.length 
-                    || getText(interaction_context.message.reply_to_message))
+                    || getWithEntities(interaction_context.message.reply_to_message))
                 )
             ) && !command_text.length)
             {
@@ -899,7 +902,7 @@ class ChatGPTHandler {
      * @returns {Promise}
      */
     async answerQuestion(interaction) {
-        if (!getText(interaction.context.message) || getText(interaction.context.message).startsWith('/ ')) {
+        if (!getWithEntities(interaction.context.message) || getWithEntities(interaction.context.message).startsWith('/ ')) {
             return;
         }
 

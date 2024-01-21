@@ -163,7 +163,7 @@ class TelegramInteraction {
 
         parsed_media.text = message.text || message.caption;
         
-        let goodEntities = (message.entities || message.caption_entities)?.filter(e => [
+        let goodEntities = (message.entities || message.caption_entities || [])?.filter(e => [
             'bold', 'italic', 'underline', 'strikethrough', 'spoiler', 
             'blockquote', 'code', 'pre', 'text_link'
         ].includes(e.type));

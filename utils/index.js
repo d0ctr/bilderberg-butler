@@ -20,7 +20,7 @@
 
 
 const escapeHTML = (text) => text.replace(/&/gm, '&amp;').replace(/>/gm, '&gt;').replace(/</gm, '&lt;');
-const escapeMD = (text) => ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!'].map(c => text.replace(new RegExp(`(${c})`, "gm"), '\$1')).slice(-1);
+const escapeMD = (text) => ['_', '\\\*', '\\\[', '\\\]', '\\\(', '\\\)', '~', '`', '>', '#', '\\\+', '-', '=', '\\\|', '\\\{', '\\\}', '\\\.', '!'].map(c => text.replace(new RegExp(`(${c})`, "gm"), '\$1')).slice(-1);
 
 /**
  * @type {{[x: string]: MLConvertFunction}}
@@ -35,6 +35,6 @@ exports.to = {
     'url': (text, type, { url }) => type == 'html' ? `<a href="${url}">${escapeHTML(text)}</a>` : `[${escapeMD(text)}](${url})`,
     'blockquote': (text, type) => type == 'html' ? `<blockquote>${escapeHTML(text)}</blockquote>` : `>${escapeMD(text).split('\n').join('\n>')}\n`,
     'code': (text, type) => type == 'html' ? `<code>${escapeHTML(text)}</code>` : `\`${text}\``,
-    'pre': (text, type, { language }) => type == 'html' ? `<pre><code${language ? ` class="${language}"` : ''}>${escapeHTML(text)}</code></pre>` : `\`\`\`${language || ''}${escapeMD(text)}\`\`\`\n`,
+    'pre': (text, type, { language }) => type == 'html' ? `<pre><code${language ? ` class="${language}"` : ''}>${escapeHTML(text)}</code></pre>` : `\`\`\`${language || ''}\n${escapeMD(text)}\`\`\`\n`,
 }
 exports.to['text_link'] = exports.to['url'];

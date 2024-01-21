@@ -49,9 +49,9 @@ process.on('warning', (warning) => {
     process_logger.warn(warning.message);
 });
 
-process.on('uncaughtException', (error) => {
-    process_logger.error('Got unhandledException:', error);
-});
+// process.on('uncaughtException', (error) => {
+//     process_logger.error('Got unhandledException:', error);
+// });
 
 process.on('beforeExit', async () => {
     process_logger.info('Gracefully shutdowning application...');
