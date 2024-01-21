@@ -102,7 +102,7 @@ const max_tokens = {
  */
 const CHAT_MODEL_NAME = models.includes(process.env.GPT_MODEL) ? process.env.GPT_MODEL : 'gpt-3.5-turbo-16k';
 
-const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not exceed 4000 characters\nuse html syntax for markdown`;
+const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not exceed 4000 characters`;
 
 /**
  * Convert Markdown based text to HTML
