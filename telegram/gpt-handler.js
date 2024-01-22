@@ -131,14 +131,14 @@ function prepareText(input) {
 }
 
 function getWithEntities(message) {
-    let goodEntities = (message.entities || message.caption_entities || [])?.filter(e => [
+    let goodEntities = (message?.entities || message?.caption_entities || [])?.filter(e => [
         'bold', 'italic', 'underline', 'strikethrough', 'spoiler', 
         'blockquote', 'code', 'pre', 'text_link'
     ].includes(e.type));
-    let original = message.text || message.caption;
+    let original = message?.text || message?.caption || null;
     if (!goodEntities.length) return original;
 
-    if (!original.length) return;
+    if (!original?.length) return null;
     let text = '';
 
     let cursor = 0;
