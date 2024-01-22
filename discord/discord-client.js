@@ -163,7 +163,7 @@ class DiscordClient {
         });
 
         this.client.on('error', err => {
-            this.discordjs_logger.error(`Discord client error: ${err.toString()}`, { error: err.stack | err });
+            this.discordjs_logger.error(`Discord client error: ${err.toString()}`, { error: err.stack || err });
         });
 
         this.client.on('interactionCreate', async interaction => {
