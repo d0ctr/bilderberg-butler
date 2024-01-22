@@ -131,8 +131,8 @@ class TelegramInteraction {
      * @param {import('grammy/types').Message} message 
      */
     getWithEntities(message, goodEntities) {
-        let original = message.text || message.caption;
-        if (!original.length) return;
+        let original = message?.text || message?.caption || null;
+        if (!original?.length) return null;
         let text = '';
 
         let cursor = 0;
@@ -163,7 +163,7 @@ class TelegramInteraction {
 
         parsed_media.text = message.text || message.caption;
         
-        let goodEntities = (message.entities || message.caption_entities || [])?.filter(e => [
+        let goodEntities = (message?.entities || message?.caption_entities || [])?.filter(e => [
             'bold', 'italic', 'underline', 'strikethrough', 'spoiler', 
             'blockquote', 'code', 'pre', 'text_link'
         ].includes(e.type));
