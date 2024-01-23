@@ -218,13 +218,13 @@ class DiscordClient {
             }
         });
 
-        this.client.on('presenceUpdate', async ({}, new_state) => {
+        this.client.on('presenceUpdate', async (_, new_state) => {
             if (isPresenceSubscriberActive(new_state.member)) {
                 updatePresenceSubscriberState(new_state);
             }
         });
 
-        this.client.on('guildScheduledEventUpdate', async ({}, new_state) => {
+        this.client.on('guildScheduledEventUpdate', async (_, new_state) => {
             if (isEventSubscriberActive(new_state.guild)) {
                 updateEventSubscriberState(new_state);
             }
