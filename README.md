@@ -33,7 +33,7 @@ This bot talks with you in English and have a number of interesting (and not so 
   - `/subscribe`, `/unsubscribe` — `{voice channel} {telegram chat id}` subscribe, unsubscribe to voice channel status. This will send (and edit afterwards) to `telegram chat id` a message containing the list of current users and their statuses in `voice channel`. It will be pinned and updated on any change. When channel becomes empty the message will be deleted.
   - `/user` — prints the name and the id of the user who sent the command
 
-> [!INFO]
+> [!NOTE]
 > To get `telegram chat id`, send `/info` command to bot in Telegram.
 
 ### Telegram Bot
@@ -82,14 +82,14 @@ Bot also has a **context tree**! Bot saves user's messages and own responses, so
 
 ##### Special commands for ChatGPT 
 
-  - `/answer` - `{query?}` reply with this command to a message, bot will answer it (and will add query)
+  - `/answer` - `{query?}` either reply to bot's message or send as a standalone command, bot will reply to it and (if applicable) to query
   - `/gpt4`, `/gpt4_32` — same as /answer but using `gpt-4` and `gpt-4-32k` respectively
   - `/new_system_prompt` — `{prompt}` changes prompt in current chat. Default: `you are a chat-assistant\nanswer should not exceed 4000 characters`
   - <u>DISABLED</u>: `/tree` — get a representation of bot's tree of context for this chat
   - `/vision` — same as /answer, but will also process photo messages using `gpt-4-vision-preview`
 
 > [!NOTE]
-> When `/answer`, `/gpt4`, `/gpt4_32` or `/vision` is used as a reply to a thread that already exists (contains AI generated answers), the whole context will be transfered to the model associated with the command.<br/>
+> When `/answer`, `/gpt4`, `/gpt4_32` or `/vision` is used as a reply to a thread that already exists (contains AI generated answers) the whole context will be transfered to the model associated with the command, meaning that every message down the thread will be processed with the new model till another transfer comes.<br/>
 > `/vision` will process only the replied photo during the transfer.
 
 ### Common commands
@@ -130,7 +130,7 @@ There are 3 logging outputs for the project:
     - You may also not do it, if you only intend to use Discord bot.
   - Create a Redis instance. I use Redis plugin in Railway (which is basically click-and-ready), search the web if you want to do it the other way.
     - You may ignore that if you like, most of the Telegram side features are available without it. It is necessary only for Telegram commands `/set`, `/t` and Discord `/subscribe`, `/subevents`, `/presence`.
-      - It is also possible to use above Discord commands without Redis, but only if you are sure that your application won't be restarted at any point (if that happends application will lose data about wordle schedulers and voice channel subscriptions).
+      - It is also possible to use above Discord commands without Redis, but only if you are sure that your application won't be restarted at any point (if that happends application will lose data that binds Telegram and Discord).
 
 #### Required tools
 
