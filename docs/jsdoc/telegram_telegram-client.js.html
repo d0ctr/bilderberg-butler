@@ -32,11 +32,13 @@ const { hydrateFiles } = require('@grammyjs/files');
 const TelegramHandlers = require('./telegram-handler');
 const config = require('../config.json');
 const { setHealth } = require('../services/health');
-const { handleCommand, getLegacyResponse } = require('../commands/telegram');
-const { commands, conditions, definitions, handlers } = require('../commands/handlers-exporter');
+const { handleCommand, getLegacyResponse, handleCallback } = require('../commands/telegram');
+const { commands, conditions, definitions, handlers, callbacks } = require('../commands/handlers-exporter');
 const ChatGPTHandler = require('./gpt-handler');
 const { isNotificationMessage: isChannelNotificationMessage } = require('./channel-subscriber.js');
 const { isNotificationMessage: isEventNotificationMessage } = require('./event-subscriber.js');
+const { used: tinkovUsed } = require('./command-handlers/tinkov-handler.js');
+const { to } = require('../utils');
 
 const no_tags_regex = /&lt;\/?[^>]+(>|$)/g;
 
@@ -152,12 +154,51 @@ class TelegramInteraction {
         return this.client.client.api;
     }
 
+    /**
+     * 
+     * @param {import('grammy/types').Message} message 
+     */
+    getWithEntities(message, goodEntities) {
+        let original = message?.text || message?.caption || null;
+        if (!original?.length) return null;
+        let text = '';
+
+        let cursor = 0;
+        let entities = goodEntities.sort((a, b) => a.offset - b.offset || b.length - a.length);
+        for (const entity of entities) {
+            if (cursor &lt; entity.offset) {
+                text += original.slice(cursor, entity.offset);
+            }
+            text += to[entity.type](original.slice(entity.offset, entity.offset + entity.length), 'html', entity);
+            cursor = entity.offset + entity.length;
+        }
+
+        if (cursor &lt; entities.slice(-1).offset) {
+            text += original.slice(entity.offset + entity.length);
+        }
+        return text;
+    }
+
+    /**
+     * 
+     * @param {import('grammy/types').Message} message 
+     * @returns 
+     */
     _parseMessageMedia(message) {
         if (!message) return;
 
         const parsed_media = {};
 
         parsed_media.text = message.text || message.caption;
+        
+        let goodEntities = (message?.entities || message?.caption_entities || [])?.filter(e => [
+            'bold', 'italic', 'underline', 'strikethrough', 'spoiler', 
+            'blockquote', 'code', 'pre', 'text_link'
+        ].includes(e.type));
+
+        if (goodEntities.length) {
+            parsed_media.text = this.getWithEntities(message, goodEntities);
+        }
 
         parsed_media.type = Object.keys(message).filter(key => media_types.includes(key))[0];
 
@@ -269,7 +310,8 @@ class TelegramInteraction {
             caption: message.text,
             ...this._getBasicMessageOptions(),
             ...this._getTextOptions(),
-            ...overrides
+            ...overrides,
+            ...message.overrides
         };
 
         let media;
@@ -361,13 +403,19 @@ class TelegramInteraction {
                     }
                 }).then(callback);
             }
-            if (response instanceof String || typeof response === 'string') {
+            else if (response instanceof String || typeof response === 'string') {
                 return this._reply(response, overrides).catch((err) => {
                     this.logger.error(`Error while replying with response text to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n&lt;code>${err}&lt;/code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
                 }).then(callback);
             }
-            if (response instanceof Object) {
+            else if (Array.isArray(response)) {
+                this._replyWithMedia(response[0], overrides).catch(err => {
+                    this.logger.error(`Error while replying with single media from array to [${this.command_name}]`);
+                    this._reply(`Что-то случилось:\n&lt;code>${err}&lt;/code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
+                })
+            }
+            else if (response instanceof Object) {
                 return this._replyWithMedia(response, overrides).catch((err) => {
                     this.logger.error(`Error while replying with media to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n&lt;code>${err}&lt;/code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
@@ -428,6 +476,7 @@ class TelegramInteraction {
             thumbnail_url,
             ...this._getTextOptions(),
             ...overrides,
+            ...media.overrides
         };
         result[`${inline_type}${suffix}`] = data;
 
@@ -459,19 +508,6 @@ class TelegramInteraction {
             results: results_array,
             other: {
                 cache_time: 0,
-                ...overrides
-            }
-        }
-
-        if (process.env.WEBAPP_URL) {
-            answer.other = {
-                ...answer.other,
-                button: {
-                    text: 'Открыть веб-интерфейс',
-                    web_app: {
-                        url: `${process.env.WEBAPP_URL}/user/${this.context.from.id}`
-                    }
-                },
                 ...overrides
             }
         }
@@ -547,7 +583,7 @@ class TelegramInteraction {
             type: 'private'
         };
 
-        this.logger.info(`Received eligible inline query, parsed context [${JSON.stringify(parsed_context)}]`);
+        this.logger.info(`Received eligible inline query, will call handler`);
 
         (async () => {
             if (TelegramHandlers[command_name]?.handler) {
@@ -572,7 +608,12 @@ class TelegramInteraction {
                             this.logger.error(`Error while responsing to inline query with text`, { error: err.stack || err })
                         );
                     }
-                    if (response instanceof Object) {
+                    else if (Array.isArray(response)) {
+                        return this._answerQuery(response.map(r => this._generateInlineMedia(r, overrides))).catch(err => 
+                            this.logger.error('Error while responding to inline query with array', { error: err.stack || err })
+                        );
+                    }
+                    else if (response instanceof Object) {
                         return this._answerQuery([this._generateInlineMedia(
                             response,
                             overrides
@@ -603,6 +644,7 @@ class TelegramClient {
         this.logger = require('../logger').child(this.log_meta);
         this.inline_commands = [];
         this.registered_commands = new Map();
+        this.callbacks = {};
     }
 
     /**
@@ -659,8 +701,8 @@ class TelegramClient {
         this._registerTelegramCommand('gpt4_32', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('vision', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('tldr', process.env.YA300_TOKEN &amp;&amp; config.YA300_API_BASE, true);
-        // this._registerTelegramCommand('imagine', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('voice', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('t', this.app &amp;&amp; this.app.redis, true);
         
         // Registering common commands
         commands.forEach((command_name, index) => {
@@ -681,6 +723,9 @@ class TelegramClient {
             if (definitions[index].is_inline) {
                 this.inline_commands.push(command_name);
             }
+            if (callbacks[index] != null) {
+                this.callbacks[command_name] = callbacks[index];
+            }
         });
 
         this.client.api.setMyCommands(
@@ -696,23 +741,24 @@ class TelegramClient {
                     type: 'default'
                 }
             }
-        )
-        .catch(err => {
+        ).catch(err => {
             this.logger.error('Error while registering commands', { error: err.stack || err });
-        })
-        .then(registered => {
+        }).then(registered => {
             if (registered) this.logger.debug('Received successful response for commands registering');
             return this.client.api.getMyCommands({ scope: { type: 'default' } });
-        })
-        .catch(err => {
+        }).catch(err => {
             this.logger.error('Error while getting registered commands', { error: err.stack || err });
-        })
-        .then(commands => {
+        }).then(commands => {
             this.logger.debug(`Received following registered commands: ${JSON.stringify(commands)}`);
-        })
-        ;
+        });
 
         this.client.on('inline_query', async (ctx) => new TelegramInteraction(this, 'inline_query', ctx).answer());
+
+        this.client.on('chosen_inline_result', (ctx) => {
+            if (ctx.chosenInlineResult?.result_id?.startsWith('tinkov:')) {
+                tinkovUsed(ctx.chosenInlineResult.result_id);
+            }
+        })
     }
 
     async _saveInterruptedWebhookURL() {
@@ -805,6 +851,15 @@ class TelegramClient {
 
     }
 
+    _registerCallbacks() {
+        this.client.on('callback_query:data', async (ctx) => {
+            const prefix = ctx.callbackQuery.data.split(':')[0];
+            if (this.callbacks[prefix] != null) {
+                return handleCallback(ctx, this.callbacks[prefix]);
+            }
+        });
+    }
+
     async start() {
         if (!process.env.TELEGRAM_TOKEN) {
             this.logger.warn(`Token for Telegram wasn't specified, client is not started.`);
@@ -832,6 +887,7 @@ class TelegramClient {
         // handlers
         this._registerCommands();
         this._registerGPTAnswers();
+        this._registerCallbacks();
 
         if (process.env.ENV?.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
             await this._startPolling();
@@ -870,13 +926,13 @@ module.exports = {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="ChatGPT.html">ChatGPT</a></li></ul><h3>Classes</h3><ul><li><a href="ChatGPT.ChatGPTHandler.html">ChatGPTHandler</a></li><li><a href="ChatGPT.ContextNode.html">ContextNode</a></li><li><a href="ChatGPT.ContextTree.html">ContextTree</a></li><li><a href="TelegramClient.html">TelegramClient</a></li><li><a href="TelegramInteraction.html">TelegramInteraction</a></li></ul><h3>Global</h3><ul><li><a href="global.html#bot">bot</a></li><li><a href="global.html#clearNotification">clearNotification</a></li><li><a href="global.html#commonizeContext">commonizeContext</a></li><li><a href="global.html#del">del</a></li><li><a href="global.html#editNotificationMessage">editNotificationMessage</a></li><li><a href="global.html#fizzbuzz">fizzbuzz</a></li><li><a href="global.html#generateAPICall">generateAPICall</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#getAhegaoUrl">getAhegaoUrl</a></li><li><a href="global.html#getDiscordNotification">getDiscordNotification</a></li><li><a href="global.html#getList">getList</a></li><li><a href="global.html#getPresenceNotification">getPresenceNotification</a></li><li><a href="global.html#getRedis">getRedis</a></li><li><a href="global.html#getUrbanDefinition">getUrbanDefinition</a></li><li><a href="global.html#gh">gh</a></li><li><a href="global.html#handleCommand">handleCommand</a></li><li><a href="global.html#handler">handler</a></li><li><a href="global.html#help">help</a></li><li><a href="global.html#html">html</a></li><li><a href="global.html#parseArgs">parseArgs</a></li><li><a href="global.html#pinNotificationMessage">pinNotificationMessage</a></li><li><a href="global.html#replaceWithLink">replaceWithLink</a></li><li><a href="global.html#replyWithText">replyWithText</a></li><li><a href="global.html#sendNotificationMessage">sendNotificationMessage</a></li><li><a href="global.html#set">set</a></li><li><a href="global.html#startRedis">startRedis</a></li><li><a href="global.html#urbanToHTML">urbanToHTML</a></li><li><a href="global.html#voice">voice</a></li><li><a href="global.html#ytdl">ytdl</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="ChatGPT.html">ChatGPT</a></li></ul><h3>Classes</h3><ul><li><a href="ChatGPT.ChatGPTHandler.html">ChatGPTHandler</a></li><li><a href="ChatGPT.ContextNode.html">ContextNode</a></li><li><a href="ChatGPT.ContextTree.html">ContextTree</a></li><li><a href="TelegramClient.html">TelegramClient</a></li><li><a href="global.html#TelegramInteraction">TelegramInteraction</a></li></ul><h3>Global</h3><ul><li><a href="global.html#answerCallback">answerCallback</a></li><li><a href="global.html#bot">bot</a></li><li><a href="global.html#callback">callback</a></li><li><a href="global.html#clearNotification">clearNotification</a></li><li><a href="global.html#commonizeContext">commonizeContext</a></li><li><a href="global.html#commonizeInteraction">commonizeInteraction</a></li><li><a href="global.html#del">del</a></li><li><a href="global.html#editNotificationMessage">editNotificationMessage</a></li><li><a href="global.html#encodeCallbackData">encodeCallbackData</a></li><li><a href="global.html#fizzbuzz">fizzbuzz</a></li><li><a href="global.html#generateAPICall">generateAPICall</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#getAhegaoUrl">getAhegaoUrl</a></li><li><a href="global.html#getBest">getBest</a></li><li><a href="global.html#getCallbackData">getCallbackData</a></li><li><a href="global.html#getDiscordNotification">getDiscordNotification</a></li><li><a href="global.html#getGamesFromRedis">getGamesFromRedis</a></li><li><a href="global.html#getList">getList</a></li><li><a href="global.html#getPresenceNotification">getPresenceNotification</a></li><li><a href="global.html#getRedis">getRedis</a></li><li><a href="global.html#getUrbanDefinition">getUrbanDefinition</a></li><li><a href="global.html#gh">gh</a></li><li><a href="global.html#handleCallback">handleCallback</a></li><li><a href="global.html#handleCommand">handleCommand</a></li><li><a href="global.html#handler">handler</a></li><li><a href="global.html#help">help</a></li><li><a href="global.html#html">html</a></li><li><a href="global.html#isSimilar">isSimilar</a></li><li><a href="global.html#listingMenuCallback">listingMenuCallback</a></li><li><a href="global.html#parseArgs">parseArgs</a></li><li><a href="global.html#parseCallbackData">parseCallbackData</a></li><li><a href="global.html#pinNotificationMessage">pinNotificationMessage</a></li><li><a href="global.html#replaceWithLink">replaceWithLink</a></li><li><a href="global.html#replyWithText">replyWithText</a></li><li><a href="global.html#saveResults">saveResults</a></li><li><a href="global.html#sendNotificationMessage">sendNotificationMessage</a></li><li><a href="global.html#set">set</a></li><li><a href="global.html#startRedis">startRedis</a></li><li><a href="global.html#urbanToHTML">urbanToHTML</a></li><li><a href="global.html#used">used</a></li><li><a href="global.html#voice">voice</a></li><li><a href="global.html#ytdl">ytdl</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Wed Nov 22 2023 22:44:07 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Sat Jan 27 2024 02:27:59 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>

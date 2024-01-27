@@ -1,11 +1,10 @@
 {
   "name": "bilderberg_butler",
-  "version": "2.78.0",
+  "version": "2.79.0",
   "description": "Discord bot for bilderberg club",
   "main": "index.js",
   "scripts": {
     "start": "node main.js",
-    "deploy": "node deploy-commands.js",
     "doc": "jsdoc -c ./jsdoc.conf.js -d ./docs/jsdoc -r ./api ./commands ./discord ./services ./telegram ./*.js"
   },
   "repository": {
