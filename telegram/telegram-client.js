@@ -484,19 +484,6 @@ class TelegramInteraction {
             }
         }
 
-        if (process.env.WEBAPP_URL) {
-            answer.other = {
-                ...answer.other,
-                button: {
-                    text: 'Открыть веб-интерфейс',
-                    web_app: {
-                        url: `${process.env.WEBAPP_URL}/user/${this.context.from.id}`
-                    }
-                },
-                ...overrides
-            }
-        }
-
         this.logger.info(`Responding to inline query with an array`);
 
         return this.context.answerInlineQuery(answer.results, answer.other);
@@ -686,7 +673,6 @@ class TelegramClient {
         this._registerTelegramCommand('gpt4_32', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('vision', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('tldr', process.env.YA300_TOKEN && config.YA300_API_BASE, true);
-        // this._registerTelegramCommand('imagine', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('voice', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('t', this.app && this.app.redis, true);
         

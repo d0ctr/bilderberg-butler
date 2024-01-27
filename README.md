@@ -15,167 +15,167 @@
     </p>
 </div>
 
-<h1><a href="https://t.me/BilderbergButler_bot">@Bilderberg Butler</a></h1>
+# [@Bilderberg Butler](https://t.me/BilderbergButler_bot)
 
 This is an application that runs two bots simultaniously: one for Discord and one for Telegram.
 
-  - [Functionality](#functionality)
-    * [Discord Bot](#discord-bot)
-      + [Commands](#commands)
-    * [Telegram Bot](#telegram-bot)
-      + [Commands](#commands-1)
-      + [Inline Query](#inline-query)
-    * [API](#api)
-      + [Endpoints](#endpoints)
-  - [Using or altering code](#using-or-altering-code)
-    * [Prerequisities](#prerequisities)
-      + [Acquiring application runtime essentials](#acquiring-application-runtime-essentials)
-      + [Required tools](#required-tools)
-    * [Environment Variables](#environment-variables)
-    * [Discord Slash Commands Registration](#discord-slash-commands-registration)
-    * [Running Bots](#running-bots)
-  - [Credits](#credits)
+## Functionality
 
-
-# Functionality
-
-## Discord Bot
+### Discord Bot
 
 This bot talks with you in English and have a number of interesting (and not so much) capabilities.
 
-### Commands
+#### Commands
 
-  - /ping — pong
-  - /user — prints the name and the id of the user who sent the command
-  - /server — print the name and the id of the server where the command was sent
-  - /subscribe — {voice channel} {telegram chat id} — will send (and edit afterwards) to `telegram chat id` a message containing the list of current users and their statuses in `voice channel` . It will be pinned and updated on any change. When channel becomes empty the message will be deleted. *To get `telegram chat id`, send `/info` command to bot in Telegram.*
-  - /unsubscribe {voice channel} {telegram chat id?} — will turn off the feature for selected `voice channel` and won't send messages to `telegram chat id` or (if empty) to all previously configured `telegram chat id`s.
+  - `/presence`, `/unpresence` - `{telegram chat id} {telegram user id?}` tie, untie user's Discord presence to the telegram user in chat. This will update telgrams chat's description with the latest status in Discord. To avoid deletion of the whole chat's description, it must end with `--`.
+  - `/server` — print the name and the id of the server where the command was sent
+  - `/subevents`, `/unsubevents` - `{telegram chat id}` subscribe, unsubscribe to events on Discord server. This will send a message containing info about event that has started on the Discord server.
+  - `/subscribe`, `/unsubscribe` — `{voice channel} {telegram chat id}` subscribe, unsubscribe to voice channel status. This will send (and edit afterwards) to `telegram chat id` a message containing the list of current users and their statuses in `voice channel`. It will be pinned and updated on any change. When channel becomes empty the message will be deleted.
+  - `/user` — prints the name and the id of the user who sent the command
 
-## Telegram Bot
+> [!INFO]
+> To get `telegram chat id`, send `/info` command to bot in Telegram.
+
+### Telegram Bot
 
 This bot talks with you in Russian (because I've decided so, fill free to add translations).
 
-### Commands
+#### Commands
 
-  - /start — start bot in private chat
-  - /help — list of commands
-  - /info —  returns information about current chat
-  - /set {name} — saving content of a message that was replied with this command
-  - /get {name} — getting content that was saved by `/set`
-  - /get_list — getting a list of possible `/get`
-  - /del {name} — deleting the content saved by `/set` (in group chats can only be done by the person that previously used `/set`)
-  - /html {HTML text} — return submitted text as HTML formatted
-  - /gh {link} — convert GitHub link to a GitHub link with Instant View
-  - /deep {prompt} — generates an image based on prompt with DeepAI
-  - /fizzbuzz {number_1} {word_1} ... {number_n} {word_n} - fizzbuzz from 1 to 101
-  - /t {query?} - get wise man's words
+  - `/deep` — `{prompt}` generates an image based on prompt with DeepAI
+  - `/fizzbuzz` - `{number_1} {word_1} ... {number_n} {word_n}` fizzbuzz from 1 to 101
+  - `/gh` — `{link}` convert GitHub link to a GitHub link with Instant View
+  - `/help` — list of commands
+  - `/html` — `{HTML text}` return submitted text as HTML formatted
+  - `/info` —  returns information about current chat
+  - `/roundit` - reply to a video to make it a round video message (video must be square, with sides less than 640px, not longer than 60 seconds)
+  - `/start` — start bot in private chat
+  - `/set`, `/get`, and `/del` — `{name}` saving, getting and deleting content of a message that was replied with this command
+    - `/get_list` - list all available getters
+  - `/t` - `{query?}` get wise man's words
+  - `/tldr` - `{url?}` get a summary of a topic available with url using YaGPT, can also be used as a reply
+  - `/voice` - generate audio message from the text of a replied message using OpenAI TTS
 
-### Inline Query
+#### Inline Query
 
 You can get results of some of the commands by typing somewhat like `@<Bot name> /ping` in Telegram app in input field, mentioned example will result in sending `pong`, where `pong` is the result of the `/ping` command.
 
 Here is the list of supported inline commands:
 
-  - /ping
-  - /calc
-  - /get
-  - /get_list
-  - /ahegao
-  - /urban
-  - /html
-  - /cur
-  - /gh
-  - /curl
-  - /wiki
-  - /t
+  - `/get`
+  - `/get_list`
+  - `/gh`
+  - `/html`
+  - `/t`
+  - `/tldr`
+  - ... and all [common commands](#common-commands)
 
-### ChatGPT integration
+#### ChatGPT integration
 
 If you reply to the bot's message (e.g. in group chats) or write to it directly (in private chat), it will use ChatGPT integration to answer you.
 
-ChatGPT integration uses OpenAI's `gpt-3.5-turbo` model to ger answers.
+ChatGPT integration uses OpenAI's `gpt-3.5-turbo` model to get answers.
 
 Bot also has a **context tree**! Bot saves user's messages and own responses, so if you reply to either of it, it will use existing thread of messages as the context, which will affect ChatGPT's response. 
   - Note that it makes a difference to which message you reply with new request (context will be captured from the thread of messages that ends with your newest request). 
   - Context is only saved in bot's internal cache, therefore is wiped out at every restart.
 
-#### Special commands for ChatGPT 
+##### Special commands for ChatGPT 
 
-  - /new_system_prompt {prompt} — changes prompt in current chat. Default: `you are chat-assistant, answer shortly (less than 3000 characters), always answer in the same language as the question was asked`
-  - /answer — reply with this command to a message, bot will answer to it
-  - /tree — get a representation of bot's tree of context for this chat
+  - `/answer` - `{query?}` reply with this command to a message, bot will answer it (and will add query)
+  - `/gpt4`, `/gpt4_32` — same as /answer but using `gpt-4` and `gpt-4-32k` respectively
+  - `/new_system_prompt` — `{prompt}` changes prompt in current chat. Default: `you are a chat-assistant\nanswer should not exceed 4000 characters`
+  - <u>DISABLED</u>: `/tree` — get a representation of bot's tree of context for this chat
+  - `/vision` — same as /answer, but will also process photo messages using `gpt-4-vision-preview`
 
-## Common commands
+> [!NOTE]
+> When `/answer`, `/gpt4`, `/gpt4_32` or `/vision` is used as a reply to a thread that already exists (contains AI generated answers), the whole context will be transfered to the model associated with the command.<br/>
+> `/vision` will process only the replied photo during the transfer.
+
+### Common commands
 
 Some commands are both available in Discord and Telegram:
 
-  - /ping — pong
-  - /calc {math eq} — result of math equation
-  - /ahegao — getting a random ahegao
-  - /urban {phrase?} — get the random or the phrase (if specified) definition from urban dictionary
-  - /cur {amount} {from} {to} — convert amount from one currency to another
-  - /wiki {query} — returns a summary from wikipedia
-  - /0o0 {query} — turns query into QuErY
+  - `/ahegao` — getting a random ahegao
+  - `/calc` - `{math eq}` result of math equation
+  - `/cur` — `{amount} {from} {to}` convert amount from one currency to another
+  - `/curl` — `{url}` sends the result of GET request to the url
+  - `/ping` — pong
+  - `/game` — `{query}` get infor about a game from RAWG.io
+  - `/genius` — `{query}` get info abot a song from genius.com
+  - `/imagine` — `{query}` generate image by query using DALL-E 3
+  - `/releases` — `{YYYY-MM}` get game releases for submitted year and month from RAWG.io
+  - `/urban` — `{phrase?}` get the random or the phrase (if specified) definition from urban dictionary
+  - `/wiki` — `{query}` returns a summary from wikipedia
+  - `/0o0` — `{query}` turns query into QuErY
 
-
-# Using or altering code
+## Using or altering code
 
 You can use this code to start your own bot/s or you may also contribute something very beautiful (basically anything other than my code).
 
-## Prerequisities
+### Logging
 
-### Acquiring application runtime essentials
+There are 3 logging outputs for the project:
+  - Standard output - messages are printed in readable format with configurable level
+  - File `combined.log` - (only in dev environment) created at the root of the project, messages are printed as JSON with *silly* loglevel
+  - Grafana Loki - messages are sent to Grafana Loki storage, formatted as JSON with configurable additional labels and logging level
+
+### Prerequisities
+
+#### Acquiring application runtime essentials
 
   - Create Discord application and bot as a part of it. To learn how to do it you may follow [guide from discord.js](https://discordjs.guide/preparations/setting-up-a-bot-application.html) or an [official Discord guide](https://discord.com/developers/docs/getting-started).
     - You may also not do it, if you only intend to use Telegram bot.
   - Create Telegram bot. You can do it by following [official guide from Telegram](https://core.telegram.org/bots).
     - You may also not do it, if you only intend to use Discord bot.
-  - Create a Redis instance. I use Redis Add-on in Heroku (which is basically click-and-ready), search the web if you want to do it the other way.
-    - You may create an empty application in Heroku and add Redis to it (but I am not sure if that's the best way).
-    - You may ignore that if you like, most of the Telegram side features are available without it. It is necessary only for Telegram commands `/get`, `/set`, `/get_list` and Discord `/subscribe`, `/unsubscribe`.
+  - Create a Redis instance. I use Redis plugin in Railway (which is basically click-and-ready), search the web if you want to do it the other way.
+    - You may ignore that if you like, most of the Telegram side features are available without it. It is necessary only for Telegram commands `/set`, `/t` and Discord `/subscribe`, `/subevents`, `/presence`.
       - It is also possible to use above Discord commands without Redis, but only if you are sure that your application won't be restarted at any point (if that happends application will lose data about wordle schedulers and voice channel subscriptions).
 
-### Required tools
+#### Required tools
 
   - Internet.
   - Node.JS version 16.0.0 or above.
-  - Package manager (I used npm).
+  - Package manager (I have used npm).
 
-## Environment Variables
+### Environment Variables
 
 To authenticate as Discord or/and Telegram application needs tokens and other parameters, you should've acquired them in in guides described in [Prerequisities](#prerequisities).
 This application automatically loads variables specified in [`.env`](https://www.youtube.com/watch?v=dQw4w9WgXcQ) file that you should create yourself or you can export environment variables anyway you like.
 
-  - `DISCORD_TOKEN` — Discord bot token (ignore if you are not planning to use it)
-  - `DISCORD_APP_ID` — Discord application id (ignore if you are not planning to use Discord bot)
-  - `TELEGRAM_TOKEN` — Telegram bot token (ignore if you are not planning to use it)
-  - `REDIS_URL` — Redis connection URL that can be accepted by [ioredis](https://www.npmjs.com/package/ioredis/v/4.28.3) (can also be ignored)
-  - `PORT` — Port for API (can be ignored)
-  - `ENV` — define environment, if equals `dev` (or if `PORT` is not specified, or if `DOMAIN` is not specified) will start polling for Telegram client, if is absent will start webhooking, if equals `test` will start polling using Telegram's test server's URL (`https://api.telegram.org/api/bot<token>/test`)
-  - `COINMARKETCAP_TOKEN` — CoinMarketCap API token for currency conversion
+  - `COINMARKETCAP_TOKEN` — CoinMarketCap API token for currency conversion (for [/cur](#common-commands))
+  - `DEEP_AI_TOKEN` — Deep AI token (for [/deep](#commands-1))
+  - `DEFAULT_LOGLEVEL` - default logging level used for [Standard output and Loki](#logging)
+  - `DISCORD_APP_ID`, `DISCORD_TOKEN` — Discord application id and token (ignore if you are not planning to use Discord bot)
   - `DOMAIN` — domain that application is available on (neeeded for webhooks and API)
-  - `DEEP_AI_TOKEN` — Deep AI token (ignorable)
-  - `OPENAI_TOKEN` — OpenAI account token (ignorable)
-  - `WEBAPP_URL` — Web App url to be posted in Inline Mode (ignorable)
+  - `ENABLE_LOKI` - set to `true` to enable Loki logging
+  - `ENV` - set to `dev` to configure project for local run:
+    - create loggine file `combined.log`
+    - print the body of all incoming API requests with *silly* level
+    - use [testing servers](https://core.telegram.org/bots/features#testing-your-bot) for Telegram (requires sepparate token)
+    - use long polling for Telegram API
+  - `LOKI_HOST`, `LOKI_USER`, `LOKI_PASS`, `LOKI_LOGLEVEL`, `LOKI_LABELS` - host url, user, password, logging level and additional labels (as JSON) for Grafana Loki 
+  - `PORT` — Port for API (can be ignored)
+  - `TELEGRAM_TOKEN` — Telegram bot token (ignore if you are not planning to use it)
+  - `OPENAI_TOKEN` — OpenAI account token (for [ChatGPT integration](#chatgpt-integration), [/voice](#commands-1) and [/imagine](#common-commands))
+  - `REDIS_URL` — Redis connection URL that can be accepted by [ioredis](https://www.npmjs.com/package/ioredis/v/4.28.3) (can also be ignored)
+  - `RAWG_TOKEN` - RAWG.io API token (for [/game, /release](#common-commands))
+  - `GENIUS_TOKEN`- genius.com API token (for [/genius](#common-commands))
+  - `YA300_TOKEN` - [Ya300](https://300.ya.ru/) API token (for [/tldr](#commands-1))
+  - `WEBAPP_URL` — WebApp url (for [/webapp](#commands-1))
 
-## config.json
+### config.json
 
-Config file is used to share some non-secret variables
+Config file is used to share some non-secret variables, mostly API bases and other urls.
 
-  - `AHEGAO_API` — API to get urls for random ahegao
-  - `API_HOMEPAGE` — URL to which redirect home (`/`) endpoint to
-  - `URBAN_API` — API for definitions from urban dictionary
-  - `COINMARKETCAP_API` — API for CoinMarketCap
-  - `VIDEO_THUMB_URL` — placeholder for video thumbnail in inline query 
-
-## Running Bots
+### Running Bots
 
 After specifying runtime parameters the way you like you can start bot/s by simple command:
 
-```powershell
+```shell
 npm start
 ```
-# Credits
+## Credits
 
   - Authored by [@d0ctr](https://d0ctr.github.io/d0ctr)
   - Many thanks to:

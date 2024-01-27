@@ -54,7 +54,7 @@ if (process.env?.ENV === 'dev') {
                 format.timestamp(),
                 format.json()
             ),
-            level: LOGLEVEL,
+            level: 'silly',
             filename: `combined.log`
         })
     )

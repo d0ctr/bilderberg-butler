@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: commands/discord.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: commands/discord.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const TurndownService = require('turndown');
+const { EmbedBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle, MessagePayload } = require('discord.js');
+
+const turndownService = new TurndownService({
+    codeBlockStyle: 'fenced',
+    br: ' '
+});
+
+turndownService.addRule('a', {
+    filter: 'a',
+    replacement: (content, node) => {
+        const href = node.getAttribute('href');
+        return `[${content}](&lt;${href}>)`;
+    }
+});
+
+/** @typedef {import('discord.js').Interaction} Interaction */
+
+/**
+ * @typedef {{
+ * platform: 'discord',
+ * command_name: string?,
+ * text: string,
+ * args: any[]?,
+ * from: {
+ *  id: string?,
+ *  username: string?,
+ *  name: string?
+ * },
+ * space: {
+ *  type: 'guild',
+ *  id: string,
+ *  title: string
+ * } | {
+ *  id: string?,
+ *  username: string?
+ * },
+ * id: string,
+ * data: string?
+ * }} DiscordInteraction
+ */
+
+/**
+ * 
+ * @param {Interaction} interaction 
+ * @param {*} definition 
+ * @returns {DiscordInteraction}
+ */
+function commonizeInteraction(interaction, definition) {
+    let common_interaction = {
+        platform: 'discord',
+        command_name: interaction.commandName,
+        text: interaction.toString(),
+    }
+
+    // Parse args
+    if (definition?.args) {
+        common_interaction.args = [];
+        definition.args.forEach(arg => {
+            common_interaction.args.push(interaction.options.get(arg.name)?.value);
+        });
+    }
+
+    if (interaction.user) {
+        common_interaction.from = {
+            id: interaction.user.id,
+            username: interaction.user.username
+        }
+    }
+
+    if (interaction.guild) {
+        common_interaction.space = {
+            id: interaction.guild.id,
+            title: interaction.guild.name,
+            type: 'guild'
+        }
+        common_interaction.from.name = interaction.member.displayName;
+    }
+    else {
+        common_interaction.space = common_interaction.from;
+    }
+
+    common_interaction.id = interaction.id;
+    common_interaction.data = interaction.customId;
+
+    return common_interaction;
+}
+
+function transformOverrides(response) {
+    if (response?.overrides?.followup) {
+        const { text, url } = response.overrides.followup;
+        const components = [
+            new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setLabel(text)
+                        .setURL(url)
+                        .setStyle(ButtonStyle.Link)
+                )
+        ];
+        response.components = components;
+    }
+
+    if (response.overrides?.buttons) {
+        if (!response.components) response.components = [];
+        
+        response.components.push(...response.overrides.buttons.map(row => {
+            const actionRow = new ActionRowBuilder();
+            actionRow.addComponents(...row.map(button => {
+                return new ButtonBuilder()
+                    .setLabel(button.name)
+                    .setCustomId(button.callback)
+                    .setStyle(ButtonStyle.Primary);
+            }));
+            return actionRow;
+        }));
+    }
+
+    if (response?.overrides?.embeded_image) {
+        response.embeds = [new EmbedBuilder().setImage(response?.overrides?.embeded_image)];
+    }
+
+    return response;
+}
+
+function replyWithText(interaction, response, logger) {
+    logger.info(`Replying with text`, { response });
+
+    // if (response?.overrides?.followup) {
+    //     const { text, url } = response.overrides.followup;
+    //     let embed = new EmbedBuilder;
+    //     text &amp;&amp; embed.setTitle(text);
+    //     url &amp;&amp; embed.setURL(url);
+    //     response.embeds = [embed];
+    // }
+
+    interaction.editReply({ content: response.text, components: response?.components, embeds: response?.embeds })
+    .then((messsage) => {
+        logger.debug('Replied!', { message_id: messsage.id });
+    }).catch(err => {
+        logger.error(`Error while replying`, { error: err.stack || err });
+        // Try again if only it wasn't an error message
+        if (response.type !== 'error') {
+            replyWithText(
+                interaction,
+                {
+                    type: 'error',
+                    text: `Что-то случилось:\n\`${err}\``
+                },
+                logger
+            );
+        }
+    });
+}
+
+function replyWithEmbed(interaction, response, logger) {
+    const payload = { embeds: [] };
+
+    const embed = new EmbedBuilder();
+
+    if (response.text) {
+        payload.content = response.text;
+    }
+
+    if (response.components) {
+        payload.components = response.components;
+    }
+
+    if (response.filename) {
+        logger.info(`Replying with file of type: ${response.type}`);
+        payload.files = [{ name: response.filename, attachment: response.media }];
+    }
+    else {
+        logger.info(`Replying with media of type: ${response.type}`);
+        embed.setImage(response.media);
+        payload.embeds.push(embed);
+    }
+    if (response?.embeds) {
+        payload.embeds.unshift(...response.embeds);
+    }
+
+    interaction.editReply(payload)
+    .then((messsage) => {
+        logger.debug('Replied!', { message_id: messsage.id });
+    }).catch(err => {
+        logger.error(`Error while replying`, { error: err.stack || err });
+        replyWithText(
+            interaction,
+            {
+                type: 'error',
+                text: `Что-то случилось:\n\`${err}\``
+            },
+            logger
+        );
+    });
+}
+
+function replyWithFile(interaction, response, logger) {
+    const payload = { embeds: [] };
+
+    if (response.text) {
+        payload.content = response.text;
+    }
+
+    if (response.components) {
+        payload.components = response.components;
+    }
+
+    if (response.filename) {
+        logger.info(`Replying with file of type: ${response.type}`);
+        payload.files = [{ name: response.filename, attachment: response.media }];
+    }
+    if (response?.embeds) {
+        payload.embeds.unshift(...response.embeds);
+    }
+
+    interaction.editReply(payload)
+    .then((messsage) => {
+        logger.debug('Replied!', { message_id: messsage.id });
+    }).catch(err => {
+        logger.error(`Error while replying`, { error: err.stack || err });
+        replyWithText(
+            interaction,
+            {
+                type: 'error',
+                text: `Что-то случилось:\n\`${err}\``
+            },
+            logger
+        );
+    });
+}
+
+function reply(interaction, response, logger) {
+    while (response?.text?.length >= 2000) response.text = response.text.split('\n').slice(0, -1).join('\n');
+
+    if (['text', 'error'].includes(response.type)) {
+        replyWithText(interaction, response, logger);
+        return;
+    }
+
+    if (['photo', 'image'].includes(response.type)) {
+        replyWithEmbed(interaction, response, logger);
+        return;
+    }
+
+    if (response.type === 'document' &amp;&amp; response.filename) {
+        replyWithFile(interaction, response, logger);
+        return;
+    }
+
+    logger.error(`Can't send file of type: ${response.type}`);
+
+    if (response.text) {
+        logger.info('Sending text instead');
+        replyWithText(
+            interaction,
+            {
+                type: 'text',
+                text: response.text
+            },
+            logger
+        );
+        return;
+    }
+    
+    replyWithText(
+        interaction,
+        {
+            type: 'error',
+            text: `Пока что не могу ответить на это сообщение из-за типа контента в ответе: \`${response.type}\``
+        },
+        logger
+    );
+}
+
+function handleCommand(interaction, handler, definition) {
+    const common_interaction = commonizeInteraction(interaction, definition);
+    const log_meta = {
+        module: 'discord-common-command-handler',
+        command_name: common_interaction.command_name,
+        platform: common_interaction.platform,
+        interaction: common_interaction
+    };
+    const logger = require('../logger').child(log_meta);
+    common_interaction.logger = logger.child({ ...log_meta, module: `common-command-${common_interaction.command_name}` });
+
+    logger.info(`Received command: ${common_interaction.text}`);
+
+    interaction.deferReply()
+    .then(() => handler(common_interaction))
+    .then(transformOverrides)
+    .then(response => {
+        if (response.text) {
+            response.text = response.text.replace(/\n|\\n/gm, '&lt;br/>');
+            response.text = turndownService.turndown(response.text);
+            response.text = response.text.replace(/( *\n *){2,}/gm, '\n\n')
+        }
+        reply(interaction, response, logger);
+    }).catch(err => {
+        logger.error(`Error while handling`, { error: err.stack || err });
+        replyWithText(
+            interaction,
+            {
+                type: 'error',
+                text: `Что-то случилось:\n\`${err}\``
+            },
+            logger
+        );
+    });
+};
+
+/**
+ * 
+ * @param {import('discord.js').Interaction} interaction 
+ * @param {*} response 
+ */
+async function answerCallback(interaction, response) {
+    if (response.type === 'error') {
+        return interaction.followUp(response.text);
+    }
+
+    switch(response.type) {
+        case 'edit_text':
+        case 'edit_caption':
+            return interaction.editReply({
+                content: response.text,
+                components: response.components,
+                embeds: response.embeds
+            });
+        case 'edit_media':
+            if (response.filename) {
+                response.files = [{ name: response.filename, attachment: response.media }];
+            }
+            else {
+                if (!response.embdes) response.embeds = [];
+                response.embeds.push(new EmbedBuilder().setImage(response.media));
+            }
+            return interaction.editReply({
+                embeds: response.embeds,
+                components: response.components,
+                files: response.files,
+            })
+        case 'delete_buttons':
+            return interaction.followUp(response.text)
+                .then(() => interaction.editReply({
+                    components: []
+                }));
+        case 'edit_buttons':
+            return interaction.editReply({
+                components: response.components
+            });
+    }
+}
+
+async function handleCallback(interaction, handle) {
+    const common_interaction = commonizeInteraction(interaction);
+    const log_meta = {
+        module: 'discord-common-interface-handler',
+        command_name: common_interaction.command_name,
+        platform: common_interaction.platform,
+        interaction: common_interaction
+    };
+    const logger = require('../logger').child(log_meta);
+    common_interaction.logger = logger.child({ ...log_meta, module: `common-handler-${common_interaction.command_name}` });
+
+    logger.info(`Received callback: ${common_interaction.data}`);
+
+    interaction.deferUpdate()
+    .then(() => handle(common_interaction))
+    .then(transformOverrides)
+    .then(response => {
+        if (response.text) {
+            response.text = response.text.replace(/\n|\\n/gm, '&lt;br/>');
+            response.text = turndownService.turndown(response.text);
+            response.text = response.text.replace(/( *\n *){2,}/gm, '\n\n')
+        }
+        return answerCallback(interaction, response);
+    })
+}
+
+module.exports = {
+    commonizeInteraction,
+    handleCommand,
+    handleCallback,
+};</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="ChatGPT.html">ChatGPT</a></li></ul><h3>Classes</h3><ul><li><a href="ChatGPT.ChatGPTHandler.html">ChatGPTHandler</a></li><li><a href="ChatGPT.ContextNode.html">ContextNode</a></li><li><a href="ChatGPT.ContextTree.html">ContextTree</a></li><li><a href="TelegramClient.html">TelegramClient</a></li><li><a href="global.html#TelegramInteraction">TelegramInteraction</a></li></ul><h3>Global</h3><ul><li><a href="global.html#answerCallback">answerCallback</a></li><li><a href="global.html#bot">bot</a></li><li><a href="global.html#callback">callback</a></li><li><a href="global.html#clearNotification">clearNotification</a></li><li><a href="global.html#commonizeContext">commonizeContext</a></li><li><a href="global.html#commonizeInteraction">commonizeInteraction</a></li><li><a href="global.html#del">del</a></li><li><a href="global.html#editNotificationMessage">editNotificationMessage</a></li><li><a href="global.html#encodeCallbackData">encodeCallbackData</a></li><li><a href="global.html#fizzbuzz">fizzbuzz</a></li><li><a href="global.html#generateAPICall">generateAPICall</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#getAhegaoUrl">getAhegaoUrl</a></li><li><a href="global.html#getBest">getBest</a></li><li><a href="global.html#getCallbackData">getCallbackData</a></li><li><a href="global.html#getDiscordNotification">getDiscordNotification</a></li><li><a href="global.html#getGamesFromRedis">getGamesFromRedis</a></li><li><a href="global.html#getList">getList</a></li><li><a href="global.html#getPresenceNotification">getPresenceNotification</a></li><li><a href="global.html#getRedis">getRedis</a></li><li><a href="global.html#getUrbanDefinition">getUrbanDefinition</a></li><li><a href="global.html#gh">gh</a></li><li><a href="global.html#handleCallback">handleCallback</a></li><li><a href="global.html#handleCommand">handleCommand</a></li><li><a href="global.html#handler">handler</a></li><li><a href="global.html#help">help</a></li><li><a href="global.html#html">html</a></li><li><a href="global.html#isSimilar">isSimilar</a></li><li><a href="global.html#listingMenuCallback">listingMenuCallback</a></li><li><a href="global.html#parseArgs">parseArgs</a></li><li><a href="global.html#parseCallbackData">parseCallbackData</a></li><li><a href="global.html#pinNotificationMessage">pinNotificationMessage</a></li><li><a href="global.html#replaceWithLink">replaceWithLink</a></li><li><a href="global.html#replyWithText">replyWithText</a></li><li><a href="global.html#saveResults">saveResults</a></li><li><a href="global.html#sendNotificationMessage">sendNotificationMessage</a></li><li><a href="global.html#set">set</a></li><li><a href="global.html#startRedis">startRedis</a></li><li><a href="global.html#urbanToHTML">urbanToHTML</a></li><li><a href="global.html#used">used</a></li><li><a href="global.html#voice">voice</a></li><li><a href="global.html#ytdl">ytdl</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Sat Jan 27 2024 02:27:59 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
