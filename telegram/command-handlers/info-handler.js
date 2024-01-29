@@ -1,8 +1,19 @@
-async function info(input) {
+/**
+ * Info Command
+ * @namespace info
+ * @memberof Telegram.Commands
+ */
+
+/**
+ * Info Command handler
+ * @param {import('grammy').Context} ctx 
+ * @memberof Telegram.Commands
+ */
+async function info(ctx) {
     let message = `Информация об этом чате:
-id чата: <code>${input.chat.id}</code>
-тип чата: <code>${input.chat.type}</code>
-${input.from.id !== input.chat.id ? `id отправителя: <code>${input.from.id}</code>` : ''}
+id чата: <code>${ctx.chat.id}</code>
+тип чата: <code>${ctx.chat.type}</code>
+${ctx.from.id !== ctx.chat.id ? `id отправителя: <code>${ctx.from.id}</code>` : ''}
 `
     return [null, message];
 }

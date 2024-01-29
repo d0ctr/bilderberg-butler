@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: telegram/command-handlers/tldr-handler.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: telegram/command-handlers/tldr-handler.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const { JSDOM } = require('jsdom');
+
+const { InlineKeyboard } = require('grammy');
+
+const { YA300_API_BASE } = require('../../config.json');
+
+/**
+ * TLDR Command
+ * @namespace tldr
+ * @memberof Telegram.Commands
+ */
+
+/**
+ * @typedef {{title: string, summary: { text: string, url: string}[], sharing_url: string}} SummaryJSON
+ * @memberof Telegram.Commands.tldr
+ */
+
+/**
+ * Request summary from Ya300
+ * @param {{ article_url: string }}
+ * @returns {Promise&lt;Response>}
+ * @memberof Telegram.Commands.tldr
+ */
+async function getSummaryURL({ article_url }) {
+    return await fetch(
+        `${YA300_API_BASE}`,
+        {
+            method: 'post',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `OAuth ${process.env.YA300_TOKEN}`
+            },
+            body: JSON.stringify({ article_url })
+        }
+    );
+}
+
+/**
+ * Get summary from Ya300
+ * @param {string} summary url
+ * @returns {Promise&lt;Response>}
+ * @memberof Telegram.Commands.tldr
+ */
+async function getSummaryHTML(url) {
+    return await fetch(url);
+}
+
+/**
+ * Parse HTML summary into a JSON
+ * @param {Response} response 
+ * @returns {SummaryJSON}
+ * @memberof Telegram.Commands.tldr
+ */
+async function parseSummary(response) {
+    const html = await response.text();
+    const result = {};
+    const $ = require('jquery')((new JSDOM(html)).window);
+    const summaryDiv = $('.summary .summary-content .summary-text');
+
+    result.title = summaryDiv.find('.title').text()?.trim();
+    result.summary = summaryDiv.find('li.thesis a').get()?.map(thesis => {
+        return { text: thesis.text?.trim(), url: thesis.href };
+    });
+    result.sharing_url = response.url;
+
+    return result;
+}
+
+exports.definition = {
+    command_name: 'tldr',
+    args: [
+        {
+            name: 'url',
+            type: 'string',
+            description: 'Ссылка на статью.',
+            optional: false
+        }
+    ],
+    is_inline: true,
+    description: 'Возвращает краткий персказ сгенерированный YandexGPT'
+};
+
+exports.condition = !!process.env.YA300_API_BASE;
+
+/**
+ * TLDR Command Handler
+ * @param {import('grammy').Context} ctx 
+ * @param {import('../telegram-client').TelegramInteraction} interaction 
+ * @memberof Telegram.Commands.tldr
+ */
+async function handler(ctx, interaction) {
+    const text = require('./utils').parseArgs(ctx)[1] || ctx.message?.reply_to_message?.text || ctx.message?.reply_to_message?.caption || '';
+
+    const article_url = text.split(' ').find(words => words.match(/https?:\/\//));
+
+    if (!article_url) {
+        return ['Для запроса нужно предоставить ссылку, например https://habr.com/ru/news/729422/'];
+    }
+
+    return getSummaryURL({ article_url })
+        .then(response => response.json())
+        .catch(err => { throw { why: 'badresponse', error: err } })
+        .then(({ status, sharing_url }) => {
+            interaction.logger.silly(`Received response from Ya300`);
+            if (status !== 'success') throw { message: `API responded with status=${status}`, why: 'badstatus' };
+            return getSummaryHTML(sharing_url);
+        })
+        .catch(err => { throw { why: err.why || 'badresponse', error: err.error || err } })
+        .then(response => parseSummary(response))
+        .then(({ title, summary, sharing_url }) => {
+            interaction.logger.silly(`Parsed summary from Ya300`);
+            if (!summary) throw { message: 'No title/summary in response', why: 'badparsing' };
+            return [
+                null,
+                `&lt;b>${title}&lt;/b>\n${summary.reduce((acc, thesis) => acc += `${thesis.text}&lt;a href="${thesis.url}">🔗&lt;/a>\n`, '')}`,
+                null,
+                { reply_markup: new InlineKeyboard().url('Посмотреть на сайте', sharing_url)}
+            ];
+        })
+        .catch(err => {
+            interaction.logger.error(err.message || err.error?.message || 'Error', { error: err.stack || err, args: [text, article_url] });
+            switch (err?.why) {
+                case 'badparsing':
+                    return ['Боту чего-то поплохело, давай на ту ссылку больше не ходить'];
+                case 'badstatus':
+                    return ['Яндекс просил передать, что там ничего хорошего нет'];
+                case 'badresponse':
+                    return ['Яндексу поплохело, можешь попробовать позже'];
+                default:
+                    return [`Что-то совсем не так:\n&lt;code>${err.message}&lt;/code>`]
+            }
+        });
+}
+
+exports.tldr = handler;</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="ChatGPT.html">ChatGPT</a></li><li><a href="Telegram.html">Telegram</a></li><li><a href="Telegram.Commands.html">Commands</a></li><li><a href="Telegram.Commands.Utils.html">Utils</a></li><li><a href="Telegram.Commands.deep.html">deep</a></li><li><a href="Telegram.Commands.fizzbuzz.html">fizzbuzz</a></li><li><a href="Telegram.Commands.get.html">get</a></li><li><a href="Telegram.Commands.gh.html">gh</a></li><li><a href="Telegram.Commands.help.html">help</a></li><li><a href="Telegram.Commands.html.html">html</a></li><li><a href="Telegram.Commands.html#.info">info</a></li><li><a href="Telegram.Commands.roundit.html">roundit</a></li><li><a href="Telegram.Commands.t.html">t</a></li><li><a href="Telegram.Commands.tldr.html">tldr</a></li><li><a href="Telegram.Commands.voice.html">voice</a></li><li><a href="Telegram.Commands.webapp.html">webapp</a></li><li><a href="Telegram.Commands.ytdl.html">ytdl</a></li></ul><h3>Classes</h3><ul><li><a href="ChatGPT.ChatGPTHandler.html">ChatGPTHandler</a></li><li><a href="ChatGPT.ContextNode.html">ContextNode</a></li><li><a href="ChatGPT.ContextTree.html">ContextTree</a></li><li><a href="TelegramClient.html">TelegramClient</a></li><li><a href="global.html#TelegramInteraction">TelegramInteraction</a></li></ul><h3>Global</h3><ul><li><a href="global.html#answerCallback">answerCallback</a></li><li><a href="global.html#bot">bot</a></li><li><a href="global.html#callback">callback</a></li><li><a href="global.html#clearNotification">clearNotification</a></li><li><a href="global.html#commonizeContext">commonizeContext</a></li><li><a href="global.html#commonizeInteraction">commonizeInteraction</a></li><li><a href="global.html#editNotificationMessage">editNotificationMessage</a></li><li><a href="global.html#encodeCallbackData">encodeCallbackData</a></li><li><a href="global.html#generateAPICall">generateAPICall</a></li><li><a href="global.html#getAhegaoUrl">getAhegaoUrl</a></li><li><a href="global.html#getCallbackData">getCallbackData</a></li><li><a href="global.html#getDiscordNotification">getDiscordNotification</a></li><li><a href="global.html#getGamesFromRedis">getGamesFromRedis</a></li><li><a href="global.html#getPresenceNotification">getPresenceNotification</a></li><li><a href="global.html#getRedis">getRedis</a></li><li><a href="global.html#getUrbanDefinition">getUrbanDefinition</a></li><li><a href="global.html#handleCallback">handleCallback</a></li><li><a href="global.html#handleCommand">handleCommand</a></li><li><a href="global.html#handler">handler</a></li><li><a href="global.html#listingMenuCallback">listingMenuCallback</a></li><li><a href="global.html#parseCallbackData">parseCallbackData</a></li><li><a href="global.html#pinNotificationMessage">pinNotificationMessage</a></li><li><a href="global.html#replaceWithLink">replaceWithLink</a></li><li><a href="global.html#replyWithText">replyWithText</a></li><li><a href="global.html#saveResults">saveResults</a></li><li><a href="global.html#sendNotificationMessage">sendNotificationMessage</a></li><li><a href="global.html#startRedis">startRedis</a></li><li><a href="global.html#urbanToHTML">urbanToHTML</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Mon Jan 29 2024 14:07:25 GMT+0000 (Coordinated Universal Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

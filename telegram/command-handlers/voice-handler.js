@@ -1,10 +1,9 @@
 const { OpenAI } = require('openai');
-const { default: axios } = require('axios');
 
 /**
- * Voice Command
+ * Voics Command
  * @namespace voice
- * @memberof Telegram.Comands
+ * @memberof Telegram.Commands
  */
 
 /**
@@ -15,8 +14,8 @@ const openai = new OpenAI({
 });
 
 /**
- * 
- * @param {*} text 
+ * OpenAI TTS Generator
+ * @param {string} text 
  * @returns {Promise<Buffer>} 
  * @memberof Telegram.Comands.voice
  */
@@ -34,7 +33,7 @@ async function generateSpeech(text) {
  * Voice Command Handler
  * @param {import('@grammyjs/files').FileFlavor<import('grammy').Context>} ctx 
  * @param {import('../telegram-client').TelegramInteraction} interaction 
- * @memberof Telegram.Comands.voice
+ * @memberof Telegram.Commands.voice
  */
 async function voice(ctx, interaction) {
     const { message } = ctx;

@@ -4,6 +4,23 @@ const { InlineKeyboard } = require('grammy');
 
 const { YA300_API_BASE } = require('../../config.json');
 
+/**
+ * TLDR Command
+ * @namespace tldr
+ * @memberof Telegram.Commands
+ */
+
+/**
+ * @typedef {{title: string, summary: { text: string, url: string}[], sharing_url: string}} SummaryJSON
+ * @memberof Telegram.Commands.tldr
+ */
+
+/**
+ * Request summary from Ya300
+ * @param {{ article_url: string }}
+ * @returns {Promise<Response>}
+ * @memberof Telegram.Commands.tldr
+ */
 async function getSummaryURL({ article_url }) {
     return await fetch(
         `${YA300_API_BASE}`,
@@ -18,10 +35,22 @@ async function getSummaryURL({ article_url }) {
     );
 }
 
+/**
+ * Get summary from Ya300
+ * @param {string} summary url
+ * @returns {Promise<Response>}
+ * @memberof Telegram.Commands.tldr
+ */
 async function getSummaryHTML(url) {
     return await fetch(url);
 }
 
+/**
+ * Parse HTML summary into a JSON
+ * @param {Response} response 
+ * @returns {SummaryJSON}
+ * @memberof Telegram.Commands.tldr
+ */
 async function parseSummary(response) {
     const html = await response.text();
     const result = {};
@@ -53,8 +82,14 @@ exports.definition = {
 
 exports.condition = !!process.env.YA300_API_BASE;
 
-async function handler(input, interaction) {
-    const text = require('./utils').parseArgs(input)[1] || input.message?.reply_to_message?.text || input.message?.reply_to_message?.caption || '';
+/**
+ * TLDR Command Handler
+ * @param {import('grammy').Context} ctx 
+ * @param {import('../telegram-client').TelegramInteraction} interaction 
+ * @memberof Telegram.Commands.tldr
+ */
+async function handler(ctx, interaction) {
+    const text = require('./utils').parseArgs(ctx)[1] || ctx.message?.reply_to_message?.text || ctx.message?.reply_to_message?.caption || '';
 
     const article_url = text.split(' ').find(words => words.match(/https?:\/\//));
 

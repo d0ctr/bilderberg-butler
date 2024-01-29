@@ -1,5 +1,18 @@
 const getRegex = /^[a-zA-Zа-яА-Я0-9_-]+$/g;
 
+/**
+ * Getter Commands
+ * @namespace get
+ * @memberof Telegram.Commands
+ */
+
+/**
+ * Get data from Redis
+ * @param {import('grammy').Context} ctx 
+ * @param {string} name 
+ * @returns {Promise<string>}
+ * @memberof Telegram.Commands.get
+ */
 async function redisGet(ctx, name) {
     const redis = require('../../services/redis').getRedis();
     if (!redis) {
@@ -9,7 +22,14 @@ async function redisGet(ctx, name) {
     let result = await redis.hgetall(key);
     return result.data ? JSON.parse(result.data) : result; // legacy support for not stringified get-s
 }
-
+/**
+ * Set data in Redis
+ * @param {import('grammy').Context} ctx 
+ * @param {string} name 
+ * @param {{[string]: string}} data 
+ * @returns {Promise}
+ * @memberof Telegram.Commands.get
+ */
 async function redisSet(ctx, name, data) {
     const redis = require('../../services/redis').getRedis();
     if (!redis) {
@@ -37,7 +57,12 @@ async function redisSet(ctx, name, data) {
 
     return redis.hset(key, { data: JSON.stringify(data), owner });
 }
-
+/**
+ * Get list of names from Redis
+ * @param {import('grammy').Context} ctx
+ * @returns {Promise<string[]>}
+ * @memberof Telegram.Commands.get
+ */
 async function redisGetList(ctx) {
     const redis = require('../../services/redis').getRedis();
     if (!redis) {
@@ -52,6 +77,13 @@ async function redisGetList(ctx) {
     return keys;
 }
 
+/**
+ * Delete data from Redis
+ * @param {import('grammy').Context} ctx 
+ * @param {string} name
+ * @returns {Promise}
+ * @memberof Telegram.Commands.get
+ */
 async function redisDel(ctx, name) {
     const redis = require('../../services/redis').getRedis();
     if (!redis) {
@@ -76,7 +108,7 @@ async function redisDel(ctx, name) {
 /**
  * `/get` command handler
  * @param {GrammyTypes.Context | Object} ctx
- * @returns {[String | null, Object | null]} [err, message]
+ * @memberof Telegram.Commands.get
  */
 async function get(ctx) {
     let name = require('./utils').parseArgs(ctx, 1)[1];
@@ -104,7 +136,7 @@ async function get(ctx) {
  * `/set` command handler
  * @param {import('grammy').Context} ctx
  * @param {import('../telegram-client').TelegramInteraction} interaction
- * @returns {[String | null, String | null]}
+ * @memberof Telegram.Commands.get
  */
 
 async function set(ctx, interaction) {
@@ -140,8 +172,8 @@ async function set(ctx, interaction) {
 
 /**
  * `/get_list` command handler
- * @param {GrammyTypes.Context} ctx
- * @returns {[String | null, String | null]}
+ * @param {import('grammy').Context} ctx
+ * @memberof Telegram.Commands.get
  */
 
 async function getList(ctx, interaction) {
@@ -161,8 +193,8 @@ async function getList(ctx, interaction) {
 
 /**
  * `/del` command handler
- * @param {GrammyTypes.Context} ctx
- * @returns {[String | null, String | null]}
+ * @param {import('grammy').Context} ctx
+ * @memberof Telegram.Commands.get
  */
 async function del(ctx, interaction) {
     let name = require('./utils').parseArgs(ctx, 1)[1];
