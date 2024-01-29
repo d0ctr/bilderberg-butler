@@ -2,8 +2,20 @@ const { default: axios } = require('axios');
 const formData = require('form-data');
 const config = require('../../config.json');
 
-async function generateImage(input, interaction) {
-    let arg = require('./utils').parseArgs(input, 1)[1];
+/**
+ * Deep Command
+ * @namespace deep
+ * @memberof Telegram.Commands
+ */
+
+/**
+ * Deep Command Handler
+ * @param {import('grammy').Context} ctx 
+ * @param {import('../telegram-client').TelegramInteraction} interaction
+ * @memberof Telegram.Commands.deep
+ */
+async function generateImage(ctx, interaction) {
+    let arg = require('./utils').parseArgs(ctx, 1)[1];
     if (!arg) {
         return [`Не хватает описания картинки`];
     }

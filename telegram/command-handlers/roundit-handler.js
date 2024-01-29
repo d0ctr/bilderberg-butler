@@ -1,3 +1,15 @@
+/**
+ * RoundIt Command
+ * @namespace roundit
+ * @memberof Telegram.Commands
+ */
+
+/**
+ * RoundIt Command Handler
+ * @param {import('grammy').Context} ctx 
+ * @param {import('../telegram-client').TelegramInteraction} interaction 
+ * @memberof Telegram.Commands.roundit
+ */
 async function roundit(ctx, interaction) {
     if (!ctx.message.reply_to_message) {
         return ['Команду надо отправить в ответ на сообщение с видео.'];

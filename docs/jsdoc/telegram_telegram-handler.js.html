@@ -51,13 +51,13 @@ module.exports = {
 
     fizzbuzz: { handler: fizzbuzz, help: [] },
 
-    get: { handler: get, help: ['{название}', 'Вызвать контент, сохранённый командой /set'] },
+    get: { handler: get, help: ['{name}', 'Вызвать контент, сохранённый командой /set'] },
 
-    set: { handler: set, help: ['{название}', 'Сохранить содержимое сообщения']},
+    set: { handler: set, help: ['{name}', 'Сохранить содержимое сообщения']},
 
     get_list: { handler: getList, help: ['Вызвать список гетов, доступных в этом чате'] },
 
-    del: { handler: del, help: ['{название}', 'Удалить гет, доступно только владельцу (если он есть)'] },
+    del: { handler: del, help: ['{name}', 'Удалить гет, доступно только владельцу (если он есть)'] },
     
     gh: { handler: gh, help: [] },
 
@@ -65,7 +65,7 @@ module.exports = {
 
     html: { handler: html, help: [] },
 
-    deep: { handler: generateImage, help: ['{описание}', 'Генерирует 4 картинки по описанию (DeepAI)'] },
+    deep: { handler: generateImage, help: ['{query}', 'Генерирует 4 картинки по описанию (DeepAI)'] },
 
     info: { handler: info, help: ['Вызвать информацию о чате и отправителе'] },
 
@@ -75,25 +75,25 @@ module.exports = {
 
     roundit: { handler: require('./command-handlers/roundit-handler').roundit, help: ['Превратить видео в кружок'] },
 
-    new_system_prompt: { handler: (...args) => ChatGPTHandler.handleAdjustSystemPrompt(...args), help: ['{промпт}', 'Задать новый системный промпт для ChatGPT и/или проверить, установленный сейчас'] },
+    new_system_prompt: { handler: (...args) => ChatGPTHandler.handleAdjustSystemPrompt(...args), help: ['{prompt}', 'Задать новый системный промпт для ChatGPT и/или проверить, установленный сейчас'] },
 
-    answer: { handler: (...args) => ChatGPTHandler.handleAnswerCommand(...args), help: ['{запрос?}', 'Спросить у ChatGPT, можно использовать как реплай'] },
+    answer: { handler: (...args) => ChatGPTHandler.handleAnswerCommand(...args), help: ['{query?}', 'Спросить у ChatGPT, можно использовать как реплай'] },
 
     tree: { handler: (...args) => ChatGPTHandler.handleTreeRequest(...args), help: ['Запросить контекстное дерево ChatGPT'] },
 
     context: { handler: (...args) => ChatGPTHandler.handleContextRequest(...args), help: ['Запросить контекст сообщения'] },
 
-    gpt4: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4'] },
+    gpt4: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4', ...args), help: ['{query?}', '/answer, но с использованием GPT-4'] },
 
-    gpt4_32: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4-32k', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4 с максимумом в 32тыс токенов'] },
+    gpt4_32: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4-32k', ...args), help: ['{query?}', '/answer, но с использованием GPT-4 с максимумом в 32тыс токенов'] },
     
-    vision: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4-vision-preview', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4 с функцией обработки фотографии'] },
+    vision: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4-vision-preview', ...args), help: ['{query?}', '/answer, но с использованием GPT-4 с функцией обработки фотографии'] },
 
     tldr: { handler: require('./command-handlers/tldr-handler').tldr, help: ['{url?}', 'Возвращает краткий персказ сгенерированный YandexGPT'] },
     
-    voice: { handler: require('./command-handlers/voice-handler').voice, help: ['Генерирует голосове сообщение из текста'] },
+    voice: { handler: require('./command-handlers/voice-handler').voice, help: ['Генерирует голосове сообщение из текста или аудио'] },
     
-    t: { handler: require('./command-handlers/tinkov-handler').tinkov, help: ['{запрос?} Даёт возможность поделится умными словами'] },
+    t: { handler: require('./command-handlers/tinkov-handler').tinkov, help: ['{query?} Даёт возможность поделится умными словами'] },
 }
 </code></pre>
         </article>
@@ -105,13 +105,13 @@ module.exports = {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="ChatGPT.html">ChatGPT</a></li></ul><h3>Classes</h3><ul><li><a href="ChatGPT.ChatGPTHandler.html">ChatGPTHandler</a></li><li><a href="ChatGPT.ContextNode.html">ContextNode</a></li><li><a href="ChatGPT.ContextTree.html">ContextTree</a></li><li><a href="TelegramClient.html">TelegramClient</a></li><li><a href="global.html#TelegramInteraction">TelegramInteraction</a></li></ul><h3>Global</h3><ul><li><a href="global.html#answerCallback">answerCallback</a></li><li><a href="global.html#bot">bot</a></li><li><a href="global.html#callback">callback</a></li><li><a href="global.html#clearNotification">clearNotification</a></li><li><a href="global.html#commonizeContext">commonizeContext</a></li><li><a href="global.html#commonizeInteraction">commonizeInteraction</a></li><li><a href="global.html#del">del</a></li><li><a href="global.html#editNotificationMessage">editNotificationMessage</a></li><li><a href="global.html#encodeCallbackData">encodeCallbackData</a></li><li><a href="global.html#fizzbuzz">fizzbuzz</a></li><li><a href="global.html#generateAPICall">generateAPICall</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#getAhegaoUrl">getAhegaoUrl</a></li><li><a href="global.html#getBest">getBest</a></li><li><a href="global.html#getCallbackData">getCallbackData</a></li><li><a href="global.html#getDiscordNotification">getDiscordNotification</a></li><li><a href="global.html#getGamesFromRedis">getGamesFromRedis</a></li><li><a href="global.html#getList">getList</a></li><li><a href="global.html#getPresenceNotification">getPresenceNotification</a></li><li><a href="global.html#getRedis">getRedis</a></li><li><a href="global.html#getUrbanDefinition">getUrbanDefinition</a></li><li><a href="global.html#gh">gh</a></li><li><a href="global.html#handleCallback">handleCallback</a></li><li><a href="global.html#handleCommand">handleCommand</a></li><li><a href="global.html#handler">handler</a></li><li><a href="global.html#help">help</a></li><li><a href="global.html#html">html</a></li><li><a href="global.html#isSimilar">isSimilar</a></li><li><a href="global.html#listingMenuCallback">listingMenuCallback</a></li><li><a href="global.html#parseArgs">parseArgs</a></li><li><a href="global.html#parseCallbackData">parseCallbackData</a></li><li><a href="global.html#pinNotificationMessage">pinNotificationMessage</a></li><li><a href="global.html#replaceWithLink">replaceWithLink</a></li><li><a href="global.html#replyWithText">replyWithText</a></li><li><a href="global.html#saveResults">saveResults</a></li><li><a href="global.html#sendNotificationMessage">sendNotificationMessage</a></li><li><a href="global.html#set">set</a></li><li><a href="global.html#startRedis">startRedis</a></li><li><a href="global.html#urbanToHTML">urbanToHTML</a></li><li><a href="global.html#used">used</a></li><li><a href="global.html#voice">voice</a></li><li><a href="global.html#ytdl">ytdl</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="ChatGPT.html">ChatGPT</a></li><li><a href="Telegram.html">Telegram</a></li><li><a href="Telegram.Commands.html">Commands</a></li><li><a href="Telegram.Commands.Utils.html">Utils</a></li><li><a href="Telegram.Commands.deep.html">deep</a></li><li><a href="Telegram.Commands.fizzbuzz.html">fizzbuzz</a></li><li><a href="Telegram.Commands.get.html">get</a></li><li><a href="Telegram.Commands.gh.html">gh</a></li><li><a href="Telegram.Commands.help.html">help</a></li><li><a href="Telegram.Commands.html.html">html</a></li><li><a href="Telegram.Commands.html#.info">info</a></li><li><a href="Telegram.Commands.roundit.html">roundit</a></li><li><a href="Telegram.Commands.t.html">t</a></li><li><a href="Telegram.Commands.tldr.html">tldr</a></li><li><a href="Telegram.Commands.voice.html">voice</a></li><li><a href="Telegram.Commands.webapp.html">webapp</a></li><li><a href="Telegram.Commands.ytdl.html">ytdl</a></li></ul><h3>Classes</h3><ul><li><a href="ChatGPT.ChatGPTHandler.html">ChatGPTHandler</a></li><li><a href="ChatGPT.ContextNode.html">ContextNode</a></li><li><a href="ChatGPT.ContextTree.html">ContextTree</a></li><li><a href="TelegramClient.html">TelegramClient</a></li><li><a href="global.html#TelegramInteraction">TelegramInteraction</a></li></ul><h3>Global</h3><ul><li><a href="global.html#answerCallback">answerCallback</a></li><li><a href="global.html#bot">bot</a></li><li><a href="global.html#callback">callback</a></li><li><a href="global.html#clearNotification">clearNotification</a></li><li><a href="global.html#commonizeContext">commonizeContext</a></li><li><a href="global.html#commonizeInteraction">commonizeInteraction</a></li><li><a href="global.html#editNotificationMessage">editNotificationMessage</a></li><li><a href="global.html#encodeCallbackData">encodeCallbackData</a></li><li><a href="global.html#generateAPICall">generateAPICall</a></li><li><a href="global.html#getAhegaoUrl">getAhegaoUrl</a></li><li><a href="global.html#getCallbackData">getCallbackData</a></li><li><a href="global.html#getDiscordNotification">getDiscordNotification</a></li><li><a href="global.html#getGamesFromRedis">getGamesFromRedis</a></li><li><a href="global.html#getPresenceNotification">getPresenceNotification</a></li><li><a href="global.html#getRedis">getRedis</a></li><li><a href="global.html#getUrbanDefinition">getUrbanDefinition</a></li><li><a href="global.html#handleCallback">handleCallback</a></li><li><a href="global.html#handleCommand">handleCommand</a></li><li><a href="global.html#handler">handler</a></li><li><a href="global.html#listingMenuCallback">listingMenuCallback</a></li><li><a href="global.html#parseCallbackData">parseCallbackData</a></li><li><a href="global.html#pinNotificationMessage">pinNotificationMessage</a></li><li><a href="global.html#replaceWithLink">replaceWithLink</a></li><li><a href="global.html#replyWithText">replyWithText</a></li><li><a href="global.html#saveResults">saveResults</a></li><li><a href="global.html#sendNotificationMessage">sendNotificationMessage</a></li><li><a href="global.html#startRedis">startRedis</a></li><li><a href="global.html#urbanToHTML">urbanToHTML</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Sat Jan 27 2024 02:27:59 GMT+0000 (Coordinated Universal Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Mon Jan 29 2024 14:07:25 GMT+0000 (Coordinated Universal Time)
 </footer>
 
 <script> prettyPrint(); </script>
