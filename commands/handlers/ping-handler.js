@@ -1,6 +1,6 @@
 const definition = {
     command_name: 'ping',
-    description: 'Возвращает <code>Pong</code>.',
+    description: 'pong.',
     is_inline: true,
 };
 const condition = true;
