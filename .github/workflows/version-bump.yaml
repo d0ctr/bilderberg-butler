@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: 'Checkout source code'
         uses: 'actions/checkout@v3'
-      - name: 'Automated Version Bump'
+      - name: 'Automated Version Bump (Major)'
         id: version-bump-major
         if: startsWith(github.event.pull_request.title, 'freeze')
         uses: 'phips28/gh-action-bump-version@master'
@@ -22,7 +22,7 @@ jobs:
           skip-tag: 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: 'Automated Version Bump'
+      - name: 'Automated Version Bump (Patch)'
         id: version-bump-patch
         if: startsWith(github.event.pull_request.title, 'fix')
         uses: 'phips28/gh-action-bump-version@master'
@@ -31,7 +31,7 @@ jobs:
           skip-tag: 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: 'Automated Version Bump'
+      - name: 'Automated Version Bump (Minor)'
         id: version-bump-minor
         if: >
           steps.version-bump-major.outcome == 'skipped' 
