@@ -1,21 +1,23 @@
 module.exports = {
     "source": {
-        "include": [
-            "./api", 
-            "./commands",
-            "./discord",
-            "./services",
-            "./telegram"
-        ]
+        "include": ".",
+        "excludePattern": ".*node_modules.*"
     },
     "sourceType": "script",
     "plugins": [
         "plugins/markdown"
     ],
     "opts": {
-        "recursive": true,
+        "recurse": true,
         "destination": "./jsdoc/",
         "template": "node_modules/docdash"
+    },
+    "templates": {
+        "default": {
+            "outputSourceFiles": true,
+            "includeDate": false,
+            "useLongnameInNav": true
+        }
     },
     "docdash": {
         "sectionOrder": [
@@ -28,7 +30,8 @@ module.exports = {
             "Mixins",
             "Tutorials",
         ],
-        "typedefs": true
+        "typedefs": true,
+        "collapse": true
     }
 };
 
