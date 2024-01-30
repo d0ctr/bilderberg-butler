@@ -8,7 +8,7 @@ const logger = require('../../logger').child({ module: 'tinkov-handler' });
 
 /**
  * @typedef {{file_id: string, file_unique_id: string, file_name: string}} FileData
- * @memberof Telegram.Commands
+ * @memberof Telegram.Commands.t
  */
 
 /**

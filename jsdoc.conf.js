@@ -1,19 +1,14 @@
 module.exports = {
     "source": {
-        "include": [
-            "./api", 
-            "./commands",
-            "./discord",
-            "./services",
-            "./telegram"
-        ]
+        "include": ".",
+        "excludePattern": ".*node_modules.*"
     },
     "sourceType": "script",
     "plugins": [
         "plugins/markdown"
     ],
     "opts": {
-        "recursive": true,
+        "recurse": true,
         "destination": "./jsdoc/",
         "template": "node_modules/docdash"
     },

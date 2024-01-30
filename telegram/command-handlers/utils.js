@@ -1,7 +1,7 @@
 /**
  * Commands Utils
  * @namespace Utils
- * @memberof Telegram.Commands
+ * @memberof Telegram
  */
 
 /**
@@ -9,7 +9,7 @@
 * @param {import('grammy').Context} input
 * @param {number} limit number of parsable args
 * @return {Array<String>} [0] is always a command name
-* @memberof Telegram.Commands.Utils
+* @memberof Telegram.Utils
 */
 exports.parseArgs = (input, limit) => {
     let args = [];

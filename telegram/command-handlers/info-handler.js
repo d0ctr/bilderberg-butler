@@ -7,7 +7,7 @@
 /**
  * Info Command handler
  * @param {import('grammy').Context} ctx 
- * @memberof Telegram.Commands
+ * @memberof Telegram.Commands.info
  */
 async function info(ctx) {
     let message = `Информация об этом чате:
