@@ -33,10 +33,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Automated Version Bump (Minor)'
         id: version-bump-minor
-        if: >
-          steps.version-bump-major.outcome == 'skipped' 
-          && steps.version-bump-patch.outcome == 'skipped' 
-          && ${{ !startsWith(github.event.pull_request.title, 'ignore') }}
+        if: ${{ steps.version-bump-major.outcome == 'skipped' && steps.version-bump-patch.outcome == 'skipped' && !startsWith(github.event.pull_request.title, 'ignore') }}
         uses: 'phips28/gh-action-bump-version@master'
         with:
           version-type: minor
