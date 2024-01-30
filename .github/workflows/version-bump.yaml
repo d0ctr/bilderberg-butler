@@ -22,24 +22,26 @@ jobs:
           skip-tag: 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: echo ${{ steps.version-bump-major.conclusion }}
-      # - name: 'Automated Version Bump'
-      #   id: version-bump-patch
-      #   if: startsWith(github.event.pull_request.title, 'patch')
-      #   uses: 'phips28/gh-action-bump-version@master'
-      #   with:
-      #     version-type: patch
-      #     skip-tag: 'true'
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # - name: 'Automated Version Bump'
-      #   id: version-bump-minor
-      #   if: ${{ steps.version-bump-major.outcome }}
-      #   uses: 'phips28/gh-action-bump-version@master'
-      #   with:
-      #     version-type: minor
-      #     skip-tag: 'true'
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 'Automated Version Bump'
+        id: version-bump-patch
+        if: startsWith(github.event.pull_request.title, 'fix')
+        uses: 'phips28/gh-action-bump-version@master'
+        with:
+          version-type: patch
+          skip-tag: 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 'Automated Version Bump'
+        id: version-bump-minor
+        if: >
+          steps.version-bump-major.outcome == 'skipped' 
+          && steps.version-bump-patch.outcome == 'skipped' 
+          && ${{ !startsWith(github.event.pull_request.title, 'ignore') }}
+        uses: 'phips28/gh-action-bump-version@master'
+        with:
+          version-type: minor
+          skip-tag: 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
