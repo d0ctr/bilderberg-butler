@@ -12,6 +12,13 @@ module.exports = {
         "destination": "./jsdoc/",
         "template": "node_modules/docdash"
     },
+    "templates": {
+        "default": {
+            "outputSourceFiles": true,
+            "includeDate": false,
+            "useLongnameInNav": true
+        }
+    },
     "docdash": {
         "sectionOrder": [
             "Modules",
@@ -23,7 +30,8 @@ module.exports = {
             "Mixins",
             "Tutorials",
         ],
-        "typedefs": true
+        "typedefs": true,
+        "collapse": true
     }
 };
 
