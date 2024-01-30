@@ -1,9 +1,9 @@
 name: 'Update version'
 
 on:
-  push:
+  pull_request: 
     branches: ["main"]
-
+    types: opened
 permissions:
   contents: write
 
@@ -12,17 +12,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 'Checkout source code'
-        uses: 'actions/checkout@v2'
-        with:
-          ref: ${{ github.ref }}
+        uses: 'actions/checkout@v3'
       - name: 'Automated Version Bump'
-        id: version-bump
+        id: version-bump-major
+        if: startsWith(github.event.pull_request.title, 'freeze')
         uses: 'phips28/gh-action-bump-version@master'
         with:
-          major-wording:  'freeze'
-          patch-wording: 'patch,fix,fixes'
-          default: minor
-          check-last-commit-only: 'true'
+          version-type: major
+          skip-tag: 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: echo ${{ steps.version-bump-major.conclusion }}
+      # - name: 'Automated Version Bump'
+      #   id: version-bump-patch
+      #   if: startsWith(github.event.pull_request.title, 'patch')
+      #   uses: 'phips28/gh-action-bump-version@master'
+      #   with:
+      #     version-type: patch
+      #     skip-tag: 'true'
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: 'Automated Version Bump'
+      #   id: version-bump-minor
+      #   if: ${{ steps.version-bump-major.outcome }}
+      #   uses: 'phips28/gh-action-bump-version@master'
+      #   with:
+      #     version-type: minor
+      #     skip-tag: 'true'
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
