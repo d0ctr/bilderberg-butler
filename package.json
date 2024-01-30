@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node main.js",
-    "doc": "jsdoc -c ./jsdoc.conf.js -d ./docs/jsdoc -r ./api ./commands ./discord ./services ./telegram ./*.js"
+    "doc": "jsdoc -c ./jsdoc.conf.js"
   },
   "repository": {
     "type": "git",
@@ -29,7 +29,6 @@
     "grammy": "^1.20.2",
     "ioredis": "^5.2.4",
     "jquery": "^3.7.1",
-    "jsdoc": "^4.0.2",
     "jsdom": "^22.1.0",
     "mathjs": "^11.4.0",
     "openai": "^4.17.0",
@@ -39,7 +38,9 @@
     "winston-loki": "^6.0.6"
   },
   "devDependencies": {
-    "eslint": "^8.6.0"
+    "docdash": "^2.0.2",
+    "eslint": "^8.6.0",
+    "jsdoc": "^4.0.2"
   },
   "engines": {
     "node": ">=18.17.1"
