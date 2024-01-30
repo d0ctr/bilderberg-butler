@@ -1,12 +1,18 @@
 const GrammyTypes = require('grammy');
 
 /**
- * `/fizzbuzz` command handler
- * @param {GrammyTypes.Context | Object} input
- * @returns {[String | null, String | null]}
+ * FizzBuzz Command
+ * @namespace fizzbuzz
+ * @memberof Telegram.Commands
  */
-async function fizzbuzz(input) {
-    let args = require('./utils').parseArgs(input).slice(1);
+
+/**
+ * FizzBuzz Command Handler
+ * @param {GrammyTypes.Context | Object} ctx
+ * @memberof Telegram.Commands.fizzbuzz
+ */
+async function fizzbuzz(ctx) {
+    let args = require('./utils').parseArgs(ctx).slice(1);
     let dict = {};
     if (!args.length || args.length % 2 !== 0) {
         return ['Аргументы команды должны представлять из себя последовательность из комбинаций <code>число</code> <code>слово</code>'];

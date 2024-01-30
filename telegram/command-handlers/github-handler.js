@@ -1,7 +1,13 @@
 /**
- * `/gh` command handler
- * @param {GrammyTypes.Context | Object} input
- * @returns {[String | null, Object | null, null, Object]} [error, answer, null, overrides]
+ * GitHub Command
+ * @namespace gh
+ * @memberof Telegram.Commands
+ */
+
+/**
+ * GitHub Command Handler
+ * @param {import('grammy').Context} input
+ * @memberof Telegram.Commands.gh
  */
 
 async function gh(input) {

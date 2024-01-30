@@ -1,16 +1,21 @@
 const { default: axios } = require('axios');
 
 /**
- * `/ytdl` command handler
- * @param {GrammyTypes.Context | Object} input
- * @returns {[String | null, String | null]} [err, response]
+ * YTDL Command
+ * @namespace ytdl
+ * @memberof Telegram.Commands
  */
-async function ytdl(input, interaction) {
+/**
+ * YTDL Command Handler
+ * @param {import('grammy').Context} ctx
+ * @memberof Telegram.Commands.ytdl
+ */
+async function ytdl(ctx, interaction) {
     if (!process.env.YTDL_URL) {
         return ['Комманда недоступна'];
     }
 
-    let url = require('./utils').parseArgs(input, 1)[1];
+    let url = require('./utils').parseArgs(ctx, 1)[1];
 
     if (url === undefined) {
         return ['Не хватает ссылки на ресурс, например Youtube'];
@@ -20,7 +25,7 @@ async function ytdl(input, interaction) {
         const { status, data: { body } } = await axios.post(
             `${process.env.YTDL_URL}/ytdl`,
             {
-                telegram_chat_id: input.chat?.id,
+                telegram_chat_id: ctx.chat?.id,
                 url
             }
         );

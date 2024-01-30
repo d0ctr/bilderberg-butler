@@ -1,9 +1,24 @@
 const { OpenAI } = require('openai');
 
+/**
+ * Voics Command
+ * @namespace voice
+ * @memberof Telegram.Commands
+ */
+
+/**
+ * @ignore
+ */
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_TOKEN
 });
 
+/**
+ * OpenAI TTS Generator
+ * @param {string} text 
+ * @returns {Promise<Buffer>} 
+ * @memberof Telegram.Comands.voice
+ */
 async function generateSpeech(text) {
     return await openai.audio.speech.create({
         model: 'tts-1',
@@ -15,33 +30,49 @@ async function generateSpeech(text) {
 }
 
 /**
- * 
- * @param {import('grammy').Context} input 
+ * Voice Command Handler
+ * @param {import('@grammyjs/files').FileFlavor<import('grammy').Context>} ctx 
  * @param {import('../telegram-client').TelegramInteraction} interaction 
+ * @memberof Telegram.Commands.voice
  */
-async function voice(input, interaction) {
-    const { message } = input;
+async function voice(ctx, interaction) {
+    const { message } = ctx;
     if (message.reply_to_message == null 
-        || !(message.reply_to_message.caption || message.reply_to_message.text)?.length) {
-        return ['Отправь эту команду как ответ на другое сообщение'];
+        || !(message.reply_to_message.caption || message.reply_to_message.text)?.length
+        && !(message.reply_to_message.audio)) {
+        return ['Отправь эту команду в ответ на другое сообщение с текстом или аудио'];
     }
 
     let audio = null;
 
-    await input.replyWithChatAction('record_voice');
+    await ctx.replyWithChatAction('record_voice');
     const actionInterval = setInterval(() => {
-        input.replyWithChatAction('record_voice');
+        ctx.replyWithChatAction('record_voice');
     }, 5000);
     const callback = () => {
         clearInterval(actionInterval);
     }
 
-    try {
-        audio = await generateSpeech(message.reply_to_message.caption || message.reply_to_message.text);
+    if ((message.reply_to_message.caption || message.reply_to_message.text)?.length) {
+        try {
+            audio = await generateSpeech(message.reply_to_message.caption || message.reply_to_message.text);
+        }
+        catch (err) {
+            interaction.logger.error('Failed to generate speech for provided text', { error: err.stack || err });
+            return ['Не получилось сгенерировать аудио', null, callback];
+        }
     }
-    catch (err) {
-        interaction.logger.error('Failed to generate speech for provided text', { error: err.stack || err });
-        return ['Не получилось сгенерировать аудио', null, callback];
+    else {
+        try {
+            const { mime_type, duration, file_id } = message.reply_to_message.audio;
+            interaction.logger.debug(`File ${file_id}, mime ${mime_type}, duration: ${duration}`);
+
+            audio = await ctx.api.getFile(file_id).then(f => f.download());
+        }
+        catch (err) {
+            interaction.logger.error('Failed to get audio file for conversion', { error: err.stack || err });
+            return ['Не получилось сконвертировать аудио', null, callback];
+        }
     }
     
     if (audio == null) {

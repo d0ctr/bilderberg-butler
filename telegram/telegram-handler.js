@@ -23,13 +23,13 @@ module.exports = {
 
     fizzbuzz: { handler: fizzbuzz, help: [] },
 
-    get: { handler: get, help: ['{название}', 'Вызвать контент, сохранённый командой /set'] },
+    get: { handler: get, help: ['{name}', 'Вызвать контент, сохранённый командой /set'] },
 
-    set: { handler: set, help: ['{название}', 'Сохранить содержимое сообщения']},
+    set: { handler: set, help: ['{name}', 'Сохранить содержимое сообщения']},
 
     get_list: { handler: getList, help: ['Вызвать список гетов, доступных в этом чате'] },
 
-    del: { handler: del, help: ['{название}', 'Удалить гет, доступно только владельцу (если он есть)'] },
+    del: { handler: del, help: ['{name}', 'Удалить гет, доступно только владельцу (если он есть)'] },
     
     gh: { handler: gh, help: [] },
 
@@ -37,7 +37,7 @@ module.exports = {
 
     html: { handler: html, help: [] },
 
-    deep: { handler: generateImage, help: ['{описание}', 'Генерирует 4 картинки по описанию (DeepAI)'] },
+    deep: { handler: generateImage, help: ['{query}', 'Генерирует 4 картинки по описанию (DeepAI)'] },
 
     info: { handler: info, help: ['Вызвать информацию о чате и отправителе'] },
 
@@ -47,23 +47,23 @@ module.exports = {
 
     roundit: { handler: require('./command-handlers/roundit-handler').roundit, help: ['Превратить видео в кружок'] },
 
-    new_system_prompt: { handler: (...args) => ChatGPTHandler.handleAdjustSystemPrompt(...args), help: ['{промпт}', 'Задать новый системный промпт для ChatGPT и/или проверить, установленный сейчас'] },
+    new_system_prompt: { handler: (...args) => ChatGPTHandler.handleAdjustSystemPrompt(...args), help: ['{prompt}', 'Задать новый системный промпт для ChatGPT и/или проверить, установленный сейчас'] },
 
-    answer: { handler: (...args) => ChatGPTHandler.handleAnswerCommand(...args), help: ['{запрос?}', 'Спросить у ChatGPT, можно использовать как реплай'] },
+    answer: { handler: (...args) => ChatGPTHandler.handleAnswerCommand(...args), help: ['{query?}', 'Спросить у ChatGPT, можно использовать как реплай'] },
 
     tree: { handler: (...args) => ChatGPTHandler.handleTreeRequest(...args), help: ['Запросить контекстное дерево ChatGPT'] },
 
     context: { handler: (...args) => ChatGPTHandler.handleContextRequest(...args), help: ['Запросить контекст сообщения'] },
 
-    gpt4: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4'] },
+    gpt4: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4', ...args), help: ['{query?}', '/answer, но с использованием GPT-4'] },
 
-    gpt4_32: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4-32k', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4 с максимумом в 32тыс токенов'] },
+    gpt4_32: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4-32k', ...args), help: ['{query?}', '/answer, но с использованием GPT-4 с максимумом в 32тыс токенов'] },
     
-    vision: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4-vision-preview', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4 с функцией обработки фотографии'] },
+    vision: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4-vision-preview', ...args), help: ['{query?}', '/answer, но с использованием GPT-4 с функцией обработки фотографии'] },
 
     tldr: { handler: require('./command-handlers/tldr-handler').tldr, help: ['{url?}', 'Возвращает краткий персказ сгенерированный YandexGPT'] },
     
-    voice: { handler: require('./command-handlers/voice-handler').voice, help: ['Генерирует голосове сообщение из текста'] },
+    voice: { handler: require('./command-handlers/voice-handler').voice, help: ['Генерирует голосове сообщение из текста или аудио'] },
     
-    t: { handler: require('./command-handlers/tinkov-handler').tinkov, help: ['{запрос?} Даёт возможность поделится умными словами'] },
+    t: { handler: require('./command-handlers/tinkov-handler').tinkov, help: ['{query?} Даёт возможность поделится умными словами'] },
 }
