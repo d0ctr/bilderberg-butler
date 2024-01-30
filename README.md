@@ -112,6 +112,7 @@ Some commands are both available in Discord and Telegram:
 ## Using or altering code
 
 You can use this code to start your own bot/s or you may also contribute something very beautiful (basically anything other than my code).
+I also keep a [jsdoc](https://d0ctr.github.io/bilderberg-butler/jsdoc) for the code (I update it to the best of my ability).
 
 ### Logging
 
