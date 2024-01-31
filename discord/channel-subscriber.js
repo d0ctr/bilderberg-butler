@@ -3,6 +3,14 @@ const { sendNotification, deleteNotification } = require('../telegram/channel-su
 
 const subscribers = {};
 
+/**
+ * Channel Subscriber
+ * @description Provides functionality for channel subscriber on the side of discord bot
+ * @see Telegram.Feature.ChannelSubscriber
+ * @namespace ChannelSubscriber
+ * @memberof Discord.Feature
+ */
+
 function isDifferent(obj1, obj2) {
     if (Object.keys(obj1).length !== Object.keys(obj2).length) {
         return true;
@@ -19,6 +27,12 @@ function isDifferent(obj1, obj2) {
     return false;
 }
 
+/**
+ * ChannelSubscriber
+ * @class
+ * @extends Discord.Common.BaseSubscriber
+ * @memberof Discord.Feature.ChannelSubscriber
+ */
 class ChannelSubscriber extends BaseSubscriber {
     constructor() {
         super('channel_subscriber');
@@ -69,6 +83,11 @@ class ChannelSubscriber extends BaseSubscriber {
         }
     }
 
+    /**
+     * Parse notification data from current channel state
+     * @param {object} channel 
+     * @returns {DiscordNotificationData}
+     */
     _parseState(channel) {
         if (!channel) return;
 

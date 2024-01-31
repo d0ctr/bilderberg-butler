@@ -25,6 +25,7 @@ module.exports = {
             "Namespaces",
             "Interfaces",
             "Classes",
+            "Global",
             "Externals",
             "Events",
             "Mixins",

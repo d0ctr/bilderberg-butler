@@ -1,6 +1,12 @@
 const TurndownService = require('turndown');
 const { EmbedBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle, MessagePayload } = require('discord.js');
 
+/**
+ * Discord Common Interface Implementation
+ * @namespace Discord
+ * @memberof Common
+ */
+
 const turndownService = new TurndownService({
     codeBlockStyle: 'fenced',
     br: ' '
@@ -17,27 +23,23 @@ turndownService.addRule('a', {
 /** @typedef {import('discord.js').Interaction} Interaction */
 
 /**
- * @typedef {{
- * platform: 'discord',
- * command_name: string?,
- * text: string,
- * args: any[]?,
- * from: {
- *  id: string?,
- *  username: string?,
- *  name: string?
- * },
- * space: {
- *  type: 'guild',
- *  id: string,
- *  title: string
- * } | {
- *  id: string?,
- *  username: string?
- * },
- * id: string,
- * data: string?
- * }} DiscordInteraction
+ * @typedef {object} DiscordInteraction
+ * @property {'discord'} platform
+ * @property {string?} command_name
+ * @property {string} text
+ * @property {string[]?} args
+ * @property {object} from
+ * @property {string?} from.id
+ * @property {string?} from.username
+ * @property {string?} from.name
+ * @property {object} space
+ * @property {'guild'} space.type
+ * @property {string} space.id
+ * @property {string} space.title
+ * @property {string?} space.username
+ * @property {string?} space.name
+ * @property {string} id
+ * @property {string?} data
  */
 
 /**
@@ -45,6 +47,7 @@ turndownService.addRule('a', {
  * @param {Interaction} interaction 
  * @param {*} definition 
  * @returns {DiscordInteraction}
+ * @memberof Common.Discord
  */
 function commonizeInteraction(interaction, definition) {
     let common_interaction = {

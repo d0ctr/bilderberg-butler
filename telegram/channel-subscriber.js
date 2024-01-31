@@ -3,6 +3,14 @@ const logger = require('../logger').child({ module: 'telegram-channel-subscriber
 const { getHealth } = require('../services/health');
 const { getRedis } = require('../services/redis');
 
+/**
+ * Channel Subscriber 
+ * @description Provides functionality for channel subscriber on the side of telegram bot
+ * @see Discord.Feature.ChannelSubscriber
+ * @namespace ChannelSubscriber
+ * @memberof Telegram.Feature
+ */
+
 const discord_notification_map = {};
 
 const chat_notification_map = {};
@@ -15,9 +23,17 @@ if (process.env?.ENV === 'dev') {
 }
 /**
  * @property {Bot?}
+ * @memberof Telegram.Feature.ChannelSubscriber
  */
 const bot = process.env.TELEGRAM_TOKEN ? new Bot(process.env.TELEGRAM_TOKEN, bot_config) : null;
 
+/**
+ * Restores the last used message id for notification in telegram chat from Redis
+ * @param {string} chat_id - Telegram chat id
+ * @param {string} channel_id - Id of the discord channel that triggered notification
+ * @returns {number | null} message id in the telegram chat
+ * @memberof Telegram.Feature.ChannelSubscriber
+ */
 async function restoreMessageID(chat_id, channel_id) {
     if (getHealth('redis') !== 'ready') {
         return null;
@@ -43,25 +59,66 @@ async function restoreMessageID(chat_id, channel_id) {
     return current_message_id;
 }
 
+/**
+ * @typedef {object} DiscordNotificationData
+ * @property {string} channel_id
+ * @property {string} channel_name
+ * @property {string} channel_url
+ * @property {string} channel_type
+ * @property {string} guild_id
+ * @property {string} guild_name
+ * @property {object[]} members
+ * @property {string} members[].user_id
+ * @property {string} members[].user_name
+ * @property {boolean} members[].streaming
+ * @property {string} members[].member_id
+ * @property {string} members[].member_name
+ * @property {boolean} members[].muted
+ * @property {boolean} members[].deafened
+ * @property {boolean} members[].camera
+ * @property {string?} members[].activity
+ */
+
+/**
+ * Discord Notification
+ * @class
+ * @memberof Telegram.Feature.ChannelSubscriber
+*/
 class DiscordNotification {
+    /**
+     * @param {DiscordNotificationData} notification_data - Channel state data from discord
+     * @param {string} chat_id - Telegram chat id
+    */
     constructor(notification_data, chat_id) {
+        /**  @member {DiscordNotificationData?} - The source of the currently (or about to be) posted notification */
         this.current_notification_data = null;
+        /** @member {string} - Telegram chat id */
         this.chat_id = chat_id;
+        /** @member {string} - Discord channel id  */
         this.channel_id = notification_data.channel_id;
+        /**  @member {string} - Discord channel name */
         this.channel_name = notification_data.channel_name;
+        /**  @member {string} - Discord server id */
         this.guild_id = notification_data.guild_id;
+        /**  @member {string} - Discord name id */
         this.guild_name = notification_data.guild_name;
 
-        this.cooldown = false;
+        /** @member {number} - The time it takes to cooldown from update */
         this.cooldown_duration = 5 * 1000;
+        /** @member {NodeJS.Timeout} - Timer controlling the state of the cooldown */
+        this.cooldown_timer = null;
+        /** @member {number} - The time when the current cooldown will finnish (or has finished) */
+        this.cooldown_timeout = 0;
 
         this._current_message_id = null;
-        this.pending_notification_data = null;
 
+        /** @member {DiscordNotificationData} - The source for the next notification update that will be applied after the cooldown */
+        this.pending_notification_data = null;
+        /** @member {NodeJS.Timeout} - Scheduling timer that will update the notification message once it fires */
         this.pending_notification_data_timer = null;
-        this.cooldown_timer = null;
     }
 
+    /**  @member {string} - Telegram message id for the currently posted notification */
     get current_message_id() {
         return this._current_message_id;
     }
@@ -90,41 +147,62 @@ class DiscordNotification {
         this._current_message_id = value;
     }
 
+    /** @member {string} - Current discord channel url */
     get channel_url() {
         return this.current_notification_data?.channel_url;
     }
 
+    /** @member {object[]}  - Array of members of the discord channel  */
     get members() {
         return this.current_notification_data?.members;
     }
 
+    /**
+     * Returns `true` if the notification is posted 
+     * @returns {boolean}
+     */
     isNotified() {
         return !!this.current_message_id;
     }
 
+    /**
+     * Returns `true` if the cooldown is active
+     * @returns {boolean}
+     */
     isCooldownActive() {
-        return this.cooldown;
+        return this.cooldown_timer != null;
     }
 
+    /**
+     * Resets {@link cooldown_timer}
+     */
     startCooldownTimer() {
-        this.cooldown = true;
+        clearTimeout(this.cooldown_timer);
         this.cooldown_timer = setTimeout(() => {
             this.cooldown_timer = null;
-            this.cooldown = false;
+            this.cooldown_timeout = 0;
         }, this.cooldown_duration);
+        this.cooldown_timeout = Date.now() + this.cooldown_duration;
     }
 
+    /**
+     * Sets the new current notification data and resets the cooldown timer
+     * @param {DiscordNotificationData} notification_data - New notification data
+     */
     update(notification_data) {
         if (!notification_data) {
             return;
         }
-        clearTimeout(this.cooldown_timer);
 
         this.current_notification_data = notification_data;
 
         this.startCooldownTimer();
     }
 
+    /**
+     * Clear all the timers and notification data
+     * @returns {string} Last {@link current_message_id}
+     */
     clear() {
         clearTimeout(this.pending_notification_data_timer);
         clearTimeout(this.cooldown_timer);
@@ -132,7 +210,6 @@ class DiscordNotification {
         this.pending_notification_data_timer = null;
         this.current_notification_data = null;
         this.cooldown_timer = null;
-        this.cooldown = false;
 
         const current_message_id = `${this.current_message_id}`;
 
@@ -141,6 +218,11 @@ class DiscordNotification {
         return current_message_id;
     }
 
+    /**
+     * Get discord channel url
+     * @param {DiscordNotificationData} notification_data - Source notification data to get url from
+     * @returns {string} Returns url (may be changed to support application redirect)
+     */
     getChannelUrl(notification_data) {
         if(!notification_data) {
             return null;
@@ -151,6 +233,11 @@ class DiscordNotification {
         return notification_data.channel_url;
     }
 
+    /**
+     * Generate message text from notification data
+     * @param {DiscordNotificationData} notification_data - Source notification data for text
+     * @returns {string} Message text
+     */
     generateNotificationTextFrom(notification_data) {
         if (!notification_data) {
             return null;
@@ -169,14 +256,26 @@ class DiscordNotification {
         return text;
     }
 
+    /**
+     * Get message text for {@link current_notification_data}
+     * @returns {string} Message text
+     */
     getNotificationText() {
         return this.generateNotificationTextFrom(this.current_notification_data);
     }
 
+    /**
+     * Get message text for {@link pending_notification_data}
+     * @returns {string} Pending message text
+     */
     getPendingNotificationText() {
         return this.generateNotificationTextFrom(this.pending_notification_data);
     }
 
+    /**
+     * Get keyboard for the message with channel url
+     * @returns {import('grammy').InlineKeyboard}
+     */
     getNotificationKeyboard() {
         return new InlineKeyboard().url(
             'Присоединиться',
@@ -184,9 +283,13 @@ class DiscordNotification {
         );
     }
 
+    /**
+     * Schedule message update after cooldown
+     * @param {DiscordNotificationData} notification_data - new {@link pending_notification_data}
+     * @param {(DiscordNotification) => Promise} callback - Callback that should be called when {@link pending_notification_timer} fires
+     */
     suspendNotification(notification_data, callback) {
         clearTimeout(this.pending_notification_data_timer);
-        clearTimeout(this.cooldown_timer);
 
         this.pending_notification_data = notification_data;
         this.pending_notification_data_timer = setTimeout(() => {
@@ -194,11 +297,12 @@ class DiscordNotification {
             callback(this);
             this.pending_notification_data = null;
             this.pending_notification_timer = null;
-        }, this.cooldown_duration);
-
-        this.startCooldownTimer();
+        }, this.cooldown_timeout - Date.now());
     }
 
+    /**
+     * Clear current {@link pending_notification_data} and {@link pending_notification_data_timer}
+     */
     dropPendingNotification() {
         clearTimeout(this.pending_notification_data_timer);
 
@@ -206,6 +310,10 @@ class DiscordNotification {
         this.pending_notification_timer = null;
     }
 
+    /**
+     * Get additional logging info
+     * @returns {object} Object containing info about this {@link DiscordNotificationData}
+     */
     getLogMeta() {
         let meta = {};
 
@@ -226,9 +334,10 @@ class DiscordNotification {
 }
 
 /**
- * 
+ * Pin notification message in chat
  * @param {DiscordNotification} discord_notification 
  * @returns {Promise<Message>}
+ * @memberof Telegram.Feature.ChannelSubscriber
  */
 function pinNotificationMessage(discord_notification) {
     return bot.api.pinChatMessage(
@@ -251,10 +360,11 @@ function pinNotificationMessage(discord_notification) {
 }
 
 /**
- * 
- * @param {Object || DiscordNotification} notification_data 
- * @param {String} chat_id 
+ * Get {@link DiscordNotification} for supplied notification_data
+ * @param {DiscordNotificationData | DiscordNotification | null} notification_data - Source data
+ * @param {string | number} chat_id - Telegram chat id
  * @returns {DiscordNotification}
+ * @memberof Telegram.Feature.ChannelSubscriber
  */
 function getDiscordNotification(notification_data, chat_id) {
     if (notification_data instanceof DiscordNotification) {
@@ -269,9 +379,10 @@ function getDiscordNotification(notification_data, chat_id) {
 }
 
 /**
- * 
- * @param {DiscordNotification} discord_notification 
- * @returns 
+ * Delete notification message from telegram chat
+ * @param {DiscordNotification} discord_notification - {@link DiscordNotification} that is associated with notification message
+ * @returns {Promise}
+ * @memberof Telegram.Feature.ChannelSubscriber
  */
 function clearNotification(discord_notification) {
     if (!discord_notification.isNotified()) {
@@ -300,9 +411,10 @@ function clearNotification(discord_notification) {
 }
 
 /**
- * 
- * @param {DiscordNotification} discord_notification 
- * @returns {Promise<Message>}
+ * Send notification message to telegram chat
+ * @param {DiscordNotification} discord_notification - {@link DiscordNotification} that is associated with notification message
+ * @returns {Promise}
+ * @memberof Telegram.Feature.ChannelSubscriber
  */
 function sendNotificationMessage(discord_notification) {
     return bot.api.sendMessage(
@@ -329,9 +441,10 @@ function sendNotificationMessage(discord_notification) {
 }
 
 /**
- * 
- * @param {DiscordNotification} discord_notification 
- * @returns {Promise<Message>}
+ * Edit existing notification message with current notification data 
+ * @param {DiscordNotification} discord_notification - {@link DiscordNotification} that is associated with notification message
+ * @returns {Promise}
+ * @memberof Telegram.Feature.ChannelSubscriber
  */
 function editNotificationMessage(discord_notification) {
     return bot.api.editMessageText(
@@ -362,6 +475,13 @@ function editNotificationMessage(discord_notification) {
     });
 }
 
+/**
+ * Wraps the send / update of the notificatin data to telegram chat
+ * @param {DiscordNotification} notification_data - Source notification data
+ * @param {number | string} chat_id - Telegram chat id
+ * @returns {Promise}
+ * @memberof Telegram.Feature.ChannelSubscriber
+ */
 async function wrapInCooldown(notification_data, chat_id) {
     const discord_notification = getDiscordNotification(notification_data, chat_id);
 
@@ -399,6 +519,13 @@ async function wrapInCooldown(notification_data, chat_id) {
     }
 }
 
+/**
+ * Interface for sending / updating the notification message from notification data
+ * @param {DiscordNotificationData} notification_data 
+ * @param {number | string} chat_id 
+ * @returns {Promise}
+ * @memberof Telegram.Feature.ChannelSubscriber
+ */
 async function sendNotification(notification_data, chat_id) {
     if (!notification_data || !chat_id || !bot) return;
 
@@ -410,6 +537,13 @@ async function sendNotification(notification_data, chat_id) {
     return wrapInCooldown(notification_data, chat_id);
 }
 
+/**
+ * Interface for deleting the notification data for discord channe from telegram chat
+ * @param {number | string} chat_id 
+ * @param {string} channel_id 
+ * @returns {Promise}
+ * @memberof Telegram.Feature.ChannelSubscriber
+ */
 async function deleteNotification(chat_id, channel_id) {
     if (!chat_id || !channel_id || !bot) return;
 
@@ -419,11 +553,18 @@ async function deleteNotification(chat_id, channel_id) {
     delete discord_notification_map[`${chat_id}:${channel_id}`]
 }
 
+/**
+ * Interface for checking that telegram message in chat is a notification message
+ * @param {string | number} chat_id 
+ * @param {string | number} message_id 
+ * @returns {boolean}
+ * @memberof Telegram.Feature.ChannelSubscriber
+ */
 function isNotificationMessage(chat_id, message_id) {
     if (!chat_id || !message_id) {
         return false;
     }
-    return chat_notification_map[chat_id] && chat_notification_map[chat_id].has(message_id);
+    return chat_notification_map?.[chat_id]?.has(message_id) || false;
 }
 
 module.exports = {
