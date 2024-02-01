@@ -3,7 +3,19 @@ const express = require('express');
 const config = require('../config.json')
 const { setHealth, getHealth } = require('../services/health');
 
+/**
+ * API Server
+ * @namespace API
+ */
+
+/**
+ * @class
+ * @memberof API
+ */
 class APIServer {
+    /**
+     * @param {object} app 
+     */
     constructor (app) {
         this.app = app;
         this.logger = require('../logger').child({ module: 'api-server' });
@@ -45,6 +57,10 @@ class APIServer {
         });
     }
 
+    /**
+     * Start listening on `PORT`
+     * @returns {Promise}
+     */
     async start() {
         if (!process.env.PORT) {
             this.logger.warn(`Port for API wasn't specified, API is not started.`);
@@ -56,6 +72,10 @@ class APIServer {
         })
     }
 
+    /**
+     * Stop listening on `PORT`
+     * @returns {Promise}
+     */
     async stop() {
         if (!process.env.PORT) {
             return;
@@ -69,6 +89,11 @@ class APIServer {
         });
     }
 
+    /**
+     * Set middleware to catch webhooks
+     * @param {string} uri - url catch for middlware 
+     * @param {object} middleware - middleware
+     */
     setWebhookMiddleware(uri, middleware) {
         this.express.use(uri, express.json());
         this.express.use(uri, middleware);

@@ -1,4 +1,4 @@
-const { BaseSubscriber } = require('./common');
+const { BaseSubscriber } = require('./utils');
 const { sendNotification, deleteNotification } = require('../telegram/channel-subscriber');
 
 const subscribers = {};
@@ -30,7 +30,7 @@ function isDifferent(obj1, obj2) {
 /**
  * ChannelSubscriber
  * @class
- * @extends Discord.Common.BaseSubscriber
+ * @extends {Discord.Utils.BaseSubscriber}
  * @memberof Discord.Feature.ChannelSubscriber
  */
 class ChannelSubscriber extends BaseSubscriber {

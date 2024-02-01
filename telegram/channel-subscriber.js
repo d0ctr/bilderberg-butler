@@ -77,6 +77,7 @@ async function restoreMessageID(chat_id, channel_id) {
  * @property {boolean} members[].deafened
  * @property {boolean} members[].camera
  * @property {string?} members[].activity
+ * @memberof Telegram.Feature.ChannelSubscriber
  */
 
 /**
@@ -86,11 +87,11 @@ async function restoreMessageID(chat_id, channel_id) {
 */
 class DiscordNotification {
     /**
-     * @param {DiscordNotificationData} notification_data - Channel state data from discord
+     * @param {Telegram.Feature.ChannelSubscriber.DiscordNotificationData} notification_data - Channel state data from discord
      * @param {string} chat_id - Telegram chat id
     */
     constructor(notification_data, chat_id) {
-        /**  @member {DiscordNotificationData?} - The source of the currently (or about to be) posted notification */
+        /**  @member {Telegram.Feature.ChannelSubscriber.DiscordNotificationData?} - The source of the currently (or about to be) posted notification */
         this.current_notification_data = null;
         /** @member {string} - Telegram chat id */
         this.chat_id = chat_id;
@@ -112,7 +113,7 @@ class DiscordNotification {
 
         this._current_message_id = null;
 
-        /** @member {DiscordNotificationData} - The source for the next notification update that will be applied after the cooldown */
+        /** @member {Telegram.Feature.ChannelSubscriber.DiscordNotificationData} - The source for the next notification update that will be applied after the cooldown */
         this.pending_notification_data = null;
         /** @member {NodeJS.Timeout} - Scheduling timer that will update the notification message once it fires */
         this.pending_notification_data_timer = null;
@@ -187,7 +188,7 @@ class DiscordNotification {
 
     /**
      * Sets the new current notification data and resets the cooldown timer
-     * @param {DiscordNotificationData} notification_data - New notification data
+     * @param {Telegram.Feature.ChannelSubscriber.DiscordNotificationData} notification_data - New notification data
      */
     update(notification_data) {
         if (!notification_data) {
@@ -220,7 +221,7 @@ class DiscordNotification {
 
     /**
      * Get discord channel url
-     * @param {DiscordNotificationData} notification_data - Source notification data to get url from
+     * @param {Telegram.Feature.ChannelSubscriber.DiscordNotificationData} notification_data - Source notification data to get url from
      * @returns {string} Returns url (may be changed to support application redirect)
      */
     getChannelUrl(notification_data) {
@@ -235,7 +236,7 @@ class DiscordNotification {
 
     /**
      * Generate message text from notification data
-     * @param {DiscordNotificationData} notification_data - Source notification data for text
+     * @param {Telegram.Feature.ChannelSubscriber.DiscordNotificationData} notification_data - Source notification data for text
      * @returns {string} Message text
      */
     generateNotificationTextFrom(notification_data) {
@@ -285,7 +286,7 @@ class DiscordNotification {
 
     /**
      * Schedule message update after cooldown
-     * @param {DiscordNotificationData} notification_data - new {@link pending_notification_data}
+     * @param {Telegram.Feature.ChannelSubscriber.DiscordNotificationData} notification_data - new {@link pending_notification_data}
      * @param {(DiscordNotification) => Promise} callback - Callback that should be called when {@link pending_notification_timer} fires
      */
     suspendNotification(notification_data, callback) {
@@ -335,7 +336,7 @@ class DiscordNotification {
 
 /**
  * Pin notification message in chat
- * @param {DiscordNotification} discord_notification 
+ * @param {Telegram.Feature.ChannelSubscriber.DiscordNotification} discord_notification 
  * @returns {Promise<Message>}
  * @memberof Telegram.Feature.ChannelSubscriber
  */
@@ -361,9 +362,9 @@ function pinNotificationMessage(discord_notification) {
 
 /**
  * Get {@link DiscordNotification} for supplied notification_data
- * @param {DiscordNotificationData | DiscordNotification | null} notification_data - Source data
+ * @param {Telegram.Feature.ChannelSubscriber.DiscordNotificationData | Telegram.Feature.ChannelSubscriber.DiscordNotification | null} notification_data - Source data
  * @param {string | number} chat_id - Telegram chat id
- * @returns {DiscordNotification}
+ * @returns {Telegram.Feature.ChannelSubscriberDiscordNotification}
  * @memberof Telegram.Feature.ChannelSubscriber
  */
 function getDiscordNotification(notification_data, chat_id) {
@@ -380,7 +381,7 @@ function getDiscordNotification(notification_data, chat_id) {
 
 /**
  * Delete notification message from telegram chat
- * @param {DiscordNotification} discord_notification - {@link DiscordNotification} that is associated with notification message
+ * @param {Telegram.Feature.ChannelSubscriberDiscordNotification} discord_notification - {@link DiscordNotification} that is associated with notification message
  * @returns {Promise}
  * @memberof Telegram.Feature.ChannelSubscriber
  */
@@ -412,7 +413,7 @@ function clearNotification(discord_notification) {
 
 /**
  * Send notification message to telegram chat
- * @param {DiscordNotification} discord_notification - {@link DiscordNotification} that is associated with notification message
+ * @param {Telegram.Feature.ChannelSubscriber.DiscordNotification} discord_notification - {@link DiscordNotification} that is associated with notification message
  * @returns {Promise}
  * @memberof Telegram.Feature.ChannelSubscriber
  */
@@ -442,7 +443,7 @@ function sendNotificationMessage(discord_notification) {
 
 /**
  * Edit existing notification message with current notification data 
- * @param {DiscordNotification} discord_notification - {@link DiscordNotification} that is associated with notification message
+ * @param {Telegram.Feature.ChannelSubscriber.DiscordNotification} discord_notification - {@link DiscordNotification} that is associated with notification message
  * @returns {Promise}
  * @memberof Telegram.Feature.ChannelSubscriber
  */
@@ -477,7 +478,7 @@ function editNotificationMessage(discord_notification) {
 
 /**
  * Wraps the send / update of the notificatin data to telegram chat
- * @param {DiscordNotification} notification_data - Source notification data
+ * @param {Telegram.Feature.ChannelSubscriber.DiscordNotification} notification_data - Source notification data
  * @param {number | string} chat_id - Telegram chat id
  * @returns {Promise}
  * @memberof Telegram.Feature.ChannelSubscriber
@@ -521,7 +522,7 @@ async function wrapInCooldown(notification_data, chat_id) {
 
 /**
  * Interface for sending / updating the notification message from notification data
- * @param {DiscordNotificationData} notification_data 
+ * @param {Telegram.Feature.ChannelSubscriber.DiscordNotificationData} notification_data 
  * @param {number | string} chat_id 
  * @returns {Promise}
  * @memberof Telegram.Feature.ChannelSubscriber

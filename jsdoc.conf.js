@@ -19,6 +19,9 @@ module.exports = {
             "useLongnameInNav": true
         }
     },
+    "tags": {
+        "allowUnknownTags": true,
+    },
     "docdash": {
         "sectionOrder": [
             "Modules",
@@ -32,7 +35,7 @@ module.exports = {
             "Tutorials",
         ],
         "typedefs": true,
-        "collapse": true
+        "collapse": true,
     }
 };
 

@@ -9,21 +9,35 @@
  */
 
 /**
- * @typedef {(text: string, type: MarkupLanguage, other: { url: string?, language: string?, }) => string} MLConvertFunction
- * @memberof Utils
- */
-
-/**
  * @typedef {('bold' | 'italic' | 'underline' | 'strikethrough' | 'spoiler' | 'url' | 'blockquote' | 'code' | 'pre' | 'text_link')} MLType
  * @memberof Utils
  */
-
 
 const escapeHTML = (text) => text.replace(/&/gm, '&amp;').replace(/>/gm, '&gt;').replace(/</gm, '&lt;');
 const escapeMD = (text) => ['_', '\\\*', '\\\[', '\\\]', '\\\(', '\\\)', '~', '`', '>', '#', '\\\+', '-', '=', '\\\|', '\\\{', '\\\}', '\\\.', '!'].map(c => text.replace(new RegExp(`(${c})`, "gm"), '\$1')).slice(-1);
 
 /**
- * @type {{[x: string]: MLConvertFunction}}
+ * Marks up text with the specified langugae attributes
+ * @function MLConvertFunction
+ * @param {string} text
+ * @param {Utils.MarkupLanguage} type
+ * @param {object} other
+ * @memberof Utils
+ */
+() => {}
+
+/**
+ * @type {object}
+ * @property {Utils.MLConvertFunction} bold
+ * @property {Utils.MLConvertFunction} italic
+ * @property {Utils.MLConvertFunction} underline
+ * @property {Utils.MLConvertFunction} strikethrough
+ * @property {Utils.MLConvertFunction} spoiler
+ * @property {Utils.MLConvertFunction} url
+ * @property {Utils.MLConvertFunction} blockquote
+ * @property {Utils.MLConvertFunction} code
+ * @property {Utils.MLConvertFunction} pre
+ * @property {Utils.MLConvertFunction} text_link
  * @memberof Utils
  */
 exports.to = {
