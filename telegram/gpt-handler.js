@@ -14,42 +14,41 @@ const { to } = require('../utils');
 /**
  * ChatGPT
  * @namespace ChatGPT
- * @memberof Telegram.Feature
  */
 
 /** 
  * Model name
  * @typedef {('gpt-3.5-turbo-16k' | 'gpt-4' | 'gpt-4-32k' | 'gpt-4-vision-preview')} Model
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 /** 
  * Chat member role name
  * @typedef {('system' | 'assistant' | 'user')} NodeRole
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 /** 
  * Complex structure for ChatGPT content
  * @typedef {{type: 'text', text: string}} ComplexContentText
  * @typedef {{type: 'image_url', image_url: string}} ComplexContentImage
  * @typedef {(ComplexContentText | ComplexContentImage)} ComplexContent
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 /** 
  * GPT Message content
  * @typedef {(string | ComplexContent[])} NodeContent
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 /** 
  * @typedef {import('./telegram-client').TelegramInteraction} TelegramInteraction
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 /** 
  * @typedef {import('@grammyjs/files').FileFlavor<import('grammy').Context>} GrammyContext
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 /**
  * @typedef {import('grammy/types').Message} TelegramMessage
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 /** 
  * Message, recognisable by ChatGPT
@@ -58,7 +57,7 @@ const { to } = require('../utils');
  *  content: NodeContent,
  *  name: (string | null)
  * }} NodeMessage
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 /**
  * Full context node data
@@ -71,18 +70,18 @@ const { to } = require('../utils');
  *  model: (Model | null),
  *  name: (string | null)
  * }} NodeRawData
-* @memberof Telegram.Feature.ChatGPT
+* @memberof ChatGPT
 */
 
 /** 
  * @typedef {[null | string, null | string | any, null | function, any]} CommandResponse
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 
 /** 
  * List of available models
  * @type {Model[]}
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 const models = [
     'gpt-3.5-turbo-16k',
@@ -99,7 +98,7 @@ const max_tokens = {
 }
 /** 
  * @type {Model}
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 const CHAT_MODEL_NAME = models.includes(process.env.GPT_MODEL) ? process.env.GPT_MODEL : 'gpt-3.5-turbo-16k';
 
@@ -109,7 +108,7 @@ const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not excee
  * Convert Markdown based text to HTML
  * @param {string} input
  * @return {string}
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 function prepareText(input) {
     /** Needs to avoid replacing inside code snippets */
@@ -162,7 +161,7 @@ function getWithEntities(message) {
  * Get text from telegram message
  * @param {import('grammy/types').Message} message 
  * @returns {(string | null)}
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 function getText(message) {
     return message?.text || message?.caption || null;
@@ -174,7 +173,7 @@ function getText(message) {
  * @param {'text' | 'vision'} type
  * @param {TelegramMessage} message
  * @returns {Promise<NodeContent>}
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 async function getContent({ api, message: c_message }, type = 'text', message = c_message) {
     if (type === 'vision' && message.photo?.[0]) {
@@ -221,7 +220,7 @@ async function getContent({ api, message: c_message }, type = 'text', message = 
  * Get model type based on model name
  * @param {Model} model 
  * @returns {'vision' | 'text'}
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 function getModelType(model) {
     return model.includes('vision') ? 'vision' : 'text';
@@ -229,7 +228,7 @@ function getModelType(model) {
 
 /**
  * @class
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 class ContextNode {
     /**
@@ -342,7 +341,7 @@ class ContextNode {
 
 /**
  * @class
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 class ContextTree {
     /**
@@ -523,7 +522,7 @@ class ContextTree {
 
 /**
  * @class
- * @memberof Telegram.Feature.ChatGPT
+ * @memberof ChatGPT
  */
 class ChatGPTHandler {
     constructor() {

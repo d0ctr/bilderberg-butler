@@ -5,10 +5,7 @@ const subscribers = {};
 
 /**
  * Channel Subscriber
- * @description Provides functionality for channel subscriber on the side of discord bot
- * @see Telegram.Feature.ChannelSubscriber
  * @namespace ChannelSubscriber
- * @memberof Discord.Feature
  */
 
 function isDifferent(obj1, obj2) {
@@ -31,7 +28,7 @@ function isDifferent(obj1, obj2) {
  * ChannelSubscriber
  * @class
  * @extends {Discord.Utils.BaseSubscriber}
- * @memberof Discord.Feature.ChannelSubscriber
+ * @memberof ChannelSubscriber
  */
 class ChannelSubscriber extends BaseSubscriber {
     constructor() {
@@ -86,7 +83,7 @@ class ChannelSubscriber extends BaseSubscriber {
     /**
      * Parse notification data from current channel state
      * @param {object} channel 
-     * @returns {DiscordNotificationData}
+     * @returns {ChannelSubscriber.DiscordNotificationData}
      */
     _parseState(channel) {
         if (!channel) return;

@@ -34,6 +34,7 @@ module.exports = {
             "Mixins",
             "Tutorials",
         ],
+        "navLevel": 0,
         "typedefs": true,
         "collapse": true,
     }

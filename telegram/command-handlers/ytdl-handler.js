@@ -3,12 +3,12 @@ const { default: axios } = require('axios');
 /**
  * YTDL Command
  * @namespace ytdl
- * @memberof Telegram.Commands
+ * @memberof Commands
  */
 /**
  * YTDL Command Handler
  * @param {import('grammy').Context} ctx
- * @memberof Telegram.Commands.ytdl
+ * @memberof Commands.ytdl
  */
 async function ytdl(ctx, interaction) {
     if (!process.env.YTDL_URL) {

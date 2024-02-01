@@ -5,14 +5,14 @@ const config = require('../../config.json');
 /**
  * Deep Command
  * @namespace deep
- * @memberof Telegram.Commands
+ * @memberof Commands
  */
 
 /**
  * Deep Command Handler
  * @param {import('grammy').Context} ctx 
  * @param {import('../telegram-client').TelegramInteraction} interaction
- * @memberof Telegram.Commands.deep
+ * @memberof Commands.deep
  */
 async function generateImage(ctx, interaction) {
     let arg = require('./utils').parseArgs(ctx, 1)[1];

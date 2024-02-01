@@ -1,14 +1,14 @@
 /**
  * Help Command
  * @namespace help
- * @memberof Telegram.Commands
+ * @memberof Commands
  */
 
 /**
  * Help Command Handler
  * @param {null} ctx
  * @param {import('../telegram-client').TelegramInteraction} interaction 
- * @memberof Telegram.Commands.help
+ * @memberof Commands.help
  */
 async function help({}, interaction) {
     let message = 'Вот список доступных команд:\n';

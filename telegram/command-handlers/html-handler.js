@@ -1,12 +1,12 @@
 /**
  * HTML Command
  * @namespace html
- * @memberof Telegram.Commands
+ * @memberof Commands
  */
 /**
  * HTML Command Handler
  * @param {import('grammy').Context} ctx
- * @memberof Telegram.Commands.html
+ * @memberof Commands.html
  */
 
 async function html(ctx) {
