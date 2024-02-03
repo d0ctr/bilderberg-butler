@@ -194,7 +194,7 @@ class TelegramInteraction {
     _getTextOptions() {
         return {
             parse_mode: 'HTML',
-            disable_web_page_preview: true,
+            link_preview_options: { is_disabled: true }
         };
     }
 
@@ -378,12 +378,13 @@ class TelegramInteraction {
             else if (response instanceof String || typeof response === 'string') {
                 return this._reply(response, overrides).catch((err) => {
                     this.logger.error(`Error while replying with response text to [${this.command_name}]`);
+                    this.logger.debug(`Error caused by text: ${JSON.stringify(response)}`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
                 }).then(callback);
             }
             else if (Array.isArray(response)) {
                 this._replyWithMedia(response[0], overrides).catch(err => {
-                    this.logger.error(`Error while replying with single media from array to [${this.command_name}]`);
+                    this.logger.error(`Error while replying with single media from an array to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
                 })
             }

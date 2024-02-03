@@ -419,7 +419,7 @@ function sendNotificationMessage(discord_notification) {
         discord_notification.chat_id,
         discord_notification.getNotificationText(),
         {
-            disable_web_page_preview: true,
+            link_preview_options: { is_disabled: true },
             parse_mode: 'HTML',
             reply_markup: discord_notification.getNotificationKeyboard()
         }
@@ -450,7 +450,7 @@ function editNotificationMessage(discord_notification) {
         discord_notification.current_message_id,
         discord_notification.getNotificationText(),
         {
-            disable_web_page_preview: true,
+            link_preview_options: { is_disabled: true },
             parse_mode: 'HTML',
             reply_markup: discord_notification.getNotificationKeyboard()
         }

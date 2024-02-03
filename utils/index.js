@@ -1,10 +1,45 @@
+const marked = require('marked');
+
+let origTokenizer = new marked.Tokenizer();
+let tokenizer = {
+    space: (text) => false,
+	code: (text) => false,
+	fences: (text) => false,
+	heading: (text) => false,
+	hr: (text) => false,
+	blockquote: (text) => false,
+	list: (text) => false,
+	html: () => false,
+	def: () => false,
+	table: () => false,
+	lheading: () => false,
+	paragraph: () => false,
+	text: () => false,
+	escape: () => false,
+	tag: () => false,
+	link: () => false,
+	reflink: () => false,
+	emStrong: () => false,
+	codespan: () => false,
+	br: () => false,
+	del: () => false,
+	autolink: () => false,
+	url: () => false,
+	inlineText: () => false,
+};
+const allowed_entities = ['code', 'codespan', 'fences', 'blockquote', 'link', 'text', 'space', 'emStrong', 'del', 'space', 'inlineText', 'br'];
+for (const key of allowed_entities) {
+    tokenizer[key] = origTokenizer[key];
+}
+marked.use({ tokenizer });
+
 /**
  * Utils
  * @namespace Utils
  */
 
 /**
- * @typedef {'html' | 'markdownv2'} MarkupLanguage
+ * @typedef {'html' | 'markdownv2' | 'markdown'} MarkupLanguage
  * @memberof Utils
  */
 
@@ -14,7 +49,8 @@
  */
 
 const escapeHTML = (text) => text.replace(/&/gm, '&amp;').replace(/>/gm, '&gt;').replace(/</gm, '&lt;');
-const escapeMD = (text) => ['_', '\\\*', '\\\[', '\\\]', '\\\(', '\\\)', '~', '`', '>', '#', '\\\+', '-', '=', '\\\|', '\\\{', '\\\}', '\\\.', '!'].map(c => text.replace(new RegExp(`(${c})`, "gm"), '\$1')).slice(-1);
+const escapeMDV2 = (text) => text.replace(/(_|\*|\[|\]|\(|\)|~|`|>|#|\+|-|=|\||\{|\}|\.|!)/gm, '\\$1');
+const escapeMD = (text) => text.replace(/(_|`|\*|\[])/gm, '\\$1');
 
 /**
  * Marks up text with the specified langugae attributes
@@ -52,3 +88,14 @@ exports.to = {
     'pre': (text, type, { language }) => type == 'html' ? `<pre><code${language ? ` class="${language}"` : ''}>${text}</code></pre>` : `\`\`\`${language || ''}\n${text}\`\`\`\n`,
 }
 exports.to['text_link'] = exports.to['url'];
+
+exports.escapeMD = escapeMD;
+exports.escapeHTML = escapeHTML;
+exports.convertMD2HTML = (text) => {
+    return marked
+		.parse(text, { tokenizer })
+		.replaceAll('<p>', '')
+		.replaceAll('</p>', '\n')
+		.replaceAll('</br>', '\n')
+		.replaceAll('</pre>', '</pre>\n');
+}; 
