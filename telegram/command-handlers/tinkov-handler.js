@@ -3,12 +3,12 @@ const logger = require('../../logger').child({ module: 'tinkov-handler' });
 /**
  * Tinkov Command
  * @namespace t
- * @memberof Telegram.Commands
+ * @memberof Commands
  */
 
 /**
  * @typedef {{file_id: string, file_unique_id: string, file_name: string}} FileData
- * @memberof Telegram.Commands.t
+ * @memberof Commands.t
  */
 
 /**
@@ -17,7 +17,7 @@ const logger = require('../../logger').child({ module: 'tinkov-handler' });
  * @param {string} name - The name to check.
  * @param {string} pattern - The pattern containing words to check against the name.
  * @returns {boolean} True if the name includes all words in the pattern, false otherwise.
- * @memberof Telegram.Commands.t
+ * @memberof Commands.t
  */
 function isSimilar(name, pattern) {
     const words = pattern.split(/[ ,.]+/);
@@ -29,7 +29,7 @@ function isSimilar(name, pattern) {
  * @param {string?} pattern search pattern 
  * @param {number} n limit
  * @returns {Promise<[string, FileData][]>}
- * @memberof Telegram.Commands.t
+ * @memberof Commands.t
  */
 async function getBest(pattern = null, n = 50) {
     const redis = require('../../services/redis').getRedis();
@@ -65,7 +65,7 @@ async function getBest(pattern = null, n = 50) {
 /**
  * Increment the rank values since file was used
  * @param {string} file_unique_id 
- * @memberof Telegram.Commands.t
+ * @memberof Commands.t
  */
 async function used(file_unique_id) {
     const redis = require('../../services/redis').getRedis();
@@ -88,7 +88,7 @@ async function used(file_unique_id) {
 /**
  * Tinkov Command Handler
  * @param {import('grammy').Context} ctx 
- * @memberof Telegram.Commands.t
+ * @memberof Commands.t
  */
 async function tinkov(ctx) {
     let pattern = require('./utils').parseArgs(ctx, 1)[1];

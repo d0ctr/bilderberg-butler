@@ -178,7 +178,7 @@ function generateAPICall(discord_event, event_data, type = 'new') {
     let method_name = 'sendMessage';
     const args = [discord_event.chat_id];
     const other = {
-        disable_web_page_preview: true,
+        link_preview_options: { is_disabled: true },
         parse_mode: 'HTML',
         reply_markup: discord_event.getNotificationKeyboard(event_data)
     };

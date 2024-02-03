@@ -1,6 +1,13 @@
 const TurndownService = require('turndown');
 const { EmbedBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle, MessagePayload } = require('discord.js');
 
+/**
+ * Discord Common Interface Implementation
+ * @namespace Discord
+ * @memberof Common
+ */
+
+/** @ignore */
 const turndownService = new TurndownService({
     codeBlockStyle: 'fenced',
     br: ' '
@@ -14,37 +21,37 @@ turndownService.addRule('a', {
     }
 });
 
-/** @typedef {import('discord.js').Interaction} Interaction */
+/** 
+ * @typedef {import('discord.js').Interaction} Interaction 
+ */
 
 /**
- * @typedef {{
- * platform: 'discord',
- * command_name: string?,
- * text: string,
- * args: any[]?,
- * from: {
- *  id: string?,
- *  username: string?,
- *  name: string?
- * },
- * space: {
- *  type: 'guild',
- *  id: string,
- *  title: string
- * } | {
- *  id: string?,
- *  username: string?
- * },
- * id: string,
- * data: string?
- * }} DiscordInteraction
+ * @typedef {object} DiscordInteraction
+ * @property {'discord'} platform Interaction source platform
+ * @property {string?} command_name Command name
+ * @property {string} text Command input as one line
+ * @property {string[]?} args Array of command args
+ * @property {object} from Sender info
+ * @property {string?} from.id Sender id
+ * @property {string?} from.username Sender username
+ * @property {string?} from.name Sender name
+ * @property {object} space Info about the entity where command was triggered
+ * @property {'guild' | 'private'} space.type Type of an entity
+ * @property {string?} space.id Entity id
+ * @property {string?} space.title Server name if entity is `guild`
+ * @property {string?} space.username Sender username if entity is `private`
+ * @property {string?} space.name Sender name if entity is `private`
+ * @property {string} id Interaction id
+ * @property {string?} data Callback query data
+ * @memberof Common
  */
 
 /**
  * 
  * @param {Interaction} interaction 
- * @param {*} definition 
- * @returns {DiscordInteraction}
+ * @param {Common.CommandDefinition} definition 
+ * @returns {Common.DiscordInteraction}
+ * @memberof Common.Discord
  */
 function commonizeInteraction(interaction, definition) {
     let common_interaction = {
@@ -78,6 +85,7 @@ function commonizeInteraction(interaction, definition) {
     }
     else {
         common_interaction.space = common_interaction.from;
+        common_interaction.type = 'private';
     }
 
     common_interaction.id = interaction.id;
@@ -86,6 +94,12 @@ function commonizeInteraction(interaction, definition) {
     return common_interaction;
 }
 
+/**
+ * Transform response object by converting overrides to platfrom specific parameters
+ * @param {object} response 
+ * @returns {object} Updated response object
+ * @memberof Common.Discord
+ */
 function transformOverrides(response) {
     if (response?.overrides?.followup) {
         const { text, url } = response.overrides.followup;
@@ -123,6 +137,13 @@ function transformOverrides(response) {
     return response;
 }
 
+/**
+ * Reply to command with text message
+ * @param {Interaction} interaction Discord context
+ * @param {object} response Response object
+ * @param {import('../logger')} logger Logger
+ * @memberof Common.Discord
+ */
 function replyWithText(interaction, response, logger) {
     logger.info(`Replying with text`, { response });
 
@@ -153,6 +174,13 @@ function replyWithText(interaction, response, logger) {
     });
 }
 
+/**
+ * Reply to command with embeded component
+ * @param {Interaction} interaction Discord context
+ * @param {object} response Response object
+ * @param {import('../logger')} logger Logger
+ * @memberof Common.Discord
+ */
 function replyWithEmbed(interaction, response, logger) {
     const payload = { embeds: [] };
 
@@ -195,6 +223,13 @@ function replyWithEmbed(interaction, response, logger) {
     });
 }
 
+/**
+ * Reply to command with file
+ * @param {Interaction} interaction Discord context
+ * @param {object} response Response object
+ * @param {import('../logger')} logger Logger
+ * @memberof Common.Discord
+ */
 function replyWithFile(interaction, response, logger) {
     const payload = { embeds: [] };
 
@@ -230,6 +265,13 @@ function replyWithFile(interaction, response, logger) {
     });
 }
 
+/**
+ * Command reply interface
+ * @param {Interaction} interaction Discord context
+ * @param {object} response Response object
+ * @param {import('../logger')} logger Logger
+ * @memberof Common.Discord
+ */
 function reply(interaction, response, logger) {
     while (response?.text?.length >= 2000) response.text = response.text.split('\n').slice(0, -1).join('\n');
 
@@ -273,6 +315,14 @@ function reply(interaction, response, logger) {
     );
 }
 
+
+/**
+ * Command handler interface
+ * @param {Interaction} interaction Discord context
+ * @param {Common.CommandHandler} handler Handler function for command
+ * @param {Common.CommandDefinition} definition Command definition
+ * @memberof Common.Discord
+ */
 function handleCommand(interaction, handler, definition) {
     const common_interaction = commonizeInteraction(interaction, definition);
     const log_meta = {
@@ -310,9 +360,11 @@ function handleCommand(interaction, handler, definition) {
 };
 
 /**
- * 
- * @param {import('discord.js').Interaction} interaction 
- * @param {*} response 
+ * Process answer callback
+ * @param {Interaction} interaction Discord context
+ * @param {object} response Response object
+ * @returns {Promise}
+ * @memberof Common.Discord
  */
 async function answerCallback(interaction, response) {
     if (response.type === 'error') {
@@ -352,6 +404,13 @@ async function answerCallback(interaction, response) {
     }
 }
 
+/**
+ * Callback handler interface
+ * @async
+ * @param {Interaction} interaction Discord context
+ * @param {Common.CommandHandler} handle Handler function for callback
+ * @memberof Common.Discord
+ */
 async function handleCallback(interaction, handle) {
     const common_interaction = commonizeInteraction(interaction);
     const log_meta = {

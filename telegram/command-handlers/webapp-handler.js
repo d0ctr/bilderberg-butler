@@ -3,13 +3,13 @@ const { InlineKeyboard } = require('grammy');
 /**
  * WebApp Command
  * @namespace webapp
- * @memberof Telegram.Commands
+ * @memberof Commands
  */
 
 /**
  * WebApp Command handler
  * @param {import('grammy').Context} ctx 
- * @memberof Telegram.Commands.webapp
+ * @memberof Commands.webapp
  */
 async function webapp (ctx) {
     let message = `\

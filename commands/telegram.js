@@ -2,43 +2,42 @@ const { InputFile, InlineKeyboard } = require('grammy');
 
 const CLEAR_ERROR_MESSAGE_TIMEOUT = ++process.env.CLEAR_ERROR_MESSAGE_TIMEOUT || 10000;
 
+/**
+ * Telegram Common Interface Implementation
+ * @namespace Telegram
+ * @memberof Common
+ */
+
 /** 
  * @typedef {import('grammy').Context} Context
  */
 
 /**
- * @typedef {{ 
- * platform: 'telegram', 
- * command_name: string?, 
- * ctx: Context, 
- * args: any[], 
- * from: { 
- *  id: number?, 
- *  name: string?, 
- *  username: string? 
- * }, 
- * space: { 
- *  type: 'private', 
- *  id: number?, 
- *  name: string?, 
- *  username: string? 
- * } | { 
- *  type: 'group' | 'supergroup' | 'channel', 
- *  id: number | string | null,
- *  title: string 
- * }, 
- * id: number | string | null, 
- * text: string?, 
- * data: string?, 
- * callbakc_id: string? 
- * }} TelegramInteraction
+ * @typedef {object} TelegramInteraction
+ * @property {'telegram'} platform Interaction source platform
+ * @property {string?} command_name Command name
+ * @property {string} text Command input as one line
+ * @property {string[]?} args Array of command args
+ * @property {object} from Sender info
+ * @property {number} from.id Sender id
+ * @property {string?} from.username Sender username
+ * @property {string?} from.name Sender name
+ * @property {object} space Info about the entity where command was triggered
+ * @property {'private' | 'group' | 'supergroup' | 'channel'} space.type Entity type
+ * @property {number | string} space.id Entity id
+ * @property {string?} space.title Chat title if entity type is not `private`
+ * @property {string?} space.username Sender username if entity is `private`
+ * @property {string?} space.name Sender name if entity is `private`
+ * @property {string} id Interaction id
+ * @property {string?} data Callback query data
+ * @memberof Common
  */
 
 /**
  * Turns Telegram context to an object that can be used as an input to a common command handler
  * @param {Context} ctx
  * @param {number} limit number of parsable args
- * @return {TelegramInteraction}
+ * @return {Common.TelegramInteraction}
  * 
  * `limit` is tricky, it makes possible for argument to consist of multiple words
  * Example: `/foo bar baz bax`
@@ -50,6 +49,7 @@ const CLEAR_ERROR_MESSAGE_TIMEOUT = ++process.env.CLEAR_ERROR_MESSAGE_TIMEOUT ||
  *   - if we set limit to null, we will parse all words as standalone: 
  *     args = ['bar', 'baz', 'bax'].
  * 
+ * @memberof Common.Telegram
  */
 function commonizeContext(ctx, limit) {
     let args = [];
@@ -71,7 +71,6 @@ function commonizeContext(ctx, limit) {
     let interaction = {
         platform: 'telegram',
         command_name: args?.[0],
-        ctx: ctx,
     };
 
     if (args?.length > 1) {
@@ -99,11 +98,17 @@ function commonizeContext(ctx, limit) {
     interaction.id = ctx.message?.message_id || ctx.callbackQuery?.inline_message_id;
     interaction.text = ctx.message?.text;
     interaction.data = ctx.callbackQuery?.data;
-    interaction.callback_id = ctx.callbackQuery?.id;
     
     return interaction;
 }
 
+/**
+ * Get default response settings
+ * @param {Context} ctx Telegram context
+ * @param {object} overrides Overrides object
+ * @returns {object} `other` object
+ * @memberof Common.Telegram
+ */
 function getDefaultOther(ctx, overrides) {
     return {
         parse_mode: 'HTML',
@@ -120,6 +125,12 @@ function getDefaultOther(ctx, overrides) {
     }
 }
 
+/**
+ * Transform response object by converting overrides to platform specific parameters
+ * @param {object} response Response object
+ * @returns {object} Updated response object
+ * @memberof Common.Telegram
+ */
 function transformOverrides(response) {
     if (response.overrides?.followup && !response.overrides?.reply_markup) {
         const { text, url } = response.overrides.followup;
@@ -142,11 +153,12 @@ function transformOverrides(response) {
 }
 
 /**
- * 
- * @param {Context} ctx 
- * @param {*} response 
- * @param {*} logger 
- * @returns 
+ * Reply to command with text message
+ * @param {Context} ctx Telegram context
+ * @param {object} response Response object
+ * @param {import('../logger')} logger Logger 
+ * @returns {Promise}
+ * @memberof Common.Telegram
  */
 async function replyWithText(ctx, response, logger) {
     logger.info(`Replying with text`, { response });
@@ -184,6 +196,14 @@ async function replyWithText(ctx, response, logger) {
     });
 }
 
+/**
+ * Command reply interface
+ * @param {Context} ctx Telegram context
+ * @param {object} response Response object
+ * @param {import('../logger')} logger Logger
+ * @returns {Promise}
+ * @memberof Common.Telegram
+ */
 async function reply(ctx, response, logger) {
     const reply_methods = {
         'audio': ctx.replyWithAudio.bind(ctx),
@@ -248,9 +268,11 @@ async function reply(ctx, response, logger) {
 }
 
 /**
- * 
- * @param {Context} ctx 
- * @param {(interaction: TelegramInteraction) => Promise} handler
+ * Command handler interface
+ * @param {Context} ctx Telegram context
+ * @param {Common.CommandHandler} handler Handler function for command
+ * @param {Common.CommandDefinition} definition Command definition
+ * @memberof Common.Telegram
  */
 function handleCommand(ctx, handler, definition) {
     const common_interaction = commonizeContext(ctx, definition?.limit);
@@ -281,6 +303,14 @@ function handleCommand(ctx, handler, definition) {
     });
 }
 
+/**
+ * Command handler interface that gets a response array acceptable by {@link Telegram.Interaction}
+ * @param {Context} ctx Telegram context
+ * @param {Common.CommandHandler} handler Handler function for command
+ * @param {Common.CommandDefinition} definition Command definition
+ * @returns {object[]} 
+ * @memberof Common.Telegram
+ */
 async function getLegacyResponse(ctx, handler, definition) {
     const common_interaction = commonizeContext(ctx, definition?.limit);
     const log_meta = {
@@ -304,9 +334,11 @@ async function getLegacyResponse(ctx, handler, definition) {
 }
 
 /**
- * 
- * @param {Context} ctx 
- * @param {*} response 
+ * Process answer callback
+ * @param {Context} ctx Telegram context
+ * @param {object} response Response object
+ * @return {Promise}
+ * @memberof Common.Telegram
  */
 async function answerCallback(ctx, response) {
     if (response.type === 'error' || response.type === 'delete_buttons') {
@@ -339,9 +371,11 @@ async function answerCallback(ctx, response) {
 }
 
 /**
- * Handle callback for button press
- * @param {Context} ctx 
- * @param {(interaction: TelegramInteraction) => Promise} handler 
+ * Callback handler interface
+ * @async
+ * @param {Context} ctx Telegram context
+ * @param {Common.CommandHandler} handler Handler function for callback
+ * @memberof Common.Telegram
  */
 async function handleCallback(ctx, handler) {
     const common_interaction = commonizeContext(ctx);

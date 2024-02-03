@@ -1,5 +1,16 @@
 const { getRedis } = require('../services/redis');
 
+/**
+ * @namespace Utils
+ * @memberof Discord
+ */
+
+/**
+ * BaseSubscriber
+ * @class
+ * @description Base class for event subscriber
+ * @memberof Discord.Utils
+ */
 class BaseSubscriber {
     constructor(subscriber_type) {
         this._subscriber_type = subscriber_type;

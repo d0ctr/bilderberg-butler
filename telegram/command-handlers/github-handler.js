@@ -1,13 +1,13 @@
 /**
  * GitHub Command
  * @namespace gh
- * @memberof Telegram.Commands
+ * @memberof Commands
  */
 
 /**
  * GitHub Command Handler
  * @param {import('grammy').Context} ctx
- * @memberof Telegram.Commands.gh
+ * @memberof Commands.gh
  */
 async function gh(ctx) {
     let arg = require('./utils').parseArgs(ctx, 1)[1];

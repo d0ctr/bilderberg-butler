@@ -1,6 +1,6 @@
 {
   "name": "bilderberg_butler",
-  "version": "2.83.1",
+  "version": "2.84.0",
   "description": "Discord bot for bilderberg club",
   "main": "index.js",
   "scripts": {
@@ -30,6 +30,7 @@
     "ioredis": "^5.2.4",
     "jquery": "^3.7.1",
     "jsdom": "^22.1.0",
+    "marked": "^11.2.0",
     "mathjs": "^11.4.0",
     "openai": "^4.17.0",
     "turndown": "^7.1.1",

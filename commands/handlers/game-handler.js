@@ -3,6 +3,18 @@ const { genKey, range, encodeCallbackData, listingMenuCallback } = require('../u
 const { getRedis } = require('../../services/redis');
 const logger = require('../../logger').child({ module: 'game-handler' });
 
+/**
+ * Game Command
+ * @namespace game
+ * @memberof Commands
+ */
+
+/**
+ * Get search results
+ * @param {{search: string, ...args}} - Search parameters 
+ * @returns {object[]}
+ * @memberof Commands.game
+ */
 const getGamesFromRAWG = async ({ search, ...args } = {}) => {
     return await fetch(
         `${RAWG_API_BASE}/games?`
@@ -14,6 +26,12 @@ const getGamesFromRAWG = async ({ search, ...args } = {}) => {
         }));
 }
 
+/**
+ * Transform game details to text
+ * @param {{slug: string, name: string, released: string?, metacritic: number?, playtime: number?, platforms: {name: string}[]?, stores: {name: string}[]?}} game Game details
+ * @returns {string}
+ * @memberof Commands.game
+ */
 const getTextFromGameDetail = (game) => {
     return `🎮 <a href="${RAWG_BASE}/games/${game?.slug}">${game.name}</a>\n`
         + (game?.released ? `Дата релиза: ${(new Date(game.released)).toLocaleDateString('de-DE')}\n` : '' )
@@ -25,7 +43,9 @@ const getTextFromGameDetail = (game) => {
 
 /**
  * Save RAWG.io results in redis for quick access
- * @param {{}[]} games 
+ * @param {string} key Redis key
+ * @param {object[]} games Game details
+ * @memberof Commands.game
  */
 const saveResults = async (key, games) => {
     const redis = getRedis();
@@ -50,11 +70,12 @@ const saveResults = async (key, games) => {
 }
 
 /**
- * 
- * @param {string} key 
- * @param {number} start 
- * @param {number?} stop 
+ * Get list of games from Redis
+ * @param {string} key Redis key for results
+ * @param {number} start Starting index
+ * @param {number?} stop Last index (including)
  * @returns {Promise<[{[number]: {url: string?, text: string, name: string, released: string}}, number] | [null]>}
+ * @memberof Commands.game
  */
 const getGamesFromRedis = async (key, start, stop = start + 2) => {
     const redis = getRedis();
@@ -82,18 +103,32 @@ const getGamesFromRedis = async (key, start, stop = start + 2) => {
 }
 
 /**
- * 
- * @param {{ key: string, current: number, next: string | number }} data 
- * @returns 
+ * Generate callback data
+ * @param {{ key: string, current: number, next: string | number }} data  Callback data inputs
+ * @returns {string}
+ * @memberof Commands.game
  */
 const getCallbackData = (data) => {
     return encodeCallbackData({ prefix: 'game', ...data});
 }
 
-const getNameForButton = (game, index = null, selected = null) => {
-    return `${(index != null && index === selected) ? '☑️ ' : '' }${game.name} (${new Date(game.released).getFullYear()})`
+/**
+ * Get button's name from game details
+ * @param {{name: string, released: string?}} - Game details
+ * @param {number?} index Game index 
+ * @param {number?} selected Current game index selection 
+ * @returns {string}
+ * @memberof Commands.game
+ */
+const getNameForButton = ({name, released}, index = null, selected = null) => {
+    let released_date = released == null ? 'TBA' : new Date(released).getFullYear()
+    return `${(index != null && index === selected) ? '☑️ ' : '' }${name} (${released_date})`;
 }
 
+/**
+ * @type {TextDecoderCommon.CommandDefinition}
+ * @memberof Commands.game
+ */
 exports.definition = {
     command_name: 'game',
     args: [
@@ -109,12 +144,15 @@ exports.definition = {
     description: 'Возваращет краткую информацию по игре из RAWG.io'
 };
 
+/**
+ * @type {boolean}
+ * @memberof Commands.game
+ */
 exports.condition = !!process.env.RAWG_TOKEN;
 
 /**
- * 
- * @param {import('../utils').Interaction} interaction 
- * @returns 
+ * @type {Common.CommandHandler}
+ * @memberof Commands.game
  */
 exports.handler = async (interaction) => {
     const args = interaction.args?.[0];
@@ -191,8 +229,8 @@ exports.handler = async (interaction) => {
 };
 
 /**
- * 
- * @param {import('../utils').Interaction} interaction 
+ * @type {Common.CommandHandler}
+ * @memberof Commands.game
  */
 exports.callback = async (interaction) => {
     return listingMenuCallback(interaction, getGamesFromRedis);
