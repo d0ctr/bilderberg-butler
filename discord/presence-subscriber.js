@@ -1,4 +1,4 @@
-const { BaseSubscriber } = require('./common');
+const { BaseSubscriber } = require('./utils');
 const { updatePresence } = require('../telegram/presence-subscriber');
 
 const subscribers = {};

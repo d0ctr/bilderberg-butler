@@ -3,7 +3,7 @@ const { OpenAI } = require('openai');
 /**
  * Voics Command
  * @namespace voice
- * @memberof Telegram.Commands
+ * @memberof Commands
  */
 
 /**
@@ -33,7 +33,7 @@ async function generateSpeech(text) {
  * Voice Command Handler
  * @param {import('@grammyjs/files').FileFlavor<import('grammy').Context>} ctx 
  * @param {import('../telegram-client').TelegramInteraction} interaction 
- * @memberof Telegram.Commands.voice
+ * @memberof Commands.voice
  */
 async function voice(ctx, interaction) {
     const { message } = ctx;

@@ -7,19 +7,19 @@ const { YA300_API_BASE } = require('../../config.json');
 /**
  * TLDR Command
  * @namespace tldr
- * @memberof Telegram.Commands
+ * @memberof Commands
  */
 
 /**
  * @typedef {{title: string, summary: { text: string, url: string}[], sharing_url: string}} SummaryJSON
- * @memberof Telegram.Commands.tldr
+ * @memberof Commands.tldr
  */
 
 /**
  * Request summary from Ya300
  * @param {{ article_url: string }}
  * @returns {Promise<Response>}
- * @memberof Telegram.Commands.tldr
+ * @memberof Commands.tldr
  */
 async function getSummaryURL({ article_url }) {
     return await fetch(
@@ -39,7 +39,7 @@ async function getSummaryURL({ article_url }) {
  * Get summary from Ya300
  * @param {string} summary url
  * @returns {Promise<Response>}
- * @memberof Telegram.Commands.tldr
+ * @memberof Commands.tldr
  */
 async function getSummaryHTML(url) {
     return await fetch(url);
@@ -49,7 +49,7 @@ async function getSummaryHTML(url) {
  * Parse HTML summary into a JSON
  * @param {Response} response 
  * @returns {SummaryJSON}
- * @memberof Telegram.Commands.tldr
+ * @memberof Commands.tldr
  */
 async function parseSummary(response) {
     const html = await response.text();
@@ -86,7 +86,7 @@ exports.condition = !!process.env.YA300_API_BASE;
  * TLDR Command Handler
  * @param {import('grammy').Context} ctx 
  * @param {import('../telegram-client').TelegramInteraction} interaction 
- * @memberof Telegram.Commands.tldr
+ * @memberof Commands.tldr
  */
 async function handler(ctx, interaction) {
     const text = require('./utils').parseArgs(ctx)[1] || ctx.message?.reply_to_message?.text || ctx.message?.reply_to_message?.caption || '';

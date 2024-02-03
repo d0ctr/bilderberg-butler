@@ -3,13 +3,13 @@ const GrammyTypes = require('grammy');
 /**
  * FizzBuzz Command
  * @namespace fizzbuzz
- * @memberof Telegram.Commands
+ * @memberof Commands
  */
 
 /**
  * FizzBuzz Command Handler
  * @param {GrammyTypes.Context | Object} ctx
- * @memberof Telegram.Commands.fizzbuzz
+ * @memberof Commands.fizzbuzz
  */
 async function fizzbuzz(ctx) {
     let args = require('./utils').parseArgs(ctx).slice(1);

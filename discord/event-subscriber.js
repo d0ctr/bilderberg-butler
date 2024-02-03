@@ -1,4 +1,4 @@
-const { BaseSubscriber } = require('./common');
+const { BaseSubscriber } = require('./utils');
 const { sendNotification, deleteNotification } = require('../telegram/event-subscriber');
 
 const subscribers = {};

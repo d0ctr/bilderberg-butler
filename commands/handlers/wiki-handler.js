@@ -109,7 +109,7 @@ async function handler(interaction) {
     return {
         type: 'text',
         text: wikisearch,
-        overrides: { disable_web_page_preview: false }
+        overrides: { link_preview_options: { is_disabled: false } }
     };
 }
 

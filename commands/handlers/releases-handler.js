@@ -1,27 +1,55 @@
 const { RAWG_API_BASE, RAWG_BASE } = require('../../config.json');
 
+/**
+ * Releases Command
+ * @namespace releases
+ * @memberof Commands
+ */
+
+/**
+ * Get list of releases
+ * @param {{year: number, month: number, ...args}} - Request parameters 
+ * @returns {{name: string, slug: string, released: string}[]}
+ * @memberof Commands.releases
+ */
 const getReleasesFromRAWG = async ({ year = new Date(Date.now()).getFullYear(), month = new Date(Date.now()).getMonth(), ...args } = {}) => {
     return await fetch(
         `${RAWG_API_BASE}/games/calendar/${year}/${month}?`
         + new URLSearchParams({
             key: process.env.RAWG_TOKEN,
-            ordering: '-added',
+            ordering: '-released',
             popular: 'true',
             page_size: 25,
             ...args
         }));
 }
 
+/**
+ * Tranform game release details to text
+ * @param {{name: string, slug: string, released: string}} game Game details
+ * @returns {string}
+ * @memberof Commands.releases
+ */
 const getTextFromGameDetail = (game) => {
     return `\t• <a href="${RAWG_BASE}/games/${game?.slug}">${game.name}</a>`
         + (game?.released ? ` — ${(new Date(game.released)).toLocaleDateString('ru-RU')}` : '' )
         + '\n';
 }
 
+/**
+ * Transform a list of game release detail to a single text
+ * @param {string[]} list List of game details
+ * @returns {string}
+ * @memberof Commands.releases
+ */
 const transformReleasesList = (list) => {
     return list.reduce((acc, game) => acc += `${getTextFromGameDetail(game)}`, 'Релизы:\n');
 }
 
+/**
+ * @type {Common.CommandDefintion}
+ * @memberof Commands.releases
+ */
 exports.definition = {
     command_name: 'releases',
     args: [
@@ -36,9 +64,16 @@ exports.definition = {
     is_inline: true,
     description: 'Возвраащет список релизов из RAWG.io'
 };
-
+/**
+ * @type {boolean}
+ * @memberof Commands.releases
+ */
 exports.condition = !!process.env.RAWG_TOKEN;
 
+/**
+ * @type {Common.CommandHandler}
+ * @memberof Commands.releases
+ */
 exports.handler = async (interaction) => {
     const arg = interaction.args?.[0];
     

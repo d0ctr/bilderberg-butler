@@ -2,7 +2,7 @@ const { OpenAI } = require('openai');
 const { default: axios } = require('axios');
 
 const logger = require('../logger').child({ module: 'chatgpt-handler' });
-const { to } = require('../utils');
+const { to, convertMD2HTML } = require('../utils');
 
 // const { Converter: MDConverter } = require('showdown');
 
@@ -102,34 +102,16 @@ const max_tokens = {
  */
 const CHAT_MODEL_NAME = models.includes(process.env.GPT_MODEL) ? process.env.GPT_MODEL : 'gpt-3.5-turbo-16k';
 
-const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant\nanswer should not exceed 4000 characters`;
+const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant`;
+
+const SYSTEM_PROMPT_EXTENSION = '\nanswer should not exceed 4000 characters';
 
 /**
- * Convert Markdown based text to HTML
- * @param {string} input
- * @return {string}
+ * Get message text combined with entities
+ * @param {object} message Telegram message object
+ * @returns {string}
  * @memberof ChatGPT
  */
-function prepareText(input) {
-    /** Needs to avoid replacing inside code snippets */
-    // let res = input
-    //     .replace(/&/gm, '&amp;')
-    //     .replace(/>/gm, '&gt;')
-    //     .replace(/</gm, '&lt;');
-
-    // // Replace code blocks with language specification
-    // res = res.replace(/```(\S*)\n(.*?)\n```/g, `<pre><code class='$1'>$2</code></pre>`);
-
-    // // Replace inline code blocks
-    // res = res.replace(/[^(<pre>)].*`([^`]*?)`.*[^(</pre>)]/g, '<code>$1</code>');
-    // /** too aggressive
-    //  *  let res = mdConverter
-    //  *     .makeHtml(input)
-    //  *     .replace(/<\/?p>/gm, '');
-    //  */
-    return input;
-}
-
 function getWithEntities(message) {
     let goodEntities = (message?.entities || message?.caption_entities || [])?.filter(e => [
         'bold', 'italic', 'underline', 'strikethrough', 'spoiler', 
@@ -145,7 +127,12 @@ function getWithEntities(message) {
     let entities = goodEntities.sort((a, b) => a.offset - b.offset || b.length - a.length);
     for (const entity of entities) {
         if (cursor < entity.offset) {
-            text += original.slice(cursor, entity.offset);
+            let slice = original.slice(cursor, entity.offset);
+            text += slice;
+            cursor += slice;
+        }
+        if (cursor > entity.offset) {
+            continue;
         }
         text += to[entity.type](original.slice(entity.offset, entity.offset + entity.length), 'markdown', entity);
         cursor = entity.offset + entity.length;
@@ -155,16 +142,6 @@ function getWithEntities(message) {
         text += original.slice(entity.offset + entity.length);
     }
     return text;
-}
-
-/**
- * Get text from telegram message
- * @param {import('grammy/types').Message} message 
- * @returns {(string | null)}
- * @memberof ChatGPT
- */
-function getText(message) {
-    return message?.text || message?.caption || null;
 }
 
 /**
@@ -356,7 +333,7 @@ class ContextTree {
         /** @type {ContextNode} */
         this.root_node = new ContextNode({
             role: 'system',
-            content: system_prompt || DEFAULT_SYSTEM_PROMPT,
+            content: (system_prompt || DEFAULT_SYSTEM_PROMPT) + SYSTEM_PROMPT_EXTENSION,
             model: model || CHAT_MODEL_NAME
         });
     }
@@ -640,21 +617,24 @@ class ChatGPTHandler {
                 return ['У ChatGPT просто нет слов', null, null, { reply_to_message_id: prev_message_id }];
             }
 
+            let answer = data.choices[0].message.content;
+
             return [
                 null,
-                data.choices[0].message.content,
-                ({ message_id: new_message_id, text }) => {
+                convertMD2HTML(answer),
+                ({ message_id: new_message_id } = {}) => {
+                    if (!new_message_id) return;
                     context_tree.appendNode({
                         role: 'assistant',
                         name: interaction.context.me.first_name,
-                        content: text,
+                        content: answer,
                         message_id: new_message_id,
                         prev_message_id
                     });
                 },
                 {
                     reply_to_message_id: prev_message_id,
-                    parse_mode: 'Markdown'
+                    parse_mode: 'HTML'
                 }
             ];
         }).catch(err => {
@@ -891,7 +871,7 @@ class ChatGPTHandler {
             return [`Нужен не пустой системный промпт.\nПо умолчанию: <code>${DEFAULT_SYSTEM_PROMPT}</code>\nСейчас: <code>${context_tree.root_node.content}</code>`];
         }
 
-        context_tree.root_node.content = new_system_prompt;
+        context_tree.root_node.content = new_system_prompt + SYSTEM_PROMPT_EXTENSION;
 
         return [null, 'Обновил'];
     }

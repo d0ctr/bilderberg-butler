@@ -19,19 +19,24 @@ module.exports = {
             "useLongnameInNav": true
         }
     },
+    "tags": {
+        "allowUnknownTags": true,
+    },
     "docdash": {
         "sectionOrder": [
             "Modules",
             "Namespaces",
             "Interfaces",
             "Classes",
+            "Global",
             "Externals",
             "Events",
             "Mixins",
             "Tutorials",
         ],
+        "navLevel": 0,
         "typedefs": true,
-        "collapse": true
+        "collapse": true,
     }
 };
 

@@ -1,13 +1,13 @@
 /**
  * Info Command
  * @namespace info
- * @memberof Telegram.Commands
+ * @memberof Commands
  */
 
 /**
  * Info Command handler
  * @param {import('grammy').Context} ctx 
- * @memberof Telegram.Commands.info
+ * @memberof Commands.info
  */
 async function info(ctx) {
     let message = `Информация об этом чате:
