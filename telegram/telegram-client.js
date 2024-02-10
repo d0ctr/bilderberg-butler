@@ -77,7 +77,6 @@ class TelegramInteraction {
             telegram_chat_id: context?.chat?.id,
             telegram_message_id: context?.message?.message_id,
             telegram_user_id: context?.from?.id,
-            telegram_placeholder_message_id: this?._placeholderMessage?.message_id,
         };
         this.logger = require('../logger').child(this.log_meta);
         this.command_name = command_name;
@@ -212,7 +211,7 @@ class TelegramInteraction {
      * @param {String} text text to send
      * @return {Promise<Message>}
      */
-    _reply(text, overrides) {
+    async _reply(text, overrides) {
         this.logger.info(`Replying with text`);
         return this.context.reply(text, {
             ...this._getBasicMessageOptions(),
@@ -228,7 +227,7 @@ class TelegramInteraction {
      * @param {Object | null} overrides 
      * @returns {Promise<Message>}
      */
-    _replyWithMediaGroup(message, overrides) {
+    async _replyWithMediaGroup(message, overrides) {
         if (message.type === 'text') {
             return this._reply(message.text, overrides)
         }
@@ -269,7 +268,7 @@ class TelegramInteraction {
      * @param {Object} message may contain text and an id of one of `[animation, audio, document, video, video_note, voice, sticker]`
      * @return {Promise<Message>}
      */
-    _replyWithMedia(message, overrides) {
+    async _replyWithMedia(message, overrides) {
         if (message.type === 'text') {
             return this._reply(message.text, overrides);
         }
@@ -318,30 +317,44 @@ class TelegramInteraction {
         return this._reply(message.text);
     }
 
-    replyWithPlaceholder(placeholder_text) {
-        if (this.context.message) {
-            this._reply(
-                placeholder_text
-            ).then(message => {
-                this._placeholderMessage = message;
-                this.logger.debug(`Sent placeholder [message:${message.message_id}] with [text:${placeholder_text}] in reply to [message:${this._getBasicMessageOptions().reply_to_message_id}]`);
-            }).catch(err =>
-                this.logger.error(`Error while sending placeholder message [text: ${placeholder_text}] in reply to [message_id: ${this.context.message.message_id}] in [chat: ${this.context.chat.id}]`, { error: err.stack || err })
-            );
+    /**
+     * Reply with link to Telegra.ph article
+     * @param {string} text 
+     * @param {'html' | 'markdown'} parse_mode 
+     */
+    async _replyWithArticle(text, parse_mode = 'html') {
+        if (process.env.TELEGRAPH_TOKEN == null) {
+            return null;
         }
-    }
 
-    deletePlaceholder() {
-        if (!this._placeholderMessage) return;
-        this.api.deleteMessage(
-            this.context.chat.id,
-            this._placeholderMessage.message_id
-        ).then(() => {
-            this.logger.debug(`Deleted placeholder [message:${this._placeholderMessage.message_id}] with [text:${this._placeholderMessage.text}] in reply to [message:${this._getBasicMessageOptions().reply_to_message_id}]`);
-            delete this._placeholderMessage;
-        }).catch(err =>
-            this.logger.error(`Error while deleting placeholder message [message_id: ${this._placeholderMessage.message_id}] in [chat: ${this._placeholderMessage.chat.id}]`, { error: err.stack || err })
-        );
+        const { Telegraph, parseHtml, parseMarkdown } = await import('better-telegraph');
+        const telegraph = new Telegraph({ accessToken: process.env.TELEGRAPH_TOKEN });
+        text = text.replace('<pre><code', '<code').replace('</code></pre>', '</code>');
+
+        const content = parse_mode === 'html'
+            ? parseHtml(text)
+            : parseMarkdown(text);
+        
+        const title = (
+                typeof content == 'string'
+                ? content
+                : content.find((node) => node.tag == 'p' || typeof node === 'string')?.children[0] || 'GPT Answer'
+            ).split(' ').slice(0, 5).join(' ').slice(0, 256);
+
+        try {
+            const { url } = await telegraph.create({
+                title,
+                content
+            });
+
+            return this._reply(url, { 
+                link_preview_options: { is_disabled: false }
+            });
+        }
+        catch (err) {
+            this.logger.error('Failed to create an article', { error: err.stack || err });
+            return null;
+        }
     }
 
     /**
@@ -349,7 +362,7 @@ class TelegramInteraction {
      * Returns undefined or promise for reply request
      * @returns {undefined | Promise}
      */
-    reply() {
+    async reply() {
         if (typeof TelegramHandlers[this.command_name]?.handler !== 'function') {
             this.logger.warn(`Received nonsense, how did it get here???`);
             return;
@@ -357,7 +370,7 @@ class TelegramInteraction {
 
         this.logger.info(`Received command: ${this.command_name}`);
 
-        TelegramHandlers[this.command_name].handler(this.context, this).then(([err, response, callback, overrides]) => {
+        return TelegramHandlers[this.command_name].handler(this.context, this).then(([err, response, callback, overrides]) => {
             if (!callback) callback = () => {};
             if (err) {
                 return this._reply(err, overrides).catch((err) => {
@@ -383,7 +396,7 @@ class TelegramInteraction {
                 }).then(callback);
             }
             else if (Array.isArray(response)) {
-                this._replyWithMedia(response[0], overrides).catch(err => {
+                return this._replyWithMedia(response[0], overrides).catch(err => {
                     this.logger.error(`Error while replying with single media from an array to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
                 })

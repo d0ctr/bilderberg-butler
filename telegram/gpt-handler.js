@@ -593,9 +593,9 @@ class ChatGPTHandler {
      * @param {NodeMessage[]} context 
      * @param {ContextTree} context_tree 
      * @param {string} prev_message_id 
-     * @returns {CommandResponse}
+     * @returns {Promise<CommandResponse>}
      */
-    _replyFromContext(interaction, context, context_tree, prev_message_id) {
+    async _replyFromContext(interaction, context, context_tree, prev_message_id) {
         interaction.context.replyWithChatAction('typing');
 
         const continiousChatAction = setInterval(() => {
@@ -651,6 +651,29 @@ class ChatGPTHandler {
     }
 
     /**
+     * Proxy to {@link ChatGPT._replyFromContext} when answering to direct message or reply
+     * @param {TelegramInteraction} interaction 
+     * @param {NodeMessage[]} context 
+     * @param {ContextTree} context_tree 
+     * @param {string} prev_message_id 
+     * @returns {Promise}
+     */
+    async _sendDirectResponse(interaction, context, context_tree, prev_message_id) {
+        return this._replyFromContext(interaction, context, context_tree, prev_message_id)
+            .then(([err, response, callback = () => {}, overrides]) => {
+                return interaction._reply(response || err, overrides)
+                    .then(callback)
+                    .catch(err => {
+                        if (!err?.description?.includes('message is too long')) throw err;
+                        return interaction._replyWithArticle(response);
+                    })
+                    .catch(err => {
+                        this.logger.error('Failed to send gpt response in a direct message', { error: err.stack || err })
+                    });
+            });
+    }
+
+    /**
      * Answer request received via reply
      * @param {TelegramInteraction} interaction
      * @returns {Promise}
@@ -703,14 +726,7 @@ class ChatGPTHandler {
 
         const context = context_tree.getContext(message_id);
 
-        return this._replyFromContext(interaction, context, context_tree, message_id)
-            .then(([err, response, callback = () => {}, overrides]) => {
-                return interaction._reply(response || err, overrides)
-                    .then(callback)
-                    .catch(err => {
-                        this.logger.error('Unprecedent error, it should have been already caught', { error: err.stack || err })
-                    });
-            });
+        return this._sendDirectResponse(interaction, context, context_tree, message_id);
     }
 
     /**
@@ -906,14 +922,7 @@ class ChatGPTHandler {
 
         const context = context_tree.getContext(message_id);
 
-        return this._replyFromContext(interaction, context, context_tree, message_id)
-            .then(([err, response, callback = () => {}, overrides]) => {
-                return interaction._reply(response || err, overrides)
-                    .then(callback)
-                    .catch(err => {
-                        this.logger.error('Unprecedent error, it should have been already caught', { error: err.stack || err })
-                    });
-            });
+        return this._sendDirectResponse(interaction, context, context_tree, message_id);
     }
 
     /**
