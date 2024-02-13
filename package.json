@@ -1,6 +1,6 @@
 {
   "name": "bilderberg_butler",
-  "version": "2.84.0",
+  "version": "2.84.1",
   "description": "Discord bot for bilderberg club",
   "main": "index.js",
   "scripts": {
@@ -21,6 +21,7 @@
     "@discordjs/rest": "^2.0.1",
     "@grammyjs/files": "^1.0.4",
     "axios": "^1.5.1",
+    "better-telegraph": "^2.1.1",
     "discord-api-types": "^0.37.61",
     "discord.js": "^14.13.0",
     "dotenv": "^16.1.0",

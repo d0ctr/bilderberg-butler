@@ -20,7 +20,8 @@ async function generateImage(ctx, interaction) {
         return [`Не хватает описания картинки`];
     }
 
-    const callback = () => interaction.deletePlaceholder();
+    let interval;
+    const callback = () => interval != null && clearInterval(interval);
 
     try {
         const form = new formData();
@@ -38,7 +39,12 @@ async function generateImage(ctx, interaction) {
             req_options.headers = { ...req_options.headers, ...form.getHeaders() };
         }
 
-        interaction.replyWithPlaceholder('Генерирую картинку...');
+        ctx.replyWithChatAction('upload_photo');
+        interval = setInterval(() => {
+            ctx.replyWithChatAction('upload_photo');
+        }, 5000)
+    
+        
 
         const res = await axios.post(config.DEEP_AI_API,
             form,
