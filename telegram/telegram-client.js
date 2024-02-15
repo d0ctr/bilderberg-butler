@@ -344,7 +344,9 @@ class TelegramInteraction {
         try {
             const { url } = await telegraph.create({
                 title,
-                content
+                content,
+                author_name: this.client.client.botInfo.first_name,
+                author_url: `https://t.me/${this.client.client.botInfo.username}`,
             });
 
             return this._reply(url, { 
