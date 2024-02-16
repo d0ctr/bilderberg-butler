@@ -638,7 +638,7 @@ class TelegramClient {
     /**
      * 
      * @param {String} command_name command name
-     * @param {* | Function?} condition {true} condition on which to register command or function that returns this condition
+     * @param {* | Function?} condition {false} condition on which to register command or function that returns this condition
      * @param {Boolean?} is_inline {false} if command should be available for inline querying
      * @param {String?} handle_function_name {command_name} which function from TelegramHandler handles this command
      */
@@ -691,6 +691,7 @@ class TelegramClient {
         this._registerTelegramCommand('tldr', process.env.YA300_TOKEN && config.YA300_API_BASE, true);
         this._registerTelegramCommand('voice', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('t', this.app && this.app.redis, true);
+        this._registerTelegramCommand('set_sticker');
         
         // Registering common commands
         commands.forEach((command_name, index) => {

@@ -66,4 +66,6 @@ module.exports = {
     voice: { handler: require('./command-handlers/voice-handler').voice, help: ['Генерирует голосове сообщение из текста или аудио'] },
     
     t: { handler: require('./command-handlers/tinkov-handler').tinkov, help: ['{query?} Даёт возможность поделится умными словами'] },
+    
+    set_sticker: { handler: require('./command-handlers/sticker-handler').setSticker, help: ['Устанавливает набор эмодзи чата при ответе на сообщение с эмодзи'] },
 }
