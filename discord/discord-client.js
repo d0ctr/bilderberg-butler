@@ -159,6 +159,8 @@ class DiscordClient {
                 };
 
                 const channel = this.client.channels.resolve(channel_id);
+                if (channel == null) return res.sendStatus(404);
+
                 result.type = channel.type == ChannelType.GuildVoice ? 'voice' : 'other';
                 result.name = channel.name;
                 result.type == 'voice' && result.members.push(...channel.members.map(member => {
@@ -170,7 +172,7 @@ class DiscordClient {
                         camera: member.voice.selfVideo,
                         activity: member?.presence?.activities?.[0]?.name
                     };
-                }))
+                }));
                 res.json(result);
             });
         });
