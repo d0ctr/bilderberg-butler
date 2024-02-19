@@ -1,4 +1,6 @@
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+const { Routes, ChannelType } = require('discord-api-types/v10');
+
 const DiscordHandler = require('./discord-handler');
 
 const { 
@@ -146,6 +148,31 @@ class DiscordClient {
             setHealth('discord', 'ready');
             this.restoreData();
             this.registerCommands();
+
+            this.app.api_server.addRoute('/voicestate/:channel_id', async ({ params: { channel_id } = {} } = {}, res) => {
+                if (!channel_id) return res.sendStatus(400);
+
+                const result = {
+                    name: '',
+                    members: [],
+                    type: ''
+                };
+
+                const channel = this.client.channels.resolve(channel_id);
+                result.type = channel.type == ChannelType.GuildVoice ? 'voice' : 'other';
+                result.name = channel.name;
+                result.type == 'voice' && result.members.push(...channel.members.map(member => {
+                    return {
+                        name: member.displayName,
+                        streaming: member.voice.streaming,
+                        muted: member.voice.mute,
+                        deafened: member.voice.deaf,
+                        camera: member.voice.selfVideo,
+                        activity: member?.presence?.activities?.[0]?.name
+                    };
+                }))
+                res.json(result);
+            });
         });
 
         this.client.on('invalidated', () => {
@@ -409,7 +436,6 @@ class DiscordClient {
         }
         const { SlashCommandBuilder } = require('@discordjs/builders');
         const { REST } = require('@discordjs/rest');
-        const { Routes, ChannelType } = require('discord-api-types/v10');
 
         const commands_list = [
             new SlashCommandBuilder() // server
@@ -422,10 +448,20 @@ class DiscordClient {
                 .setDMPermission(true)
                 .setDescription('Получить информацию о пользователе.'),
             
+            new SlashCommandBuilder() // channel
+                .setName('channel')
+                .setDMPermission(false)
+                .setDescription('Получить информацию о голосовом канале.')
+                .addChannelOption(input => 
+                    input.setName('channel')
+                        .setDescription('Голосовой канал.')
+                        .addChannelTypes(ChannelType.GuildVoice)
+                        .setRequired(true)),
+            
             new SlashCommandBuilder() // subscribe
                 .setName('subscribe')
                 .setDMPermission(false)
-                .setDescription(`Подписаться на события в голосовом канале сервера`)
+                .setDescription(`Подписаться на события в голосовом канале сервера.`)
                 .addChannelOption(input => 
                     input.setName('channel')
                         .setDescription('Голосовой канал.')
@@ -475,7 +511,7 @@ class DiscordClient {
             new SlashCommandBuilder() // subevents
             .setName('subevents')
             .setDMPermission(false)
-            .setDescription(`Подписаться на эвенты на сервере`)
+            .setDescription(`Подписаться на эвенты на сервере.`)
             .addStringOption(input => 
                 input.setName('telegram_chat_id')
                     .setDescription('ID чата в Telegram, который будет получать уведомления.')
@@ -531,6 +567,8 @@ class DiscordClient {
         .then(() => this.logger.info('Successfully registered application commands.'))
         .catch(err => this.logger.error('Error while registering application commands.', { error: err.stack || err }));
     }
+
+
 }
 
 module.exports = DiscordClient;
