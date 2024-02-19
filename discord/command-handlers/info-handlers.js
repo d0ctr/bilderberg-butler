@@ -12,7 +12,16 @@ async function user(input) {
     };
 }
 
+async function channel(input) {
+    const channel = input.options.getChannel('channel');
+    return {
+        type: 'text',
+        text: `Название канала: \`${channel.name}\`\nID: \`${channel.id}\``
+    }
+}
+
 module.exports = {
     server,
-    user
+    user,
+    channel
 };
