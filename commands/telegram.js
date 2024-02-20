@@ -98,6 +98,7 @@ function commonizeContext(ctx, limit) {
     interaction.id = ctx.message?.message_id || ctx.callbackQuery?.inline_message_id;
     interaction.text = ctx.message?.text;
     interaction.data = ctx.callbackQuery?.data;
+    interaction.ctx = ctx;
     
     return interaction;
 }
