@@ -609,12 +609,12 @@ class ChatGPTHandler {
         }).then((data) => {
             if (!data) {
                 this.logger.warn('No response to ChatGPT Completion', { data });
-                return ['ChatGPT сломался, попробуй спросить позже', null, null, { reply_to_message_id: prev_message_id }];
+                return ['ChatGPT сломался, попробуй спросить позже', null, null, { reply_parameters: { message_id: prev_message_id } }];
             }
 
             if (!data?.choices?.length) {
                 this.logger.warn('No choices for ChatGPT Completion');
-                return ['У ChatGPT просто нет слов', null, null, { reply_to_message_id: prev_message_id }];
+                return ['У ChatGPT просто нет слов', null, null, { reply_parameters: { message_id: prev_message_id } }];
             }
 
             let answer = data.choices[0].message.content;
@@ -633,7 +633,7 @@ class ChatGPTHandler {
                     });
                 },
                 {
-                    reply_to_message_id: prev_message_id,
+                    reply_parameters: { message_id: prev_message_id },
                     parse_mode: 'HTML'
                 }
             ];

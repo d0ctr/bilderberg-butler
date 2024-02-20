@@ -186,7 +186,10 @@ class TelegramInteraction {
     _getBasicMessageOptions() {
         return {
             allow_sending_without_reply: true,
-            reply_to_message_id: this.context.message?.reply_to_message?.message_id || this.context.message?.message_id,
+            reply_parameters: {
+                message_id: this.context.message?.reply_to_message?.message_id || this.context.message?.message_id,
+                allow_sending_without_reply: true
+            }
         };
     }
 

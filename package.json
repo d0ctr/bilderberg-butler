@@ -1,6 +1,6 @@
 {
   "name": "bilderberg_butler",
-  "version": "2.85.1",
+  "version": "2.85.2",
   "description": "Discord bot for bilderberg club",
   "main": "index.js",
   "scripts": {
