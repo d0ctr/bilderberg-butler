@@ -338,7 +338,7 @@ class TelegramInteraction {
         const title = (
                 typeof content == 'string'
                 ? content
-                : content.find((node) => node.tag == 'p' || typeof node === 'string')?.children[0] || 'GPT Answer'
+                : content.find((node) => node.tag == 'p' || typeof node === 'string')?.children[0] || 'Bilderberg Butler'
             ).split(' ').slice(0, 5).join(' ').slice(0, 256);
 
         try {
@@ -362,9 +362,8 @@ class TelegramInteraction {
     /**
      * High level function for replying to Telegram-specific commands
      * Returns undefined or promise for reply request
-     * @returns {undefined | Promise}
      */
-    async reply() {
+    reply() {
         if (typeof TelegramHandlers[this.command_name]?.handler !== 'function') {
             this.logger.warn(`Received nonsense, how did it get here???`);
             return;
@@ -372,7 +371,7 @@ class TelegramInteraction {
 
         this.logger.info(`Received command: ${this.command_name}`);
 
-        return TelegramHandlers[this.command_name].handler(this.context, this).then(([err, response, callback, overrides]) => {
+        TelegramHandlers[this.command_name].handler(this.context, this).then(([err, response, callback, overrides]) => {
             if (!callback) callback = () => {};
             if (err) {
                 return this._reply(err, overrides).catch((err) => {
@@ -391,9 +390,11 @@ class TelegramInteraction {
                 }).then(callback);
             }
             else if (response instanceof String || typeof response === 'string') {
-                return this._reply(response, overrides).catch((err) => {
+                return this._reply(response, overrides).catch(err => {
+                    if (!err?.description?.includes('message is too long')) throw err;
+                    return this._replyWithArticle(response);
+                }).catch(err => {
                     this.logger.error(`Error while replying with response text to [${this.command_name}]`);
-                    this.logger.debug(`Error caused by text: ${JSON.stringify(response)}`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
                 }).then(callback);
             }
@@ -404,7 +405,7 @@ class TelegramInteraction {
                 })
             }
             else if (response instanceof Object) {
-                return this._replyWithMedia(response, overrides).catch((err) => {
+                return this._replyWithMedia(response, overrides).catch(err => {
                     this.logger.error(`Error while replying with media to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
                 }).then(callback);
