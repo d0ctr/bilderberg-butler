@@ -111,7 +111,9 @@ class ChannelSubscriber extends BaseSubscriber {
                     // server_muted: member.voice.serverMute,
                     // server_deafened: member.voice.serverDeaf,
                     camera: member.voice.selfVideo,
-                    activity: member?.presence?.activities?.[0]?.name
+                    activity: member?.presence?.activities?.[0]?.name?.toLowerCase() === 'status' 
+                        ? member.presence.activities[0].details
+                        : member?.presence?.activities?.[0]?.name
                 });
         });
 
