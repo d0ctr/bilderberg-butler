@@ -3,6 +3,8 @@ const logger = require('../logger').child({ module: 'telegram-channel-subscriber
 const { getHealth } = require('../services/health');
 const { getRedis } = require('../services/redis');
 
+const { ADMIN_CHAT_ID } = require('../config.json');
+
 /**
  * Channel Subscriber
  * @namespace ChannelSubscriber
@@ -244,14 +246,33 @@ class DiscordNotification {
 
         notification_data.members.forEach((member) => {
             text += `\n${member.member_name || member.user_name} `
-                + (member.muted ? '🔇' : '')
-                + (member.deafened ? '🔕' : '')
-                + (member.streaming ? '🖥️' : '')
-                + (member.camera ? '🎥' : '')
+                + this.transformStatus(member)
                 + (member.activity ? `— <i>${member.activity}</i>` : '');
         });
 
         return text;
+    }
+
+    /**
+     * Transform statuses to string with emojis
+     * @param {object} params
+     * @param {boolean} params.muted true if user is muted
+     * @param {boolean} params.deafened true if user is deafened
+     * @param {boolean} params.camera true if user's camera is on
+     * @param {boolean} params.streaming true if user is streaming
+     */
+    transformStatus({ muted, deafened, camera, streaming }) {
+        if (this.chat_id === ADMIN_CHAT_ID.TG) {
+            return (muted ? '<tg-emoji emoji-id="5463214841646823288">🔇</tg-emoji>' : '')
+                + (deafened ? '<tg-emoji emoji-id="5460709819151300612">🔕</tg-emoji>' : '')
+                + (camera ? '<tg-emoji emoji-id="5341616857138870856">📹</tg-emoji>' : '')
+                + (streaming ? '<tg-emoji emoji-id="5463106642830703954">🔴</tg-emoji>' : '');
+        }
+
+        return (muted ? '🔇' : '')
+            + (deafened ? '🔕' : '')
+            + (camera ? '📹' : '')
+            + (streaming ? '🔴' : '');
     }
 
     /**

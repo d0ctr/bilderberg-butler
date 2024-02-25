@@ -60,7 +60,9 @@ class PresenceSubscriber extends BaseSubscriber {
             user_name: presence.user.username
         };
 
-        parsed_presence.activity = presence.activities?.[0]?.name;
+        parsed_presence.activity = presence.activities?.[0]?.name?.toLowerCase() === 'status'
+            ? presence.activities[0].details
+            : presence.activities?.[0]?.name;
         if (parsed_presence.activity) parsed_presence.activity_type = presence.activities?.[0]?.type;
 
         return parsed_presence;

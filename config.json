@@ -16,5 +16,8 @@
     "RAWG_API_BASE": "https://api.rawg.io/api",
     "RAWG_BASE": "https://rawg.io",
     "YA300_API_BASE": "https://300.ya.ru/api/sharing-url",
-    "GENIUS_API_BASE": "https://api.genius.com"
+    "GENIUS_API_BASE": "https://api.genius.com",
+    "ADMIN_CHAT_ID": {
+        "TG": "-1001625731191"
+    }
 }
