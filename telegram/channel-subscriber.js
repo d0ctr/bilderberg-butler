@@ -423,8 +423,8 @@ function clearNotification(discord_notification) {
         discord_notification.clear();
     }).catch(err => {
         logger.error(
-            `Error while clearing channel state notification [message: ${current_message_id}] about [channel_id: ${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`,
-            { error: err.stack || err, ...discord_notification.getLogMeta(), telegram_message_id: current_message_id }
+            `Error while clearing channel state notification [message: ${discord_notification.current_message_id}] about [channel_id: ${discord_notification.channel_id}] in [chat: ${discord_notification.chat_id}]`,
+            { error: err.stack || err, ...discord_notification.getLogMeta(), telegram_message_id: discord_notification.current_message_id }
         );
     });
 }
