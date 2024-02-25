@@ -4,6 +4,8 @@ const { default: axios } = require('axios');
 const logger = require('../logger').child({ module: 'chatgpt-handler' });
 const { to, convertMD2HTML } = require('../utils');
 
+const { ADMIN_CHAT_ID } = require('../config.json');
+
 // const { Converter: MDConverter } = require('showdown');
 
 // const mdConverter = new MDConverter({
@@ -541,7 +543,7 @@ class ChatGPTHandler {
             this.context_trees_map.set(chat_id, new Map());
         }
         if (!this.context_trees_map.get(chat_id).has(model)) {
-            const system_prompt = chat_id === -1001625731191 ? `${DEFAULT_SYSTEM_PROMPT}\npeople in this chat: Никита, Danila, Миша, Влад` : null;
+            const system_prompt = chat_id === parseInt(ADMIN_CHAT_ID.TG) ? `${DEFAULT_SYSTEM_PROMPT}\npeople in this chat: Никита, Danila, Миша, Влад` : null;
             this.context_trees_map.get(chat_id).set(model, new ContextTree(system_prompt, model))
         }
     }

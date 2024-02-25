@@ -3,6 +3,8 @@ const logger = require('../logger').child({ module: 'telegram-channel-subscriber
 const { getHealth } = require('../services/health');
 const { getRedis } = require('../services/redis');
 
+const { ADMIN_CHAT_ID } = require('../config.json');
+
 /**
  * Channel Subscriber
  * @namespace ChannelSubscriber
@@ -260,7 +262,7 @@ class DiscordNotification {
      * @param {boolean} params.streaming true if user is streaming
      */
     transformStatus({ muted, deafened, camera, streaming }) {
-        if (this.chat_id === '-1001625731191') {
+        if (this.chat_id === ADMIN_CHAT_ID.TG) {
             return (muted ? '<tg-emoji emoji-id="5463214841646823288">🔇</tg-emoji>' : '')
                 + (deafened ? '<tg-emoji emoji-id="5460709819151300612">🔕</tg-emoji>' : '')
                 + (camera ? '<tg-emoji emoji-id="5341616857138870856">📹</tg-emoji>' : '')
