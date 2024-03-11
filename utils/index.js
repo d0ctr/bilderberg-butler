@@ -97,5 +97,6 @@ exports.convertMD2HTML = (text) => {
 		.replaceAll('<p>', '')
 		.replaceAll('</p>', '\n')
 		.replaceAll('</br>', '\n')
-		.replaceAll('</pre>', '</pre>\n');
+		.replaceAll('</pre>', '</pre>\n')
+		.replaceAll('\n</', '</');
 }; 
