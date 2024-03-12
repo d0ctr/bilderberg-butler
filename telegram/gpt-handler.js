@@ -110,7 +110,7 @@ const SYSTEM_PROMPT_EXTENSION = '\nanswer should not exceed 4000 characters';
 
 /**
  * Get message text combined with entities
- * @param {object} message Telegram message object
+ * @param {TelegramMessage} message Telegram message object
  * @returns {string}
  * @memberof ChatGPT
  */
@@ -119,12 +119,16 @@ function getWithEntities(message) {
         'bold', 'italic', 'underline', 'strikethrough', 'spoiler', 
         'blockquote', 'code', 'pre', 'text_link'
     ].includes(e.type));
+    
     let original = message?.text || message?.caption || null;
-    if (!goodEntities.length) return original;
-
     if (!original?.length) return null;
-    let text = '';
 
+    let text = '';
+    if (message.quote?.is_manual && message.quote?.text?.length) {
+        text = message.quote.text.split('\n').map(line => `> ${line}`).join('\n');
+    }
+    if (!goodEntities.length) return text.length ? `${text}\n\n${original}` : original;
+    
     let cursor = 0;
     let entities = goodEntities.sort((a, b) => a.offset - b.offset || b.length - a.length);
     for (const entity of entities) {
@@ -143,6 +147,7 @@ function getWithEntities(message) {
     if (cursor < entities.slice(-1).offset) {
         text += original.slice(entity.offset + entity.length);
     }
+
     return text;
 }
 
@@ -155,44 +160,45 @@ function getWithEntities(message) {
  * @memberof ChatGPT
  */
 async function getContent({ api, message: c_message }, type = 'text', message = c_message) {
-    if (type === 'vision' && message.photo?.[0]) {
-        const [file_buffer, content_type] = 
-            await api.getFile(message.photo
-                .sort((p1, p2) => (p2.height + p2.width) - (p1.height + p1.width))[0].file_id)
-            .then(f => f.getUrl())
-            .then(file_path => axios.get(
-                file_path,
-                { 
-                    responseType: 'arraybuffer',
-                }
-            ))
-            .then(({ data, headers }) => [
-                Buffer.from(data).toString('base64'),
-                headers['Content-Type'] || 'image/jpeg'
-            ])
-            .catch(err => {
-                logger.error('Failed get image as buffer', { error: err.stack || err });
-                return [];
-            });
-        if (!(file_buffer || content_type)) {
-            return getWithEntities(message);
-        }
-        /** @type {ComplexContent[]} */
-        const content = [{
-            type: 'image_url',
-            image_url: `data:${content_type};base64,${file_buffer}`
-        }];
-
-        if (message.caption) {
-            content.push({
-                type: 'text',
-                text: message.caption
-            });
-        }
-
-        return content;
+    if (type !== 'vision' || !message.photo?.[0]) {
+        return getWithEntities(message);
     }
-    return getWithEntities(message);
+
+    const [file_buffer, content_type] = 
+        await api.getFile(message.photo
+            .sort((p1, p2) => (p2.height + p2.width) - (p1.height + p1.width))[0].file_id)
+        .then(f => f.getUrl())
+        .then(file_path => axios.get(
+            file_path,
+            { 
+                responseType: 'arraybuffer',
+            }
+        ))
+        .then(({ data, headers }) => [
+            Buffer.from(data).toString('base64'),
+            headers['Content-Type'] || 'image/jpeg'
+        ])
+        .catch(err => {
+            logger.error('Failed get image as buffer', { error: err.stack || err });
+            return [];
+        });
+    if (!(file_buffer || content_type)) {
+        return getWithEntities(message);
+    }
+    /** @type {ComplexContent[]} */
+    const content = [{
+        type: 'image_url',
+        image_url: `data:${content_type};base64,${file_buffer}`
+    }];
+
+    if (message.caption) {
+        content.push({
+            type: 'text',
+            text: message.caption
+        });
+    }
+
+    return content;
 }
 
 /**
@@ -681,10 +687,11 @@ class ChatGPTHandler {
      * @returns {Promise}
      */
     async answerReply(interaction) {
+        let text = getWithEntities(interaction.context?.message);
         if (
             !interaction.context?.message?.reply_to_message
-            || !getWithEntities(interaction.context?.message) 
-            || getWithEntities(interaction.context?.message).startsWith('/ ')
+            || !text 
+            || text.startsWith('/ ')
         ) {
             return;
         }
@@ -720,7 +727,7 @@ class ChatGPTHandler {
             const content = await getContent(interaction.context, model_type)
                 .catch(err => {
                     interaction.logger.error('Failed to acquire content for message', { error: err.stack || err });
-                    return getWithEntities(interaction.context.message);
+                    return text;
                 });
     
             context_tree.appendNode({ role: 'user', content, message_id, prev_message_id, name: author });
@@ -807,15 +814,16 @@ class ChatGPTHandler {
     async handleAnswerCommand(interaction_context, interaction, model = CHAT_MODEL_NAME) {
         const command_text = interaction_context.message.text.split(' ').slice(1).join(' ');
         const model_type = getModelType(model);
+        let reply_text = getWithEntities(interaction_context.message.reply_to_message);
 
         if ((
                 (
                     getModelType(model) === 'text' 
-                    && !(getWithEntities(interaction_context.message.reply_to_message))
+                    && !reply_text
                 ) || (
                     getModelType(model) === 'vision' 
                     && !(interaction_context.message.reply_to_message?.photo?.length 
-                    || getWithEntities(interaction_context.message.reply_to_message))
+                    || reply_text)
                 )
             ) && !command_text.length)
             {
@@ -900,7 +908,8 @@ class ChatGPTHandler {
      * @returns {Promise}
      */
     async answerQuestion(interaction) {
-        if (!getWithEntities(interaction.context.message) || getWithEntities(interaction.context.message).startsWith('/ ')) {
+        let text = getWithEntities(interaction.context.message);
+        if (!text || text.startsWith('/ ')) {
             return;
         }
 
