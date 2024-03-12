@@ -2,6 +2,7 @@ const { Bot, InlineKeyboard } = require('grammy');
 const logger = require('../logger').child({ module: 'telegram-channel-subscriber' });
 const { getHealth } = require('../services/health');
 const { getRedis } = require('../services/redis');
+const { icons } = require('../utils');
 
 const { ADMIN_CHAT_ID } = require('../config.json');
 
@@ -262,17 +263,10 @@ class DiscordNotification {
      * @param {boolean} params.streaming true if user is streaming
      */
     transformStatus({ muted, deafened, camera, streaming }) {
-        if (this.chat_id === ADMIN_CHAT_ID.TG) {
-            return (muted ? '<tg-emoji emoji-id="5463214841646823288">🔇</tg-emoji>' : '')
-                + (deafened ? '<tg-emoji emoji-id="5460709819151300612">🔕</tg-emoji>' : '')
-                + (camera ? '<tg-emoji emoji-id="5341616857138870856">📹</tg-emoji>' : '')
-                + (streaming ? '<tg-emoji emoji-id="5463106642830703954">🔴</tg-emoji>' : '');
-        }
-
-        return (muted ? '🔇' : '')
-            + (deafened ? '🔕' : '')
-            + (camera ? '📹' : '')
-            + (streaming ? '🔴' : '');
+        return (muted ? icons.mic_off : '')
+            + (deafened ? icons.sound_off : '')
+            + (camera ? icons.video_on : '')
+            + (streaming ? icons.live : '');
     }
 
     /**

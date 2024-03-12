@@ -99,4 +99,17 @@ exports.convertMD2HTML = (text) => {
 		.replaceAll('</br>', '\n')
 		.replaceAll('</pre>', '</pre>\n')
 		.replaceAll('\n</', '</');
-}; 
+};
+
+exports.icons = {
+	'discord'     : '<tg-emoji emoji-id="5440855284853521952">☎️</tg-emoji>',
+	'sound_on'    : '<tg-emoji emoji-id="5438303232466109461">🎧</tg-emoji>',
+	'sound_off'   : '<tg-emoji emoji-id="5440557677979649583">🔕</tg-emoji>',
+	'mic_on'      : '<tg-emoji emoji-id="5438240981210123414">🎤</tg-emoji>',
+	'mic_off'     : '<tg-emoji emoji-id="5438305422899433395">🔇</tg-emoji>',
+	'video_on'    : '<tg-emoji emoji-id="5438290618147162872">🎥</tg-emoji>',
+	'voice'       : '<tg-emoji emoji-id="5440519182187774938">🔈</tg-emoji>',
+	'share_screen': '<tg-emoji emoji-id="5438447092395690637">📺</tg-emoji>',
+	'activity'    : '<tg-emoji emoji-id="5438299272506264039">🎮</tg-emoji>',
+	'live'        : '<tg-emoji emoji-id="5440605940527153973">🔴</tg-emoji>',
+}
