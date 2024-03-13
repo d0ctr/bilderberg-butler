@@ -6,7 +6,7 @@ const config = require('../config.json');
 const { setHealth } = require('../services/health');
 const { handleCommand, getLegacyResponse, handleCallback } = require('../commands/telegram');
 const { commands, conditions, definitions, handlers, callbacks } = require('../commands/handlers-exporter');
-const ChatGPTHandler = require('./gpt-handler');
+const ChatLLMHandler = require('./llm-handler.js');
 const { isNotificationMessage: isChannelNotificationMessage } = require('./channel-subscriber.js');
 const { isNotificationMessage: isEventNotificationMessage } = require('./event-subscriber.js');
 const { used: tinkovUsed } = require('./command-handlers/tinkov-handler.js');
@@ -685,15 +685,15 @@ class TelegramClient {
         this._registerTelegramCommand('info', true);
         this._registerTelegramCommand('webapp', process.env.WEBAPP_URL);
         this._registerTelegramCommand('roundit', true);
-        this._registerTelegramCommand('new_system_prompt', process.env.OPENAI_TOKEN);
-        this._registerTelegramCommand('answer', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('new_system_prompt', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
+        this._registerTelegramCommand('answer', process.env.ANTHROPIC_TOKEN);
         // this._registerTelegramCommand('tree', process.env.OPENAI_TOKEN);
-        this._registerTelegramCommand('context', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('context', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
         this._registerTelegramCommand('gpt4', process.env.OPENAI_TOKEN);
-        this._registerTelegramCommand('gpt4_32', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('opus', process.env.ANTHROPIC_TOKEN);
         this._registerTelegramCommand('vision', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('tldr', process.env.YA300_TOKEN && config.YA300_API_BASE, true);
-        this._registerTelegramCommand('voice', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('voice', true);
         this._registerTelegramCommand('t', this.app && this.app.redis, true);
         this._registerTelegramCommand('set_sticker');
         
@@ -815,7 +815,7 @@ class TelegramClient {
     }
 
     _registerGPTAnswers() {
-        if (!process.env.OPENAI_TOKEN) {
+        if (!process.env.OPENAI_TOKEN && !process.env.ANTHROPIC_TOKEN) {
             return;
         }
 
@@ -835,10 +835,10 @@ class TelegramClient {
                     return;
             }
             if (!ctx?.from?.is_bot && ctx?.message?.reply_to_message?.from?.id === this.client.botInfo.id) {
-                ChatGPTHandler.answerReply(new TelegramInteraction(this.client, null, ctx));
+                ChatLLMHandler.answerReply(new TelegramInteraction(this.client, null, ctx));
             }
             else if (ctx.chat.id === ctx.from.id) {
-                ChatGPTHandler.answerQuestion(new TelegramInteraction(this.client, null, ctx));
+                ChatLLMHandler.answerQuestion(new TelegramInteraction(this.client, null, ctx));
             }
         });
 

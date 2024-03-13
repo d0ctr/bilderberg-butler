@@ -5,7 +5,7 @@ const { help } = require("./command-handlers/help-handler");
 const { html } = require("./command-handlers/html-handler");
 const { generateImage } = require("./command-handlers/deep-handler");
 const { info } = require("./command-handlers/info-handler");
-const ChatGPTHandler = require('./gpt-handler');
+const ChatLLMHandler = require('./llm-handler');
 
 
 module.exports = {
@@ -47,19 +47,19 @@ module.exports = {
 
     roundit: { handler: require('./command-handlers/roundit-handler').roundit, help: ['Превратить видео в кружок'] },
 
-    new_system_prompt: { handler: (...args) => ChatGPTHandler.handleAdjustSystemPrompt(...args), help: ['{prompt}', 'Задать новый системный промпт для ChatGPT и/или проверить, установленный сейчас'] },
+    new_system_prompt: { handler: (...args) => ChatLLMHandler.handleAdjustSystemPrompt(...args), help: ['{prompt}', 'Задать новый системный промпт для ChatLLM и/или проверить, установленный сейчас'] },
 
-    answer: { handler: (...args) => ChatGPTHandler.handleAnswerCommand(...args), help: ['{query?}', 'Спросить у ChatGPT, можно использовать как реплай'] },
+    answer: { handler: (...args) => ChatLLMHandler.handleAnswerCommand(...args), help: ['{query?}', 'Спросить у ChatLLM, можно использовать как реплай'] },
 
-    tree: { handler: (...args) => ChatGPTHandler.handleTreeRequest(...args), help: ['Запросить контекстное дерево ChatGPT'] },
+    tree: { handler: (...args) => ChatLLMHandler.handleTreeRequest(...args), help: ['Запросить контекстное дерево ChatLLM'] },
 
-    context: { handler: (...args) => ChatGPTHandler.handleContextRequest(...args), help: ['Запросить контекст сообщения'] },
+    context: { handler: (...args) => ChatLLMHandler.handleContextRequest(...args), help: ['Запросить контекст сообщения'] },
 
-    gpt4: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4', ...args), help: ['{query?}', '/answer, но с использованием GPT-4'] },
+    gpt4: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('gpt-4', ...args), help: ['{query?}', '/answer, но с использованием GPT-4'] },
 
-    gpt4_32: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4-32k', ...args), help: ['{query?}', '/answer, но с использованием GPT-4 с максимумом в 32тыс токенов'] },
+    opus: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-opus-20240229', ...args), help: ['{query?}', '/answer, но с использованием Claude 3 Opus с большей производительностью'] },
     
-    vision: { handler: (...args) => ChatGPTHandler.handleModeledAnswerCommand('gpt-4-vision-preview', ...args), help: ['{query?}', '/answer, но с использованием GPT-4 с функцией обработки фотографии'] },
+    vision: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('gpt-4-vision-preview', ...args), help: ['{query?}', '/answer, но с использованием GPT-4 с функцией обработки фотографии'] },
 
     tldr: { handler: require('./command-handlers/tldr-handler').tldr, help: ['{url?}', 'Возвращает краткий персказ сгенерированный YandexGPT'] },
     
