@@ -815,7 +815,7 @@ class TelegramClient {
     }
 
     _registerGPTAnswers() {
-        if (!process.env.OPENAI_TOKEN && !process.env.ANTHROPIC_TOKEN) {
+        if (!process.env.ANTHROPIC_TOKEN) {
             return;
         }
 

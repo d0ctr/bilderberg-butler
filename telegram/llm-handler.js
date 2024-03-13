@@ -634,15 +634,15 @@ class ChatLLMHandler {
         this.logger = logger;
 
         /** @type {OpenAI} */
-        this.openAI = new OpenAI({
+        process.env.OPENAI_TOKEN && (this.openAI = new OpenAI({
             apiKey: process.env.OPENAI_TOKEN,
             organization: 'org-TDjq9ytBDVcKt4eVSizl0O74'
-        });
+        }));
 
         /** @type {Anthropic} */
-        this.anthropic = new Anthropic({
+        process.env.ANTHROPIC_TOKEN && (this.anthropic = new Anthropic({
             apiKey: process.env.ANTHROPIC_TOKEN,
-        });
+        }));
 
         /** @type {Map<string, Map<Model, ContextTree>>} */
         this.context_trees_map = new Map();
