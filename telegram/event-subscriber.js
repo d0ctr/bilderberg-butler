@@ -75,10 +75,7 @@ class DiscordEvent {
         if (!discord_url) {
             return;
         }
-        if (process.env.DOMAIN) {
-            return `${process.env.DOMAIN}/discordredirect/${discord_url.replace(/.*discord.com\//, '')}`;
-        }
-        return discord_url;
+        return discord_url.replace('discord.com', 'dr.bldbr.club/a');
     }
 
     generateNotificationTextFrom(event_data) {

@@ -10,7 +10,8 @@ const { OpenAI } = require('openai');
  * @ignore
  */
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_TOKEN
+    apiKey: process.env.OPENAI_TOKEN || 'placeholder',
+    organization: 'org-TDjq9ytBDVcKt4eVSizl0O74',
 });
 
 /**
@@ -53,14 +54,19 @@ async function voice(ctx, interaction) {
         clearInterval(actionInterval);
     }
 
-    if ((message.reply_to_message.caption || message.reply_to_message.text)?.length) {
+    const text = (message.reply_to_message.caption || message.reply_to_message.text || '');
+
+    if (text.length && !!process.env.OPENAI_TOKEN) {
         try {
-            audio = await generateSpeech(message.reply_to_message.caption || message.reply_to_message.text);
+            audio = await generateSpeech(text);
         }
         catch (err) {
             interaction.logger.error('Failed to generate speech for provided text', { error: err.stack || err });
             return ['Не получилось сгенерировать аудио', null, callback];
         }
+    }
+    else if (text.length && !process.env.OPENAI_TOKEN) {
+        return ['Генерация аудио временно не доступна', null, callback];
     }
     else {
         try {

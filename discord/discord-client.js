@@ -243,7 +243,7 @@ class DiscordClient {
             if (new_state.channelId !== prev_state.channelId && isChannelSubscriberActive(prev_state.channel)) {
                 prev_state.channel.fetch().then(channel => {
                     updateChannelSubscriberState(channel);
-                })
+                });
             }
         });
 

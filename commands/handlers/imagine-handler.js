@@ -4,7 +4,7 @@ const { OpenAI } = require('openai');
 const allowedSizes = ['1024x1024', '1792x1024', '1024x1792'];
 
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_TOKEN,
+    apiKey: process.env.OPENAI_TOKEN || 'placeholder',
     organization: 'org-TDjq9ytBDVcKt4eVSizl0O74',
 });
 

@@ -228,10 +228,7 @@ class DiscordNotification {
         if(!notification_data) {
             return null;
         }
-        if (process.env.DOMAIN) {
-            return `${process.env.DOMAIN}/discordredirect/${notification_data.channel_url.replace(/.*discord.com\//, '')}`;
-        }
-        return notification_data.channel_url;
+        return notification_data.channel_url.replace('discord.com', 'dr.bldbr.club/a');
     }
 
     /**

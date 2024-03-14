@@ -70,27 +70,29 @@ Here is the list of supported inline commands:
   - `/tldr`
   - ... and all [common commands](#common-commands)
 
-#### ChatGPT integration
+#### ChatLLM
 
-If you reply to the bot's message (e.g. in group chats) or write to it directly (in private chat), it will use ChatGPT integration to answer you.
+If you reply to the bot's message (e.g. in group chats) or write to it directly (in private chat), it will use ChatLLM integration to answer you.
 
-ChatGPT integration uses OpenAI's `gpt-3.5-turbo` model to get answers.
+ChatLLM integration uses Anthripcs's `claude-3-sonnet` model to get answers.
 
-Bot also has a **context tree**! Bot saves user's messages and own responses, so if you reply to either of it, it will use existing thread of messages as the context, which will affect ChatGPT's response. 
+Bot also has a **context tree**! Bot saves user's messages and own responses, so if you reply to either of it, it will use existing thread of messages as the context, which will affect ChatLLM's response.
+
   - Note that it makes a difference to which message you reply with new request (context will be captured from the thread of messages that ends with your newest request). 
   - Context is only saved in bot's internal cache, therefore is wiped out at every restart.
+  - Since Claude 3 model is the **new default** use `/vision` onlyif you want to request exactly GPT4's response on it.
 
-##### Special commands for ChatGPT 
+##### Special commands for ChatLLM 
 
   - `/answer` - `{query?}` either reply to bot's message or send as a standalone command, bot will reply to it and (if applicable) to query
-  - `/gpt4`, `/gpt4_32` — same as /answer but using `gpt-4` and `gpt-4-32k` respectively
+  - `/gpt4`, `/opus` — same as /answer but using `gpt-4` or `claude-3-opus` respectively
   - `/new_system_prompt` — `{prompt}` changes prompt in current chat. Default: `you are a chat-assistant\nanswer should not exceed 4000 characters`
   - <u>DISABLED</u>: `/tree` — get a representation of bot's tree of context for this chat
-  - `/vision` — same as /answer, but will also process photo messages using `gpt-4-vision-preview`
+  - `/vision` — same as /answer, but will process photo messages using `gpt-4-vision-preview`
 
 > [!NOTE]
-> When `/answer`, `/gpt4`, `/gpt4_32` or `/vision` is used as a reply to a thread that already exists (contains AI generated answers) the whole context will be transfered to the model associated with the command, meaning that every message down the thread will be processed with the new model till another transfer comes.<br/>
-> `/vision` will process only the replied photo during the transfer.
+> When `/answer`, `/gpt4`, `/opus` or `/vision` is used as a reply to a thread that already exists (contains AI generated answers) the whole context will be transfered to the model associated with the command, meaning that every message down the thread will be processed with the new model till another transfer comes.<br/>
+> `/vision` will process only the replied photo during the transfer from `gpt-4`'s tree.
 
 ### Common commands
 
@@ -158,7 +160,8 @@ This application automatically loads variables specified in [`.env`](https://www
   - `LOKI_HOST`, `LOKI_USER`, `LOKI_PASS`, `LOKI_LOGLEVEL`, `LOKI_LABELS` - host url, user, password, logging level and additional labels (as JSON) for Grafana Loki 
   - `PORT` — Port for API (can be ignored)
   - `TELEGRAM_TOKEN` — Telegram bot token (ignore if you are not planning to use it)
-  - `OPENAI_TOKEN` — OpenAI account token (for [ChatGPT integration](#chatgpt-integration), [/voice](#commands-1) and [/imagine](#common-commands))
+  - `OPENAI_TOKEN` — OpenAI account token (for [ChatLLM](#chatllm), [/voice](#commands-1) and [/imagine](#common-commands))
+  - `ANTHROPIC_TOKEN` — Anthropic account token (for [ChatLLM](#chatllm))
   - `REDIS_URL` — Redis connection URL that can be accepted by [ioredis](https://www.npmjs.com/package/ioredis/v/4.28.3) (can also be ignored)
   - `RAWG_TOKEN` - RAWG.io API token (for [/game, /release](#common-commands))
   - `GENIUS_TOKEN`- genius.com API token (for [/genius](#common-commands))
