@@ -26,7 +26,7 @@ async function gh(ctx) {
             {
                 is_disabled: false,
                 show_above_text: false,
-                url: `https://t.me/iv?url=$%7Barg%7D&rhash=8643cab1135a25`,
+                url: `https://t.me/iv?url=${arg}&rhash=8643cab1135a25`,
             }, 
         }
     ];
