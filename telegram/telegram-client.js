@@ -861,7 +861,6 @@ class TelegramClient {
 
         this.client = new Bot(process.env.TELEGRAM_TOKEN, {
             client: {
-                canUseWebhookReply: (method) => method === 'sendChatAction',
                 buildUrl: (root, token, method) => `${root}/bot${token}${process.env?.ENV === 'dev' ? '/test' : ''}/${method}`
             }
         });
