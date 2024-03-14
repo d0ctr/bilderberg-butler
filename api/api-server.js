@@ -47,14 +47,6 @@ class APIServer {
             }
             res.json(getHealth());
         });
-
-        this.express.get('/discordredirect/:prefix/:server_id/:channel_id', (req, res) => {
-            if (req.params.server_id && req.params.channel_id && req.params.prefix) {
-                res.redirect(`discord://discord.com/${req.params.prefix}/${req.params.server_id}/${req.params.channel_id}`);
-                return;
-            }
-            res.sendStatus(404);
-        });
     }
 
     /**
