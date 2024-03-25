@@ -1,5 +1,6 @@
 const { BaseSubscriber } = require('./utils');
 const { sendNotification, deleteNotification } = require('../telegram/channel-subscriber');
+const { ChannelType } = require('discord.js');
 
 const subscribers = {};
 
@@ -82,7 +83,7 @@ class ChannelSubscriber extends BaseSubscriber {
 
     /**
      * Parse notification data from current channel state
-     * @param {object} channel 
+     * @param {import('discord.js').GuildChannel} channel 
      * @returns {ChannelSubscriber.DiscordNotificationData}
      */
     _parseState(channel) {
@@ -96,6 +97,25 @@ class ChannelSubscriber extends BaseSubscriber {
         parsed_state.channel_type = channel.type;
         parsed_state.guild_id = channel.guild.id;
         parsed_state.guild_name = channel.guild.name;
+        switch(channel.type) {
+            case ChannelType.GuildVoice:
+                parsed_state.channel_type = 'voice';
+                break;
+            case ChannelType.GuildStageVoice:
+                parsed_state.channel_type = 'stage';
+                break;
+            case ChannelType.GuildForum:
+                parsed_state.channel_type = 'forum';
+                break;
+            case ChannelType.GuildAnnouncement:
+                parsed_state.channel_type = 'announcements';
+                break;
+            case ChannelType.GuildText:
+                parsed_state.channel_type = 'text';
+                break;
+            default:
+                break;
+        }
 
         parsed_state.members = [];
         

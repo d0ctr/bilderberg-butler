@@ -64,7 +64,7 @@ async function restoreMessageID(chat_id, channel_id) {
  * @property {string} channel_id
  * @property {string} channel_name
  * @property {string} channel_url
- * @property {string} channel_type
+ * @property { 'voice' | 'text' | 'announcements' | 'forum' | 'stage' | undefined } channel_type
  * @property {string} guild_id
  * @property {string} guild_name
  * @property {object[]} members
@@ -228,7 +228,7 @@ class DiscordNotification {
         if(!notification_data) {
             return null;
         }
-        return notification_data.channel_url.replace('discord.com', 'dr.bldbr.club/a');
+        return notification_data.channel_url.replace('discord.com', 'dr.bldbr.club');
     }
 
     /**
@@ -240,7 +240,11 @@ class DiscordNotification {
         if (!notification_data) {
             return null;
         }
-        let text = `Канал <a href="${this.getChannelUrl(notification_data)}">${notification_data.channel_name}</a> в Discord:`;
+        let text = `<b>${notification_data.channel_name}</b>`;
+        let icon;
+        if (notification_data.channel_type && (icon = (icons[notification_data.channel_type] || icons[`${notification_data.channel_type}_channel`])) ) {
+            text = `${icon}${text}`
+        }
 
         notification_data.members.forEach((member) => {
             text += `\n${member.member_name || member.user_name} `

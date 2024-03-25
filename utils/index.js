@@ -1,4 +1,5 @@
 const marked = require('marked');
+const { ENV } = process.env;
 
 let origTokenizer = new marked.Tokenizer();
 let tokenizer = {
@@ -102,14 +103,32 @@ exports.convertMD2HTML = (text) => {
 };
 
 exports.icons = {
-	'discord'     : '<tg-emoji emoji-id="5440855284853521952">☎️</tg-emoji>',
-	'sound_on'    : '<tg-emoji emoji-id="5438303232466109461">🎧</tg-emoji>',
-	'sound_off'   : '<tg-emoji emoji-id="5440557677979649583">🔕</tg-emoji>',
-	'mic_on'      : '<tg-emoji emoji-id="5438240981210123414">🎤</tg-emoji>',
-	'mic_off'     : '<tg-emoji emoji-id="5438305422899433395">🔇</tg-emoji>',
-	'video_on'    : '<tg-emoji emoji-id="5438290618147162872">🎥</tg-emoji>',
-	'voice'       : '<tg-emoji emoji-id="5440519182187774938">🔈</tg-emoji>',
-	'share_screen': '<tg-emoji emoji-id="5438447092395690637">📺</tg-emoji>',
-	'activity'    : '<tg-emoji emoji-id="5438299272506264039">🎮</tg-emoji>',
-	'live'        : '<tg-emoji emoji-id="5440605940527153973">🔴</tg-emoji>',
+	'discord'          : '<tg-emoji emoji-id="5190555740577746802">☎️</tg-emoji>',
+	'sound_on'         : '<tg-emoji emoji-id="5190573203914771019">🎧</tg-emoji>',
+	'sound_off'        : '<tg-emoji emoji-id="5192789553068395493">🔕</tg-emoji>',
+	'mic_on'           : '<tg-emoji emoji-id="5193192064518474546">🎤</tg-emoji>',
+	'mic_off'          : '<tg-emoji emoji-id="5190522484645971930">🔇</tg-emoji>',
+	'activity'         : '<tg-emoji emoji-id="5190590349424217698">🚀</tg-emoji>',
+	'live'             : '<tg-emoji emoji-id="5190704475295205942">🔴</tg-emoji>',
+	'share_screen'     : '<tg-emoji emoji-id="5192980683408033875">📺</tg-emoji>',
+	'video_on'         : '<tg-emoji emoji-id="5190682042681018715">🎥</tg-emoji>',
+	'voice_channel'    : '<tg-emoji emoji-id="5192801849559762029">🔈</tg-emoji>',
+	'announcements'    : '<tg-emoji emoji-id="5190777683012765089">📣</tg-emoji>',
+	'checkbox'         : '<tg-emoji emoji-id="5192904237285132899">🔳</tg-emoji>',
+	'checkbox_checked' : '<tg-emoji emoji-id="5193020678143494129">☑️</tg-emoji>',
+	'boost'            : '<tg-emoji emoji-id="5190845066754671008">⚡️</tg-emoji>',
+	'event'            : '<tg-emoji emoji-id="5193183551893292832">🗓</tg-emoji>',
+	'forum_channel'    : '<tg-emoji emoji-id="5190455049364458822">🏛</tg-emoji>',
+	'notifications'    : '<tg-emoji emoji-id="5193028125616784390">🔔</tg-emoji>',
+	'notifications_off': '<tg-emoji emoji-id="5193089685383039049">🔕</tg-emoji>',
+	'rules'            : '<tg-emoji emoji-id="5192873420894782452">📕</tg-emoji>',
+	'settings'         : '<tg-emoji emoji-id="5190508586131803488">⚙️</tg-emoji>',
+	'stage_channel'    : '<tg-emoji emoji-id="5192839361804126766">🎤</tg-emoji>',
+	'text_channel'     : '<tg-emoji emoji-id="5190816367783201595">📝</tg-emoji>',
+};
+
+if (ENV === 'dev') {
+	for (const key in exports.icons) {
+		exports.icons[key] = exports.icons[key].split('</tg-emoji>')[0].split('>')[1];
+	}
 }
