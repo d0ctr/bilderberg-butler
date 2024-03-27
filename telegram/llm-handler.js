@@ -974,10 +974,7 @@ class ChatLLMHandler {
             ({ message_id, from: { first_name: author } } = interaction_context.message.reply_to_message);
             context_tree = this._getContextTree(interaction_context.chat.id, { message_id, model })
             const content = await getContent(interaction_context, model_type, interaction_context.message.reply_to_message);
-            if (typeof content === 'string' && model_type === 'vision') {
-                return ['Не смог обработать картинку, попробуй позже'];
-            }
-            else if (content.length) {
+            if (content.length) {
                 if (!context_tree.checkNodeExists({ message_id })) {
                     prev_content = content;
                     author = interaction_context.message.reply_to_message.from.id === interaction_context.me.id ? 'assistant' : author;
