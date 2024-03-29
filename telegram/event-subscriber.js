@@ -83,7 +83,7 @@ class DiscordEvent {
         if (!event_data) {
             return null;
         }
-        let text = `${icons.event}В Discord начался новый эвент\nНазвание: <a href="${this.getRedirectUrl(event_data.event_url)}">${event_data.event_name}</a>`;
+        let text = `${icons.event} В Discord начался новый эвент\nНазвание: <a href="${this.getRedirectUrl(event_data.event_url)}">${event_data.event_name}</a>`;
 
         if (event_data.channel_url) text += `\nКанал: <a href="${this.getRedirectUrl(event_data.channel_url)}">${event_data.channel_name}</a>`;
 

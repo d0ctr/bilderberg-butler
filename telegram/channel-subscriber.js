@@ -243,13 +243,13 @@ class DiscordNotification {
         let text = `<b>${notification_data.channel_name}</b>`;
         let icon;
         if (notification_data.channel_type && (icon = (icons[notification_data.channel_type] || icons[`${notification_data.channel_type}_channel`])) ) {
-            text = `${icon}${text}`
+            text = `${icon} ${text}`
         }
 
         notification_data.members.forEach((member) => {
-            text += `\n${member.member_name || member.user_name} `
-                + this.transformStatus(member)
-                + (member.activity ? `— <i>${member.activity}</i>` : '');
+            text += `\n${member.member_name || member.user_name}`
+                + (this.transformStatus(member) ? ` ${this.transformStatus(member)}` : '')
+                + (member.activity ? ` — <i>${member.activity}</i>` : '');
         });
 
         return text;
