@@ -38,8 +38,6 @@ const getGamesFromRAWG = async ({ search, ...args } = {}) => {
 const getHltbInfo = async ({ name, year } = {}) => {
     return await hltb.searchWithOptions(name, { year })
         .then(result => result.length > 0 ? result[0] : null)
-        .then(entry => entry != null ? entry.id : null)
-        .then(id => id != null ? hltb.detail(id) : null)
         .catch(err => {
             logger.error(`Failed HLTB search for [${name}] [${year}]`, { error: err.stack || err });
             return null;
@@ -204,27 +202,43 @@ exports.handler = async (interaction) => {
 
             const key = genKey();
 
-            for (const game of json.results.slice(0, 10)) {
-                if (game.released !== 'TBA') {
-                    const hltbInfo = await getHltbInfo({ name: game.name, year: new Date(game.released).getFullYear() });
-                    if (hltbInfo != null) {
-                        const playtimes = hltbInfo.timeLabels.map(([ key, name ]) => ({ name, value: Number.isSafeInteger(hltbInfo[key]) ? hltbInfo[key] : `${Math.floor(hltbInfo[key])}½` }));
-                        game.hltb = {
-                            url: `https://howlongtobeat.com/game/${hltbInfo.id}`,
-                            playtimes
-                        };
-                    }
+            if (json.results[0].released !== 'TBA') {
+                const hltbInfo = await getHltbInfo({ name: json.results[0].name, year: new Date(json.results[0].released).getFullYear() });
+                if (hltbInfo != null) {
+                    const playtimes = hltbInfo.timeLabels.map(([ key, name ]) => ({ name, value: Number.isSafeInteger(hltbInfo[key]) ? hltbInfo[key] : `${Math.floor(hltbInfo[key])}½` }));
+                    json.results[0].hltb = {
+                        url: `https://howlongtobeat.com/game/${hltbInfo.id}`,
+                        playtimes
+                    };
                 }
             }
 
-            let buttons = null;
+            // instead of waiting for all results, return the first one and keep working in the background
+            (async () => {
+                for (const game of json.results.slice(1, 10)) {
+                    if (game.released !== 'TBA') {
+                        const hltbInfo = await getHltbInfo({ name: game.name, year: new Date(game.released).getFullYear() });
+                        if (hltbInfo != null) {
+                            const playtimes = hltbInfo.timeLabels.map(([ key, name ]) => ({ name, value: Number.isSafeInteger(hltbInfo[key]) ? hltbInfo[key] : `${Math.floor(hltbInfo[key])}½` }));
+                            game.hltb = {
+                                url: `https://howlongtobeat.com/game/${hltbInfo.id}`,
+                                playtimes
+                            };
+                        }
+                    }
+                }
 
-            try {
-                await saveResults(key, json.results.slice(0, 10));
-            }
-            catch (err) {
-                interaction.logger.error('Failed to save game results', { error: err.stack || err });
-            }
+                try {
+                    await saveResults(key, json.results.slice(0, 10));
+                }
+                catch (err) {
+                    interaction.logger.error('Failed to save game results', { error: err.stack || err });
+                }
+
+                
+            })().catch(err => logger.error('/game background has job failed', { error: err.stack || err }));
+
+            let buttons = null;
 
             buttons = json.results.slice(0, 3).map((game, i) => ([{
                 name: getNameForButton(game, i, 0),
