@@ -3,13 +3,13 @@ const { ENV } = process.env;
 
 let origTokenizer = new marked.Tokenizer();
 let tokenizer = {
-    space: (text) => false,
-	code: (text) => false,
-	fences: (text) => false,
-	heading: (text) => false,
-	hr: (text) => false,
-	blockquote: (text) => false,
-	list: (text) => false,
+    space: () => false,
+	code: () => false,
+	fences: () => false,
+	heading: () => false,
+	hr: () => false,
+	blockquote: () => false,
+	list: () => false,
 	html: () => false,
 	def: () => false,
 	table: () => false,
@@ -132,3 +132,5 @@ if (ENV === 'dev') {
 		exports.icons[key] = exports.icons[key].split('</tg-emoji>')[0].split('>')[1];
 	}
 }
+
+exports.wideSpace = ' ';

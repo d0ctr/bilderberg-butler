@@ -2,9 +2,7 @@ const { Bot, InlineKeyboard } = require('grammy');
 const logger = require('../logger').child({ module: 'telegram-channel-subscriber' });
 const { getHealth } = require('../services/health');
 const { getRedis } = require('../services/redis');
-const { icons } = require('../utils');
-
-const { ADMIN_CHAT_ID } = require('../config.json');
+const { icons, wideSpace } = require('../utils');
 
 /**
  * Channel Subscriber
@@ -18,7 +16,7 @@ const chat_notification_map = {};
 const bot_config = {};
 if (process.env?.ENV === 'dev') {
     bot_config.client = {
-        buildUrl: ({}, token, method) => `https://api.telegram.org/bot${token}/test/${method}`
+        buildUrl: (_, token, method) => `https://api.telegram.org/bot${token}/test/${method}`
     }
 }
 /**
@@ -243,13 +241,13 @@ class DiscordNotification {
         let text = `<b>${notification_data.channel_name}</b>`;
         let icon;
         if (notification_data.channel_type && (icon = (icons[notification_data.channel_type] || icons[`${notification_data.channel_type}_channel`])) ) {
-            text = `${icon} ${text}`
+            text = `${icon}${wideSpace}${text}`
         }
 
         notification_data.members.forEach((member) => {
             text += `\n${member.member_name || member.user_name}`
-                + (this.transformStatus(member) ? ` ${this.transformStatus(member)}` : '')
-                + (member.activity ? ` — <i>${member.activity}</i>` : '');
+                + (this.transformStatus(member) ? `${wideSpace}${this.transformStatus(member)}` : '')
+                + (member.activity ? `${wideSpace}— <i>${member.activity}</i>` : '');
         });
 
         return text;

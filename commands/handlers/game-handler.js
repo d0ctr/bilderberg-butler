@@ -1,7 +1,10 @@
+const hltb = new (require('howlongtobeat').HowLongToBeatService)();
+
 const { RAWG_API_BASE, RAWG_BASE } = require('../../config.json');
 const { genKey, range, encodeCallbackData, listingMenuCallback } = require('../utils');
 const { getRedis } = require('../../services/redis');
 const logger = require('../../logger').child({ module: 'game-handler' });
+const { wideSpace } = require('../../utils');
 
 /**
  * Game Command
@@ -27,18 +30,33 @@ const getGamesFromRAWG = async ({ search, ...args } = {}) => {
 }
 
 /**
+ * Get HLTB info
+ * @param {{ name: string, year: number }} 
+ * @returns {Promise<import('howlongtobeat').HowLongToBeatEntry?>}
+ * @memberof Commands.game
+ */
+const getHltbInfo = async ({ name, year } = {}) => {
+    return await hltb.searchWithOptions(name, { year })
+        .then(result => result.length > 0 ? result[0] : null)
+        .catch(err => {
+            logger.error(`Failed HLTB search for [${name}] [${year}]`, { error: err.stack || err });
+            return null;
+        });
+};
+
+/**
  * Transform game details to text
- * @param {{slug: string, name: string, released: string?, metacritic: number?, playtime: number?, platforms: {name: string}[]?, stores: {name: string}[]?}} game Game details
+ * @param {{slug: string, name: string, released: string?, metacritic: number?, platforms: {name: string}[]?, stores: {name: string}[]?, hltb: {url: string, playtimes: {name: string, value: string | number}[]}?}} game Game details
  * @returns {string}
  * @memberof Commands.game
  */
 const getTextFromGameDetail = (game) => {
     return `🎮 <a href="${RAWG_BASE}/games/${game?.slug}">${game.name}</a>\n`
-        + (game?.released ? `Дата релиза: ${(new Date(game.released)).toLocaleDateString('de-DE')}\n` : '' )
-        + (game?.metacritic ? `Metacritic: ${game.metacritic}\n` : '')
-        + (game?.playtime ? `Среднее время прохождения: ${game.playtime} часов\n` : '')
-        + (game?.platforms?.length ? `Платформы: ${game.platforms.filter(v => v.platform?.name).map(v => v?.platform.name).join(', ')}\n` : '')
-        + (game?.stores?.length ? `Магазины: ${game.stores.filter(v => v?.store?.name).map(v => v.store.name).join(', ')}\n` : '');
+        + (game.released ? `Дата релиза: ${(new Date(game.released)).toLocaleDateString('de-DE')}\n` : '' )
+        + (game.metacritic ? `Metacritic: ${game.metacritic}\n` : '')
+        + (game.platforms?.length ? `Платформы: ${game.platforms.filter(v => v.platform?.name).map(v => v?.platform.name).join(', ')}\n` : '')
+        + (game.stores?.length ? `Магазины: ${game.stores.filter(v => v?.store?.name).map(v => v.store.name).join(', ')}\n` : '')
+        + (game.hltb?.playtimes?.length ? `<a href="${game.hltb?.url}">HLTB</a>:\n${game.hltb.playtimes.map(({name, value}) => `${wideSpace}${name}: ${value}`).join('\n')}` : '');
 }
 
 /**
@@ -92,7 +110,7 @@ const getGamesFromRedis = async (key, start, stop = start + 2) => {
         return [
             Object.fromEntries(data
                 .map((data, i) => [indexes[i], JSON.parse(data)])
-                .filter(([k, v]) => v != null)),
+                .filter(([, v]) => v != null)),
             size
         ];
     }
@@ -184,14 +202,43 @@ exports.handler = async (interaction) => {
 
             const key = genKey();
 
-            let buttons = null;
+            if (json.results[0].released !== 'TBA') {
+                const hltbInfo = await getHltbInfo({ name: json.results[0].name, year: new Date(json.results[0].released).getFullYear() });
+                if (hltbInfo != null) {
+                    const playtimes = hltbInfo.timeLabels.map(([ key, name ]) => ({ name, value: Number.isSafeInteger(hltbInfo[key]) ? hltbInfo[key] : `${Math.floor(hltbInfo[key])}½` }));
+                    json.results[0].hltb = {
+                        url: `https://howlongtobeat.com/game/${hltbInfo.id}`,
+                        playtimes
+                    };
+                }
+            }
 
-            try {
-                await saveResults(key, json.results.slice(0, 10));
-            }
-            catch (err) {
-                interaction.logger.error('Failed to save game results', { error: err.stack || err });
-            }
+            // instead of waiting for all results, return the first one and keep working in the background
+            (async () => {
+                for (const game of json.results.slice(1, 10)) {
+                    if (game.released !== 'TBA') {
+                        const hltbInfo = await getHltbInfo({ name: game.name, year: new Date(game.released).getFullYear() });
+                        if (hltbInfo != null) {
+                            const playtimes = hltbInfo.timeLabels.map(([ key, name ]) => ({ name, value: Number.isSafeInteger(hltbInfo[key]) ? hltbInfo[key] : `${Math.floor(hltbInfo[key])}½` }));
+                            game.hltb = {
+                                url: `https://howlongtobeat.com/game/${hltbInfo.id}`,
+                                playtimes
+                            };
+                        }
+                    }
+                }
+
+                try {
+                    await saveResults(key, json.results.slice(0, 10));
+                }
+                catch (err) {
+                    interaction.logger.error('Failed to save game results', { error: err.stack || err });
+                }
+
+                
+            })().catch(err => logger.error('/game background has job failed', { error: err.stack || err }));
+
+            let buttons = null;
 
             buttons = json.results.slice(0, 3).map((game, i) => ([{
                 name: getNameForButton(game, i, 0),

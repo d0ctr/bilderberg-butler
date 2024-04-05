@@ -2,7 +2,7 @@ const { Bot, InlineKeyboard } = require('grammy');
 const logger = require('../logger').child({ module: 'telegram-channel-subscriber' });
 const { getHealth } = require('../services/health');
 const { getRedis } = require('../services/redis');
-const { icons } = require('../utils');
+const { icons, wideSpace } = require('../utils');
 
 const discord_event_map = {};
 
@@ -11,7 +11,7 @@ const chat_event_map = {};
 const bot_config = {};
 if (process.env?.ENV === 'dev') {
     bot_config.client = {
-        buildUrl: ({}, token, method) => `https://api.telegram.org/bot${token}/test/${method}`
+        buildUrl: (_, token, method) => `https://api.telegram.org/bot${token}/test/${method}`
     }
 }
 
@@ -83,7 +83,7 @@ class DiscordEvent {
         if (!event_data) {
             return null;
         }
-        let text = `${icons.event} В Discord начался новый эвент\nНазвание: <a href="${this.getRedirectUrl(event_data.event_url)}">${event_data.event_name}</a>`;
+        let text = `${icons.event}${wideSpace}В Discord начался новый эвент\nНазвание: <a href="${this.getRedirectUrl(event_data.event_url)}">${event_data.event_name}</a>`;
 
         if (event_data.channel_url) text += `\nКанал: <a href="${this.getRedirectUrl(event_data.channel_url)}">${event_data.channel_name}</a>`;
 
