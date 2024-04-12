@@ -80,15 +80,15 @@ Bot also has a **context tree**! Bot saves user's messages and own responses, so
 
   - Note that it makes a difference to which message you reply with new request (context will be captured from the thread of messages that ends with your newest request). 
   - Context is only saved in bot's internal cache, therefore is wiped out at every restart.
-  - Since Claude 3 model is the **new default** use `/vision` onlyif you want to request exactly GPT4's response on it.
 
 ##### Special commands for ChatLLM 
 
   - `/answer` - `{query?}` either reply to bot's message or send as a standalone command, bot will reply to it and (if applicable) to query
-  - `/gpt4`, `/opus` — same as /answer but using `gpt-4` or `claude-3-opus` respectively
+  - `/gpt4`, `/opus` — same as /answer but using `gpt-4-turbo` or `claude-3-opus` respectively
   - `/new_system_prompt` — `{prompt}` changes prompt in current chat. Default: `you are a chat-assistant\nanswer should not exceed 4000 characters`
   - <u>DISABLED</u>: `/tree` — get a representation of bot's tree of context for this chat
-  - `/vision` — same as /answer, but will process photo messages using `gpt-4-vision-preview`
+  - ~~`/vision` — same as /answer, but will process photo messages using `gpt-4-vision-preview`~~<br/>
+  All models can process images
 
 > [!NOTE]
 > When `/answer`, `/gpt4`, `/opus` or `/vision` is used as a reply to a thread that already exists (contains AI generated answers) the whole context will be transfered to the model associated with the command, meaning that every message down the thread will be processed with the new model till another transfer comes.<br/>

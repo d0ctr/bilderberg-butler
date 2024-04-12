@@ -21,7 +21,7 @@ const { ADMIN_CHAT_ID } = require('../config.json');
 
 /** 
  * Model name
- * @typedef {('gpt-4' | 'gpt-4-vision-preview' | 'claude-3-sonnet-20240229' | 'claude-3-opus-20240229')} Model
+ * @typedef {('gpt-4-turbo' | 'claude-3-sonnet-20240229' | 'claude-3-opus-20240229')} Model
  * @memberof ChatLLM
  */
 /** 
@@ -87,15 +87,13 @@ const { ADMIN_CHAT_ID } = require('../config.json');
  * @memberof ChatLLM
  */
 const models = [
-    'gpt-4',
-    'gpt-4-vision-preview',
+    'gpt-4-turbo',
     'claude-3-sonnet-20240229',
     'claude-3-opus-20240229'
 ];
 
 const max_tokens = {
-    'gpt-4': 4096,
-    'gpt-4-vision-preview': 4096,
+    'gpt-4-turbo': 4096,
     'claude-3-sonnet-20240229': 4096,
     'claude-3-opus-20240229': 4096,
 }
@@ -163,7 +161,7 @@ function getWithEntities(message) {
     }
 
     if (cursor < entities.slice(-1).offset) {
-        text += original.slice(entity.offset + entity.length);
+        text += original.slice(entities.slice(-1).offset + entities.slice(-1).length);
     }
 
     return text;
@@ -227,7 +225,7 @@ async function getContent({ api, message: c_message }, type = 'text', message = 
  * @memberof ChatLLM
  */
 function getModelType(model) {
-    return (model.includes('vision') || model.includes('claude')) ? 'vision' : 'text';
+    return (model.includes('gpt-4') || model.includes('claude')) ? 'vision' : 'text';
 }
 
 /**
