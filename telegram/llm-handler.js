@@ -378,7 +378,9 @@ class ContextNode {
                 else if (provider === 'openai') {
                     message.content.push( {
                         type: 'image_url',
-                        image_url: `data:${piece.image_type};base64,${piece.image_data}`,
+                        image_url: {
+                            url: `data:${piece.image_type};base64,${piece.image_data}`
+                        },
                     });
                 }
                 else if (provider === 'anthropic') {
