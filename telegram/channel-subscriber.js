@@ -245,7 +245,7 @@ class DiscordNotification {
         }
 
         notification_data.members.forEach((member) => {
-            text += `\n${member.member_name || member.user_name}`
+            text += `\n${wideSpace}${member.member_name || member.user_name}`
                 + (this.transformStatus(member) ? `${wideSpace}${this.transformStatus(member)}` : '')
                 + (member.activity ? `${wideSpace}— <i>${member.activity}</i>` : '');
         });
