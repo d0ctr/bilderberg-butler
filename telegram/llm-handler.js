@@ -245,7 +245,8 @@ function getProvider(model) {
  * @param {string | undefined} prev_author 
  * @returns {NodeContent}
  */
-function mergeContent(prev_content, content, prev_author = 'assistant', _author_name = prev_author === 'assistant' ? 'you' : prev_author) {
+function mergeContent(prev_content, content, prev_author = 'assistant') {
+    let _author_name = prev_author === 'assistant' ? 'you' : prev_author;
     if (Array.isArray(prev_content) && Array.isArray(content)) {
         content.unshift(...prev_content);
         // content[1].text = `Previously ${_author_name} have said:\n"""${prev_content.slice(-1).text}"""\n${content[1].text}`
@@ -261,17 +262,36 @@ function mergeContent(prev_content, content, prev_author = 'assistant', _author_
         else {
             content[1].text = `Previously ${_author_name} have said:\n"""${prev_content}"""\n${content[1].text}`;
         }
+        let changed = false;
+        for (const piece of content) {
+            if (piece.type === 'text') {
+                piece.text = `Previously ${_author_name} have said:\n"""${prev_content}"""\n${piece.text}`;
+                changed = true;
+                break;
+            }
+        }
+        if (!changed) {
+            content.push({
+                type: 'text',
+                text: `Previously ${_author_name} have said:\n"""${prev_content}"""`
+            });
+        }
         return content;
     }
     else if (typeof content === 'string' && Array.isArray(prev_content)) {
-        if (prev_content.length === 1) {
+        let changed = false;
+        for (const piece of prev_content) {
+            if (piece.type === 'text') {
+                piece.text = `Previously ${_author_name} have said:\n"""${piece.text}"""\n${content}`;
+                changed = true;
+                break;
+            }
+        }
+        if (!changed) {
             prev_content.push({
                 type: 'text',
                 text: content,
             });
-        }
-        else {
-            prev_content[1].text = `Previously ${_author_name} have said:\n"""${prev_content[1].text}"""\n${content}`;
         }
         return prev_content;
     }
@@ -308,12 +328,12 @@ class ContextNode {
         if (name) {
             /** @type {string} */
             this.name = name?.replace(/ +/g, '_')?.replace(/[^a-zA-Z0-9_]/g, '')?.slice(0, 64);
-        };
+        }
 
         if (message_id) {
             /** @type {string} */
             this.message_id = message_id;
-        };
+        }
         if (prev_node) {
             /** @type {ContextNode} */
             this.prev_node = prev_node;
@@ -988,7 +1008,7 @@ class ChatLLMHandler {
                 else if (!context_tree.checkNodeExists({ message_id }) && !command_text?.length) {
                     context_tree.appendNode({
                         role: 'user',
-                        content: content,
+                        content: author === 'assistant' ? mergeContent(content, '', author) : content,
                         message_id,
                         name: author
                     });
