@@ -245,7 +245,8 @@ function getProvider(model) {
  * @param {string | undefined} prev_author 
  * @returns {NodeContent}
  */
-function mergeContent(prev_content, content, prev_author = 'assistant', _author_name = prev_author === 'assistant' ? 'you' : prev_author) {
+function mergeContent(prev_content, content, prev_author = 'assistant') {
+    let _author_name = prev_author === 'assistant' ? 'you' : prev_author;
     if (Array.isArray(prev_content) && Array.isArray(content)) {
         content.unshift(...prev_content);
         // content[1].text = `Previously ${_author_name} have said:\n"""${prev_content.slice(-1).text}"""\n${content[1].text}`
@@ -261,17 +262,36 @@ function mergeContent(prev_content, content, prev_author = 'assistant', _author_
         else {
             content[1].text = `Previously ${_author_name} have said:\n"""${prev_content}"""\n${content[1].text}`;
         }
+        let changed = false;
+        for (const piece of content) {
+            if (piece.type === 'text') {
+                piece.text = `Previously ${_author_name} have said:\n"""${prev_content}"""\n${piece.text}`;
+                changed = true;
+                break;
+            }
+        }
+        if (!changed) {
+            content.push({
+                type: 'text',
+                text: `Previously ${_author_name} have said:\n"""${prev_content}"""`
+            });
+        }
         return content;
     }
     else if (typeof content === 'string' && Array.isArray(prev_content)) {
-        if (prev_content.length === 1) {
+        let changed = false;
+        for (const piece of prev_content) {
+            if (piece.type === 'text') {
+                piece.text = `Previously ${_author_name} have said:\n"""${piece.text}"""\n${content}`;
+                changed = true;
+                break;
+            }
+        }
+        if (!changed) {
             prev_content.push({
                 type: 'text',
                 text: content,
             });
-        }
-        else {
-            prev_content[1].text = `Previously ${_author_name} have said:\n"""${prev_content[1].text}"""\n${content}`;
         }
         return prev_content;
     }
@@ -308,12 +328,12 @@ class ContextNode {
         if (name) {
             /** @type {string} */
             this.name = name?.replace(/ +/g, '_')?.replace(/[^a-zA-Z0-9_]/g, '')?.slice(0, 64);
-        };
+        }
 
         if (message_id) {
             /** @type {string} */
             this.message_id = message_id;
-        };
+        }
         if (prev_node) {
             /** @type {ContextNode} */
             this.prev_node = prev_node;
@@ -974,17 +994,24 @@ class ChatLLMHandler {
             ({ message_id, from: { first_name: author } } = interaction_context.message.reply_to_message);
             context_tree = this._getContextTree(interaction_context.chat.id, { message_id, model })
             const content = await getContent(interaction_context, model_type, interaction_context.message.reply_to_message);
+            author = interaction_context.message.reply_to_message.from.id === interaction_context.me.id ? 'assistant' : author;
             if (content.length) {
-                if (!context_tree.checkNodeExists({ message_id })) {
+                if (!context_tree.checkNodeExists({ message_id }) && command_text?.length) {
                     prev_content = content;
-                    author = interaction_context.message.reply_to_message.from.id === interaction_context.me.id ? 'assistant' : author;
-                    author = interaction_context.message.reply_to_message.from.id === interaction_context.from.id ? 'I' : author;
                     // context_tree.appendNode({
                     //     role: (command_text?.length && interaction_context.from.id === interaction_context.me.id) ? 'assistant' : 'user',
                     //     content,
                     //     message_id: message_id,
                     //     name: author
                     // });
+                }
+                else if (!context_tree.checkNodeExists({ message_id }) && !command_text?.length) {
+                    context_tree.appendNode({
+                        role: 'user',
+                        content: author === 'assistant' ? mergeContent(content, '', author) : content,
+                        message_id,
+                        name: author
+                    });
                 }
                 else if (context_tree.getModelType() !== model_type) {
                     context_tree.getNode(message_id).content = content;
@@ -1000,7 +1027,7 @@ class ChatLLMHandler {
             context_tree.appendNode({
                 role: 'user',
                 content: prev_content != null ? mergeContent(prev_content, command_text, prev_author) : command_text,
-                message_id: message_id,
+                message_id,
                 prev_message_id,
                 name: author
             });
