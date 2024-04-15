@@ -974,17 +974,24 @@ class ChatLLMHandler {
             ({ message_id, from: { first_name: author } } = interaction_context.message.reply_to_message);
             context_tree = this._getContextTree(interaction_context.chat.id, { message_id, model })
             const content = await getContent(interaction_context, model_type, interaction_context.message.reply_to_message);
+            author = interaction_context.message.reply_to_message.from.id === interaction_context.me.id ? 'assistant' : author;
             if (content.length) {
-                if (!context_tree.checkNodeExists({ message_id })) {
+                if (!context_tree.checkNodeExists({ message_id }) && command_text?.length) {
                     prev_content = content;
-                    author = interaction_context.message.reply_to_message.from.id === interaction_context.me.id ? 'assistant' : author;
-                    author = interaction_context.message.reply_to_message.from.id === interaction_context.from.id ? 'I' : author;
                     // context_tree.appendNode({
                     //     role: (command_text?.length && interaction_context.from.id === interaction_context.me.id) ? 'assistant' : 'user',
                     //     content,
                     //     message_id: message_id,
                     //     name: author
                     // });
+                }
+                else if (!context_tree.checkNodeExists({ message_id }) && !command_text?.length) {
+                    context_tree.appendNode({
+                        role: 'user',
+                        content: content,
+                        message_id,
+                        name: author
+                    });
                 }
                 else if (context_tree.getModelType() !== model_type) {
                     context_tree.getNode(message_id).content = content;
@@ -1000,7 +1007,7 @@ class ChatLLMHandler {
             context_tree.appendNode({
                 role: 'user',
                 content: prev_content != null ? mergeContent(prev_content, command_text, prev_author) : command_text,
-                message_id: message_id,
+                message_id,
                 prev_message_id,
                 name: author
             });
