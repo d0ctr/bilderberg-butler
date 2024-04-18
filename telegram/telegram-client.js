@@ -341,7 +341,7 @@ class TelegramInteraction {
         const title = (
                 typeof content == 'string'
                 ? content
-                : content.find((node) => node.tag == 'p' || typeof node === 'string')?.children[0] || 'Bilderberg Butler'
+                : content.find((node) => node.tag == 'p' || typeof node === 'string')?.children?.[0] || 'Bilderberg Butler'
             ).split(' ').slice(0, 5).join(' ').slice(0, 256);
 
         try {
