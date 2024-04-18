@@ -835,10 +835,10 @@ class TelegramClient {
                     return;
             }
             if (!ctx?.from?.is_bot && ctx?.message?.reply_to_message?.from?.id === this.client.botInfo.id) {
-                ChatLLMHandler.answerReply(new TelegramInteraction(this.client, null, ctx));
+                ChatLLMHandler.answerReply(new TelegramInteraction(this, null, ctx));
             }
             else if (ctx.chat.id === ctx.from.id) {
-                ChatLLMHandler.answerQuestion(new TelegramInteraction(this.client, null, ctx));
+                ChatLLMHandler.answerQuestion(new TelegramInteraction(this, null, ctx));
             }
         });
 
