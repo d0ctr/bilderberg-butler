@@ -145,9 +145,8 @@ class DiscordClient {
             this.log_meta.discord_bot = this.client.application.name;
 
             this.logger.info('Discord Client is ready.');
-            setHealth('discord', 'ready');
+
             this.restoreData();
-            this.registerCommands();
 
             this.app.api_server.addRoute('/voicestate/:channel_id', async ({ params: { channel_id } = {} } = {}, res) => {
                 if (!channel_id) return res.sendStatus(400);
@@ -175,6 +174,8 @@ class DiscordClient {
                 }));
                 res.json(result);
             });
+
+            setHealth('discord', 'ready');
         });
 
         this.client.on('invalidated', () => {
@@ -260,12 +261,17 @@ class DiscordClient {
         });
     }
 
-    async start() {
+    start() {
         if (!process.env.DISCORD_TOKEN) {
             this.logger.warn(`Token for Discord wasn't specified, client is not started.`);
             return;
         }
-        return this.client.login(process.env.DISCORD_TOKEN);
+        setHealth('discord', 'wait');
+        if (this.redis) {
+            setHealth('discord/data', 'wait');
+        }
+        this.registerCommands();
+        this.client.login(process.env.DISCORD_TOKEN);
     }
 
     async stop() {
@@ -297,7 +303,9 @@ class DiscordClient {
             return;
         }
 
-        member_id_keys.forEach(member_id_key => {
+        const promises = [];
+
+        for (const member_id_key of member_id_keys) {
             const member_id = member_id_key.split(':')[2];
             const member = guild.members.resolve(member_id);
             if (isPresenceSubscriberActive(member)) {
@@ -305,15 +313,15 @@ class DiscordClient {
                 return;
             }
 
-            restorePresenceSubscriber(member).then(() => {
-                member.fetch().then(({ presence }) => {
-                    updatePresenceSubscriberState(presence);
-                }).catch(err => {
+            promises.push(restorePresenceSubscriber(member).then(() => 
+                member.fetch().then(({ presence }) => 
+                    updatePresenceSubscriberState(presence)
+                ).catch(err => {
                     this.logger.error(`Error while fetching presence for ${member_id}`, { error: err.stack || err });
-                });
-                
-            });
-        });
+                })
+            ));
+        }
+        return Promise.allSettled(promises);
     }
 
     async restoreChannelSubscribers(guild) {
@@ -327,7 +335,9 @@ class DiscordClient {
             return;
         }
 
-        channel_id_keys.forEach(channel_id_key => {
+        const promises = [];
+
+        for (const channel_id_key of channel_id_keys) {
             const channel_id = channel_id_key.split(':')[2];
             const channel = guild.channels.resolve(channel_id);
 
@@ -336,14 +346,17 @@ class DiscordClient {
                 return;
             }
 
-            restoreChannelSubscriber(channel);
-
-            channel.fetch().then(channel => {
-                updateChannelSubscriberState(channel);
-            }).catch(err => {
-                this.logger.error(`Error while fetching channel ${channel_id}`, { error: err.stack || err });
-            });
-        });
+            promises.push(
+                restoreChannelSubscriber(channel).then(() => 
+                    channel.fetch().then(channel => 
+                        updateChannelSubscriberState(channel)
+                    ).catch(err => {
+                        this.logger.error(`Error while fetching channel ${channel_id}`, { error: err.stack || err });
+                    })
+                )
+            );
+        }
+        return Promise.allSettled(promises);
     }
 
     async restoreEventSubscriber(guild) {
@@ -356,31 +369,41 @@ class DiscordClient {
             return;
         }
 
-        restoreEventSubscriber(guild);
-
-        guild.scheduledEvents.fetch().then(events => {
-            const existing_events_ids = [];
-            events.forEach(event => {
-                existing_events_ids.push(event.id);
-                updateEventSubscriberState(event);
-            });
-            cleanupEventSubscriber(guild, existing_events_ids);
-        }).catch(err => {
-            this.logger.error(`Error while fetching events for ${guild.id}`, { error: err.stack || err });
-        });
+        return restoreEventSubscriber(guild).then(() => 
+            guild.scheduledEvents.fetch().then(events => {
+                const existing_events_ids = [];
+                const promises = [];
+                for (const event of events.values()) {
+                    existing_events_ids.push(event.id);
+                    promises.push(updateEventSubscriberState(event));
+                }
+                cleanupEventSubscriber(guild, existing_events_ids);
+                return Promise.allSettled(promises);
+            }).catch(err => {
+                this.logger.error(`Error while fetching events for ${guild.id}`, { error: err.stack || err });
+            })
+        )
     }
 
-    async restoreData () {
+    restoreData() {
         if (!this.redis) {
             this.logger.info("Hey! I can't revive without redis instance!");
+            setHealth('discord/data', null);
             return;
         }
-        this.client.guilds.cache.forEach((guild) => {
+        setHealth('discord/data', 'wait');
+        const promises = [];
+        for (const guild of this.client.guilds.cache.values()) {
             this.logger.info(`Reviving data from redis for [guild:${guild.id}]`, { discord_guild: guild.name, discord_guild_id: guild.id });
-            this.restoreChannelSubscribers(guild);
-            this.restorePresenceSubscribers(guild);
-            this.restoreEventSubscriber(guild);
-        });
+            promises.push(
+                this.restoreChannelSubscribers(guild),
+                this.restorePresenceSubscribers(guild),
+                this.restoreEventSubscriber(guild),
+            );
+        }
+        Promise.allSettled(promises)
+            .then(() => setHealth('discord/data', 'ready'))
+            .catch(() => setHealth('discord/data', 'fail'));
     }
 
     parseInteractionInfo (interaction) {
@@ -436,6 +459,7 @@ class DiscordClient {
         if (!process.env.DISCORD_APP_ID) {
             return;
         }
+        setHealth('discord/commands', 'wait');
         const { SlashCommandBuilder } = require('@discordjs/builders');
         const { REST } = require('@discordjs/rest');
 
@@ -566,8 +590,13 @@ class DiscordClient {
         new REST({ version: '9' })
         .setToken(process.env.DISCORD_TOKEN)
         .put(Routes.applicationCommands(process.env.DISCORD_APP_ID), { body: json })
-        .then(() => this.logger.info('Successfully registered application commands.'))
-        .catch(err => this.logger.error('Error while registering application commands.', { error: err.stack || err }));
+        .then(() => {
+            this.logger.info('Successfully registered application commands.');
+            setHealth('discord/commands', 'ready');
+        }).catch(err => {
+            this.logger.error('Error while registering application commands.', { error: err.stack || err });
+            setHealth('discord/commands', 'fail');
+        });
     }
 
 

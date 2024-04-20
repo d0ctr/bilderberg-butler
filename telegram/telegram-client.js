@@ -721,7 +721,17 @@ class TelegramClient {
             }
         });
 
-        this.client.api.setMyCommands(
+        this.client.on('inline_query', async (ctx) => new TelegramInteraction(this, 'inline_query', ctx).answer());
+
+        this.client.on('chosen_inline_result', (ctx) => {
+            if (ctx.chosenInlineResult?.result_id?.startsWith('tinkov:')) {
+                tinkovUsed(ctx.chosenInlineResult.result_id);
+            }
+        });
+    }
+
+    async _publishCommands() {
+        return this.client.api.setMyCommands(
             [...this.registered_commands.entries()]
                 .reduce((acc, [command_name, help]) => {
                     if (help?.length) {
@@ -744,14 +754,6 @@ class TelegramClient {
         }).then(commands => {
             this.logger.debug(`Received following registered commands: ${JSON.stringify(commands)}`);
         });
-
-        this.client.on('inline_query', async (ctx) => new TelegramInteraction(this, 'inline_query', ctx).answer());
-
-        this.client.on('chosen_inline_result', (ctx) => {
-            if (ctx.chosenInlineResult?.result_id?.startsWith('tinkov:')) {
-                tinkovUsed(ctx.chosenInlineResult.result_id);
-            }
-        })
     }
 
     async _saveInterruptedWebhookURL() {
@@ -776,7 +778,7 @@ class TelegramClient {
 
         await this._saveInterruptedWebhookURL();
 
-        this.client.start({
+        return this.client.start({
             onStart: () => {
                 this.logger.info('Long polling is starting');
                 setHealth('telegram', 'ready');
@@ -803,14 +805,14 @@ class TelegramClient {
             }
             else {
                 this.logger.info('Telegram webhook is set.');
-                setHealth('telegram', 'set');
+                setHealth('telegram', 'ready');
                 this.app.api_server.setWebhookMiddleware(`/${webhookUrl.split('/').slice(-1)[0]}`, webhookCallback(this.client, 'express'));
             }
         }
         catch (err) {
             this.logger.error(`Error while setting telegram webhook`, { error: err.stack || err });
             this.logger.info('Trying to start with polling');
-            this._startPolling();
+            return this._startPolling();
         }
     }
 
@@ -853,11 +855,12 @@ class TelegramClient {
         });
     }
 
-    async start() {
+    start() {
         if (!process.env.TELEGRAM_TOKEN) {
             this.logger.warn(`Token for Telegram wasn't specified, client is not started.`);
             return;
         }
+        setHealth('telegram', 'wait');
 
         this.client = new Bot(process.env.TELEGRAM_TOKEN, {
             client: {
@@ -882,12 +885,14 @@ class TelegramClient {
         this._registerGPTAnswers();
         this._registerCallbacks();
 
-        if (process.env.ENV?.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
-            await this._startPolling();
-        }
-        else {
-            this._setWebhook();
-        }
+        this._publishCommands().finally(() => {
+            if (process.env.ENV?.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
+                return this._startPolling();
+            }
+            else {
+                return this._setWebhook();
+            }
+        });
     }
 
     async stop() {

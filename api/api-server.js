@@ -35,15 +35,31 @@ class APIServer {
         });
 
         this.express.get('/health', (req, res) => {
-            res.json(getHealth());
+            let code = 200;
+            const health = getHealth();
+            for (const service in health) {
+                if (service !== 'last_update' && health[service] !== 'ready') {
+                    code = 503;
+                }
+            }
+            res.status(code).json(getHealth());
         })
+
+        this.express.get('/health/ready', (req, res) => {
+            const health = getHealth();
+            for (const service in health) {
+                if (service !== 'last_update' && health[service] !== 'ready') {
+                    return res.status(503).send(service);
+                }
+            }
+            return res.status(200).send(health.last_update);
+        });
 
         this.express.get('/health/:name', (req, res) => {
             if (req.params.name && Object.keys(this.app.health).includes(req.params.name)) {
-                res.json({
+                return res.json({
                     [req.params.name]: getHealth(req.params.name)
                 });
-                return;
             }
             res.json(getHealth());
         });
@@ -53,15 +69,16 @@ class APIServer {
      * Start listening on `PORT`
      * @returns {Promise}
      */
-    async start() {
+    start() {
         if (!process.env.PORT) {
             this.logger.warn(`Port for API wasn't specified, API is not started.`);
             return;
         }
+        setHealth('api', 'wait');
         this._server = this.express.listen(process.env.PORT, () => {
             this.logger.info('API is ready');
             setHealth('api', 'ready');
-        })
+        });
     }
 
     /**

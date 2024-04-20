@@ -12,6 +12,7 @@ const startRedis = () => {
     if (!process.env.REDIS_URL) {
         return redis_instance;
     }
+    setHealth('redis', 'wait');
     
     redis_instance = new Redis(process.env.REDIS_URL);
 
