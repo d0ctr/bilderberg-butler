@@ -17,7 +17,7 @@ async function webapp (ctx) {
     `;
 
     let other = {
-        reply_markup: new InlineKeyboard().webApp('КНОПКА', `${process.env.WEBAPP_URL}/chat/${ctx.chat.id}`)
+        reply_markup: new InlineKeyboard().webApp('КНОПКА', `${process.env.WEBAPP_URL}/?chat=${ctx.chat.id}`)
     }
 
     return [null, message, null, other];
