@@ -200,6 +200,22 @@ class TelegramInteraction {
         };
     }
 
+    getDefaultOther(overrides) {
+        return {
+            parse_mode: 'HTML',
+            ...overrides,
+            reply_parameters: {
+                allow_sending_without_reply: true,
+                message_id: this.context.message?.reply_to_message?.message_id || this.context.message?.message_id,
+                ...overrides?.reply_parameters
+            },
+            link_preview_options: {
+                is_disabled: true,
+                ...overrides?.link_preview_options
+            },
+        }
+    }
+
     /**
      * Get reply method associated with content type
      * @param {String} media_type 
@@ -217,8 +233,7 @@ class TelegramInteraction {
     async _reply(text, overrides) {
         this.logger.info(`Replying with text`);
         return this.context.reply(text, {
-            ...this._getBasicMessageOptions(),
-            ...this._getTextOptions(),
+            ...this.getDefaultOther(overrides),
             ...overrides
         });
     }
@@ -376,7 +391,10 @@ class TelegramInteraction {
 
         TelegramHandlers[this.command_name].handler(this.context, this).then(([err, response, callback, overrides]) => {
             if (!callback) callback = () => {};
-            if (err) {
+            if (err == 'skip') {
+                return;
+            }
+            else if (err) {
                 return this._reply(err, overrides).catch((err) => {
                     this.logger.error(`Error while replying with an error message to [${this.command_name}]`, { error: err.stack || err });
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
@@ -586,7 +604,11 @@ class TelegramInteraction {
                 return getLegacyResponse(parsed_context, handlers[common_command_index], definitions[common_command_index]);
             }
         })().then(([err, response, _, overrides]) => {
-            if (err) {
+            if (err == 'skip') {
+                this.logger.debug(`Handler for [${command_name}] from inline query responded with skip`);
+                return;
+            }
+            else if (err) {
                 this.logger.debug(`Handler for [${command_name}] from inline query responded with error`, { error: err.stack || err });
                 return;
             }
@@ -696,6 +718,7 @@ class TelegramClient {
         this._registerTelegramCommand('voice', true);
         this._registerTelegramCommand('t', this.app && this.app.redis, true);
         this._registerTelegramCommand('set_sticker');
+        this._registerTelegramCommand('c', process.env.WEBAPP_URL, true);
         
         // Registering common commands
         commands.forEach((command_name, index) => {

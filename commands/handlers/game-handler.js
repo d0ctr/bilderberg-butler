@@ -46,7 +46,7 @@ const getHltbInfo = async ({ name, year } = {}) => {
 
 /**
  * Transform game details to text
- * @param {{slug: string, name: string, released: string?, metacritic: number?, platforms: {name: string}[]?, stores: {name: string}[]?, hltb: {url: string, playtimes: {name: string, value: string | number}[]}?}} game Game details
+ * @param {{slug: string, name: string, released: string?, metacritic: number?, platforms: {name: string}[]?, stores: {name: string}[]?, hltb?: {url: string, playtimes: {name: string, value: string | number}[]}?}} game Game details
  * @returns {string}
  * @memberof Commands.game
  */
@@ -281,4 +281,8 @@ exports.handler = async (interaction) => {
  */
 exports.callback = async (interaction) => {
     return listingMenuCallback(interaction, getGamesFromRedis);
+}
+
+exports.api = {
+    getTextFromGameDetail
 }

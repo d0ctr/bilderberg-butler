@@ -66,4 +66,6 @@ module.exports = {
     t: { handler: require('./command-handlers/tinkov-handler').tinkov, help: ['{query?} Даёт возможность поделится умными словами'] },
     
     set_sticker: { handler: require('./command-handlers/sticker-handler').setSticker, help: ['Устанавливает набор эмодзи чата при ответе на сообщение с эмодзи'] },
+
+    c: { handler: require('./command-handlers/callback-handler').callback, help: [] },
 }
