@@ -1,35 +1,14 @@
-const hltb = new (require('howlongtobeat').HowLongToBeatService)();
-const { api: { getTextFromGameDetail }} = require('../../commands/handlers/game-handler');
+const { webapp_callback: getGame, condition: isGameAvailable } = require('../../commands/handlers/game-handler');
+const { webapp_callback: getSong, condition: isSongAvailable } = require('../../commands/handlers/genius-handler');
 
-const { RAWG_API_BASE } = require('../../config.json');
-
-const getHltbInfo = async ({ name, year } = {}) => {
-    return await hltb.searchWithOptions(name, { year })
-        .then(result => result.length > 0 ? result[0] : null)
-        .catch(() => null);
-};
-
-const getGame = async ({ slug }) => {
-    const game = await fetch(
-        `${RAWG_API_BASE}/games/${slug}?`
-        + new URLSearchParams({
-            key: process.env.RAWG_TOKEN,
-        }))
-        .then(res => res.json())
-        .catch(() => null);
-    if (game == null) return;
-
-    const hltbInfo = await getHltbInfo({ name: game.name, year: new Date(game.released).getFullYear() });
-    if (hltbInfo != null) {
-        const playtimes = hltbInfo.timeLabels.map(([ key, name ]) => ({ name, value: Number.isSafeInteger(hltbInfo[key]) ? hltbInfo[key] : `${Math.floor(hltbInfo[key])}½` }));
-        game.hltb = {
-            url: `https://howlongtobeat.com/game/${hltbInfo.id}`,
-            playtimes
-        };
-
-    }
-
-    return game;
+function getUrlOverride(url) {
+    return url ? {
+        link_preview_options: {
+            is_disabled: false,
+            show_above_text: true,
+            url,
+        }
+    } : null;
 }
 
 exports.callback = async (ctx) => {
@@ -45,19 +24,16 @@ exports.callback = async (ctx) => {
         return ['skip']
     }
 
-    if (category === 'game' && process.env.RAWG_TOKEN) {
-        const game = await getGame({ slug });
-        if (game) {
-            const text = getTextFromGameDetail(game);
-            return [null, text, null, game.background_image ? {
-                link_preview_options: {
-                    is_disabled: false,
-                    show_above_text: true,
-                    url: game?.background_image,
-                },
-            } : null];
-        }
-    }
+    let result = null;
 
-    return ['skip'];
+    if (category === 'game' && isGameAvailable) {
+        result = await getGame(slug);
+    }
+    else if (category === 'song' && isSongAvailable) {
+        result = await getSong(slug);
+    }
+    
+    return result !== null 
+        ? [null, result.text, null, getUrlOverride(result.url)] 
+        : ['skip'];
 }

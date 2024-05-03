@@ -1,6 +1,7 @@
 const { GENIUS_API_BASE } = require('../../config.json');
 const { genKey, range, encodeCallbackData, listingMenuCallback } = require('../utils');
 const { getRedis } = require('../../services/redis')
+const logger = require('../../logger').child({ module: 'genius-handler' });
 
 const prefix = 'genius';
 
@@ -23,6 +24,9 @@ const getSongFromGenius = async ({ id }) => {
             }
         }
     )
+        .then(res => res.ok ? res.json() : null)
+        .then(res => res && res.response?.song)
+        .catch(() => null);
 }
 
 const getTextFromSongDetail = (song) => {
@@ -37,7 +41,7 @@ const getTextFromSongDetail = (song) => {
 }
 
 const getNameForButton = (song, index = null, selected = null) => {
-    return `${(index != null && index === selected) ? '☑️ ' : '' }${song.full_title}`;
+    return `${(index != null && index === selected) ? '☑️ ' : ''}${song.full_title}`;
 }
 
 const saveResults = async (key, songs) => {
@@ -140,12 +144,12 @@ exports.handler = async (interaction) => {
             }
 
             const songs = await Promise.all(
-                    json.response.hits
+                json.response.hits
                     .filter(h => h.type === 'song')
                     .slice(0, 10)
                     .map(h => h.result.id)
-                    .map(id => getSongFromGenius({ id }).then(r => r.json()))
-                ).then(jsons => jsons.map(json => json.response.song));
+                    .map(id => getSongFromGenius({ id }))
+            ).then(songs => songs.filter(s => !!s));
 
             const key = genKey();
             let buttons = null;
@@ -159,7 +163,7 @@ exports.handler = async (interaction) => {
 
             buttons = songs.slice(0, 3).map((song, i) => ([{
                 name: getNameForButton(song, i, 0),
-                callback: encodeCallbackData({ prefix, key, current: 0, next: i})
+                callback: encodeCallbackData({ prefix, key, current: 0, next: i })
             }]));
 
             if (songs.length > 3) {
@@ -184,7 +188,7 @@ exports.handler = async (interaction) => {
             }
         })
         .catch((err) => {
-            interaction.logger.error(`Error while getting song details from GENIUS`, { error: err.stack || err});
+            interaction.logger.error(`Error while getting song details from GENIUS`, { error: err.stack || err });
             return {
                 type: 'error',
                 text: 'Что-то у меня поломалось, можешь попробовать ещё раз'
@@ -195,3 +199,15 @@ exports.handler = async (interaction) => {
 exports.callback = async (interaction) => {
     return listingMenuCallback(interaction, getSongsFromRedis);
 }
+
+exports.webapp_callback = async (id) => {
+    const song = await getSongFromGenius({ id });
+    if (song === null) return null;
+
+    const result = {
+        text: getTextFromSongDetail(song),
+        url: song.song_art_image_url || song.header_image_url || song.album?.cover_art_url,
+    }
+
+    return result;
+} 
