@@ -219,7 +219,8 @@ class TelegramInteraction {
         return this.context.reply(text, {
             ...this._getBasicMessageOptions(),
             ...this._getTextOptions(),
-            ...overrides
+            ...overrides,
+            original: undefined
         });
     }
 
@@ -237,7 +238,8 @@ class TelegramInteraction {
 
         const message_options = {
             ...this._getBasicMessageOptions(),
-            ...overrides
+            ...overrides,
+            original: undefined
         }
 
         const media = message.media.filter((singleMedia) => {
@@ -254,7 +256,8 @@ class TelegramInteraction {
         media[0] = {
             ...media[0],
             ...this._getTextOptions(),
-            ...overrides
+            ...overrides,
+            original: undefined
         };
 
         if (message.text) {
@@ -285,7 +288,8 @@ class TelegramInteraction {
             ...this._getBasicMessageOptions(),
             ...this._getTextOptions(),
             ...overrides,
-            ...message.overrides
+            ...message.overrides,
+            original: undefined
         };
 
         let media;
@@ -323,20 +327,24 @@ class TelegramInteraction {
     /**
      * Reply with link to Telegra.ph article
      * @param {string} text 
-     * @param {'html' | 'markdown'} parse_mode 
+     * @param {{original?: {text: string, parse_mode?: 'html' | 'markdown'}, parse_mode?: 'html' | 'markdown'}} overrides 
      */
-    async _replyWithArticle(text, parse_mode = 'html') {
+    async _replyWithArticle(_text, overrides = { parse_mode: 'html' }) {
         if (process.env.TELEGRAPH_TOKEN == null) {
             return null;
         }
 
         const { Telegraph, parseHtml, parseMarkdown } = await import('better-telegraph');
         const telegraph = new Telegraph({ accessToken: process.env.TELEGRAPH_TOKEN });
-        text = text.replace('<pre><code', '<code').replace('</code></pre>', '</code>');
+        const parse_mode = overrides.original?.text ? overrides.original?.parse_mode || 'html' : overrides.parse_mode;
+        let text = overrides.text || _text;
+        if (parse_mode === 'html') {
+            text = text.replace('<pre><code', '<code').replace('</code></pre>', '</code>');
+        }
 
-        const content = parse_mode === 'html'
-            ? parseHtml(text)
-            : parseMarkdown(text);
+        const content = parse_mode !== 'html'
+            ? parseMarkdown(text)
+            : parseHtml(text);
         
         const title = (
                 typeof content == 'string'
@@ -395,7 +403,7 @@ class TelegramInteraction {
             else if (response instanceof String || typeof response === 'string') {
                 return this._reply(response, overrides).catch(err => {
                     if (!err?.description?.includes('message is too long')) throw err;
-                    return this._replyWithArticle(response);
+                    return this._replyWithArticle(response, overrides);
                 }).catch(err => {
                     this.logger.error(`Error while replying with response text to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
@@ -434,9 +442,11 @@ class TelegramInteraction {
                 message_text: text,
                 ...this._getTextOptions(),
                 ...overrides,
+                original: undefined
             },
             ...this._getTextOptions(),
             ...overrides,
+            original: undefined
         };
 
         return result;
@@ -468,7 +478,8 @@ class TelegramInteraction {
             thumbnail_url,
             ...this._getTextOptions(),
             ...overrides,
-            ...media.overrides
+            ...media.overrides,
+            original: undefined
         };
         result[`${inline_type}${suffix}`] = data;
 
@@ -500,7 +511,8 @@ class TelegramInteraction {
             results: results_array,
             other: {
                 cache_time: 0,
-                ...overrides
+                ...overrides,
+                original: undefined
             }
         }
 

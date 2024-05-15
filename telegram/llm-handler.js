@@ -797,7 +797,8 @@ class ChatLLMHandler {
                 },
                 {
                     reply_parameters: { message_id: prev_message_id },
-                    parse_mode: 'HTML'
+                    parse_mode: 'HTML',
+                    original: { text: answer, parse_mode: 'markdown' }
                 }
             ];
         }).catch(err => {
@@ -825,11 +826,11 @@ class ChatLLMHandler {
         return this._replyFromContext(interaction, context, context_tree, prev_message_id)
             .then(([err, response, callback = () => {}, overrides]) => {
                 return interaction._reply(response || err, overrides)
-                    .then(callback)
                     .catch(err => {
                         if (!err?.description?.includes('message is too long')) throw err;
-                        return interaction._replyWithArticle(response);
+                        return interaction._replyWithArticle(response, overrides);
                     })
+                    .then(callback)
                     .catch(err => {
                         this.logger.error('Failed to send gpt response in a direct message', { error: err.stack || err })
                     });
