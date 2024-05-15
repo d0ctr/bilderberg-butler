@@ -114,9 +114,9 @@ const providers = [
 */
 const CHAT_MODEL_NAME = models.includes(process.env.LLM_MODEL) ? process.env.LLM_MODEL : 'gpt-4o';
 
-const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant embeded into a Telegram bot`;
+const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant embedded into a Telegram bot`;
 
-const SYSTEM_PROMPT_EXTENSION = '\nyour answers must not exceed 4000 characters!';
+const SYSTEM_PROMPT_EXTENSION = '\nyour answers must not exceed 3000 characters!';
 
 /** 
  * @type {Provider}
