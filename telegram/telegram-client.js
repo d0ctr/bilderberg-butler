@@ -337,7 +337,7 @@ class TelegramInteraction {
         const { Telegraph, parseHtml, parseMarkdown } = await import('better-telegraph');
         const telegraph = new Telegraph({ accessToken: process.env.TELEGRAPH_TOKEN });
         const parse_mode = overrides.original?.text ? overrides.original?.parse_mode || 'html' : overrides.parse_mode;
-        let text = overrides.text || _text;
+        let text = overrides.original?.text || _text;
         if (parse_mode === 'html') {
             text = text.replace('<pre><code', '<code').replace('</code></pre>', '</code>');
         }
