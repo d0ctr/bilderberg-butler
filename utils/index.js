@@ -1,8 +1,9 @@
 const marked = require('marked');
 const { ENV } = process.env;
 
-let origTokenizer = new marked.Tokenizer();
-let tokenizer = {
+
+const origTokenizer = new marked.Tokenizer();
+const noTokenizer = {
     space: () => false,
 	code: () => false,
 	fences: () => false,
@@ -28,11 +29,17 @@ let tokenizer = {
 	url: () => false,
 	inlineText: () => false,
 };
-const allowed_entities = ['code', 'codespan', 'fences', 'blockquote', 'link', 'text', 'space', 'emStrong', 'del', 'space', 'inlineText', 'br'];
-for (const key of allowed_entities) {
-    tokenizer[key] = origTokenizer[key];
+const html_allowed_entities = ['code', 'codespan', 'fences', 'blockquote', 'link', 'text', 'emStrong', 'space', 'inlineText', 'br'];
+const node_allowed_entities = ['link', 'heading', 'list', 'em', 'blockquote', 'space', 'fences', 'code', 'codespan', 'em', 'text', 'emStrong', 'del', 'inlineText', 'br'];
+
+let tgTokenizer = { ...noTokenizer };
+for (const key of html_allowed_entities) {
+	tgTokenizer[key] = origTokenizer[key];
 }
-marked.use({ tokenizer });
+let nodeTokenizer = { ...noTokenizer };
+for (const key of node_allowed_entities) {
+	nodeTokenizer[key] = origTokenizer[key];
+}
 
 /**
  * Utils
@@ -94,7 +101,7 @@ exports.escapeMD = escapeMD;
 exports.escapeHTML = escapeHTML;
 exports.convertMD2HTML = (text) => {
     return marked
-		.parse(text, { tokenizer })
+		.parse(text, { tokenizer: tgTokenizer })
 		.replaceAll('<p>', '')
 		.replaceAll('</p>', '\n')
 		.replaceAll('</br>', '\n')
@@ -136,3 +143,66 @@ if (ENV === 'dev') {
 }
 
 exports.wideSpace = ' ';
+
+const unescape = (text) => {
+	const escapeReplacements = {
+		'&': '&amp;',
+		'<': '&lt;',
+		'>': '&gt;',
+		'"': '&quot;',
+		"'": '&#39;'
+	};
+
+	for (const [original, escape] of Object.entries(escapeReplacements)) {
+		text = text.replace(escape, original);
+	}
+
+	return text;
+}
+
+const token2Node = (token) => {
+	let children = token.tokens?.map(t => token2Node(t)) || [token.text];
+
+	switch (token.type) {
+		case 'text':
+			if (!token.tokens || (token.tokens.length == 1 && token.tokens[0].type === 'text')) return unescape(token.text);
+			return { tag: 'p', children };
+		case 'heading':
+			return { tag: token.depth <= 3 ? 'h3' : 'h4', children };
+		case 'br':
+			return { tag: 'br' };
+		case 'space':
+			return '';
+		case 'code':
+			return { tag: 'pre', children };
+		case 'codespan':
+			return { tag: 'code', children };
+		case 'strong':
+		case 'em':
+		case 'blockquote':
+			return { tag: token.type, children };
+		case 'link':
+			return { tag: 'a', children, attrs: { href: token.href } };
+		case 'list':
+			if (token.ordered) {
+				return {
+					tag: 'ol',
+					children: token.items.map(t => token2Node(t))
+				};
+			}
+			else {
+				return {
+					tag: 'ul',
+					children: token.items.map(t => token2Node(t))
+				};
+			}
+		case 'list_item':
+			return { tag: 'li', children };
+		default:
+			return token;
+	}
+}
+
+exports.convertMD2Nodes = (text) => {
+	return marked.lexer(text, { tokenizer: nodeTokenizer }).map(t => token2Node(t));
+};
