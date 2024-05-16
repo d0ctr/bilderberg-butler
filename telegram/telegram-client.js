@@ -10,7 +10,7 @@ const ChatLLMHandler = require('./llm-handler.js');
 const { isNotificationMessage: isChannelNotificationMessage } = require('./channel-subscriber.js');
 const { isNotificationMessage: isEventNotificationMessage } = require('./event-subscriber.js');
 const { used: tinkovUsed } = require('./command-handlers/tinkov-handler.js');
-const { to } = require('../utils');
+const { to, convertMD2Nodes } = require('../utils');
 
 const no_tags_regex = /<\/?[^>]+(>|$)/g;
 
@@ -327,30 +327,35 @@ class TelegramInteraction {
     /**
      * Reply with link to Telegra.ph article
      * @param {string} text 
-     * @param {{original?: {text: string, parse_mode?: 'html' | 'markdown'}, parse_mode?: 'html' | 'markdown'}} overrides 
+     * @param {{original?: {text: string, parse_mode?: 'html' | 'markdown'} }} overrides
+     * @param {'html' | 'markdown'} parse_mode
      */
-    async _replyWithArticle(_text, overrides = { parse_mode: 'html' }) {
+    async _replyWithArticle(_text, overrides, _parse_mode = 'html') {
         if (process.env.TELEGRAPH_TOKEN == null) {
-            return null;
+            throw 'Too long text';
         }
 
-        const { Telegraph, parseHtml, parseMarkdown } = await import('better-telegraph');
+        const { Telegraph, parseHtml } = await import('better-telegraph');
         const telegraph = new Telegraph({ accessToken: process.env.TELEGRAPH_TOKEN });
-        const parse_mode = overrides.original?.text ? overrides.original?.parse_mode || 'html' : overrides.parse_mode;
+        const parse_mode = overrides.original?.parse_mode || _parse_mode;
         let text = overrides.original?.text || _text;
         if (parse_mode === 'html') {
             text = text.replace('<pre><code', '<code').replace('</code></pre>', '</code>');
         }
 
         const content = parse_mode !== 'html'
-            ? parseMarkdown(text)
+            ? convertMD2Nodes(text)
             : parseHtml(text);
         
-        const title = (
-                typeof content == 'string'
-                ? content
-                : content.find((node) => node.tag == 'p' || typeof node === 'string')?.children?.[0] || 'Bilderberg Butler'
-            ).split(' ').slice(0, 5).join(' ').slice(0, 256);
+        let title = 'Bilderberg Butler';
+        if (typeof content === 'string') {
+            title = content;
+        }
+        else if (['h3', 'h4', 'p'].includes(content[0].tag) && typeof content[0].children[0] === 'string' ) {
+            title = content[0].children[0];
+        }
+
+        title = title.split(' ').slice(0, 5).join(' ').slice(0, 256);
 
         try {
             const { url } = await telegraph.create({
@@ -403,7 +408,7 @@ class TelegramInteraction {
             else if (response instanceof String || typeof response === 'string') {
                 return this._reply(response, overrides).catch(err => {
                     if (!err?.description?.includes('message is too long')) throw err;
-                    return this._replyWithArticle(response, overrides);
+                    return this._replyWithArticle(overrides.original?.text || response);
                 }).catch(err => {
                     this.logger.error(`Error while replying with response text to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
