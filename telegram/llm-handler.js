@@ -4,6 +4,7 @@ const { Anthropic } = require('@anthropic-ai/sdk');
 
 const logger = require('../logger').child({ module: 'chatllm-handler' });
 const { to, convertMD2HTML } = require('../utils');
+const { isAutoreply } = require('./command-handlers/autoreply-handler');
 
 const { ADMIN_CHAT_ID } = require('../config.json');
 
@@ -112,7 +113,9 @@ const providers = [
  * @type {Model}
  * @memberof ChatLLM
 */
-const CHAT_MODEL_NAME = models.includes(process.env.LLM_MODEL) ? process.env.LLM_MODEL : 'gpt-4o';
+const CHAT_MODEL_NAME = models.includes(process.env.LLM_MODEL) 
+                        ? process.env.LLM_MODEL 
+                        : 'gpt-4o';
 
 const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant embedded into a Telegram bot`;
 
@@ -1073,9 +1076,12 @@ class ChatLLMHandler {
      */
     async answerQuestion(interaction) {
         let text = getWithEntities(interaction.context.message);
-        if (!text || text.startsWith('/ ')) {
+        if (!text || text.startsWith('/')) {
             return;
         }
+
+        const autoreply = await isAutoreply(interaction.context.chat.id);
+        if (!autoreply) return;
 
         const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
         
