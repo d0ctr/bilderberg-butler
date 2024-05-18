@@ -691,6 +691,7 @@ class TelegramClient {
         // Registering commands specific to Telegram
         this._registerTelegramCommand('start', true);
         this._registerTelegramCommand('help', true, true);
+        this._registerTelegramCommand('info', true);
         this._registerTelegramCommand('html', true, true);
         this._registerTelegramCommand('fizzbuzz', true, true);
         this._registerTelegramCommand('gh', true, true);
@@ -698,19 +699,21 @@ class TelegramClient {
         this._registerTelegramCommand('get', this.app && this.app.redis, true);
         this._registerTelegramCommand('get_list', this.app && this.app.redis, true);
         this._registerTelegramCommand('del', this.app && this.app.redis);
-        this._registerTelegramCommand('deep', config.DEEP_AI_API && process.env.DEEP_AI_TOKEN);
-        this._registerTelegramCommand('info', true);
         this._registerTelegramCommand('webapp', process.env.WEBAPP_URL);
         this._registerTelegramCommand('roundit', true);
-        this._registerTelegramCommand('new_system_prompt', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
-        this._registerTelegramCommand('answer', process.env.ANTHROPIC_TOKEN);
+        this._registerTelegramCommand('deep', config.DEEP_AI_API && process.env.DEEP_AI_TOKEN);
+        this._registerTelegramCommand('voice', true);
+        this._registerTelegramCommand('answer', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
         // this._registerTelegramCommand('tree', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('autoreply', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
+        this._registerTelegramCommand('autoreply_on', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
+        this._registerTelegramCommand('autoreply_off', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
+        this._registerTelegramCommand('new_system_prompt', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
         this._registerTelegramCommand('context', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
         this._registerTelegramCommand('gpt4', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('opus', process.env.ANTHROPIC_TOKEN);
         this._registerTelegramCommand('vision', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('tldr', process.env.YA300_TOKEN && config.YA300_API_BASE, true);
-        this._registerTelegramCommand('voice', true);
         this._registerTelegramCommand('t', this.app && this.app.redis, true);
         this._registerTelegramCommand('set_sticker');
         
