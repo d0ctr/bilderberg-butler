@@ -716,6 +716,7 @@ class TelegramClient {
         this._registerTelegramCommand('tldr', process.env.YA300_TOKEN && config.YA300_API_BASE, true);
         this._registerTelegramCommand('t', this.app && this.app.redis, true);
         this._registerTelegramCommand('set_sticker');
+        this._registerTelegramCommand('events', process.env.DISCORD_TOKEN && process.env.REDIS_URL);
         
         // Registering common commands
         commands.forEach((command_name, index) => {

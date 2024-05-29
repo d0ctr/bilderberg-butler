@@ -1,4 +1,4 @@
-const Redis = require('ioredis');
+const { default: Redis } = require('ioredis');
 const { setHealth } = require('./health');
 const logger = require('../logger').child({ module: 'redis' });
 
@@ -6,7 +6,7 @@ let redis_instance = null;
 
 /**
  * 
- * @returns {Redis.Redis | null}
+ * @returns {Redis | null}
  */
 const startRedis = () => {
     if (!process.env.REDIS_URL) {
@@ -49,7 +49,7 @@ const startRedis = () => {
 
 /**
  * 
- * @returns {Redis.Redis | null}
+ * @returns {Redis | null}
  */
 const getRedis = () => redis_instance;
 
