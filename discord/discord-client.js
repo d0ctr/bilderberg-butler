@@ -356,7 +356,7 @@ class DiscordClient {
             return;
         }
 
-        restoreEventSubscriber(guild);
+        await restoreEventSubscriber(guild);
 
         guild.scheduledEvents.fetch().then(events => {
             const existing_events_ids = [];

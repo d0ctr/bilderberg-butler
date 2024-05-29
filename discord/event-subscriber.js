@@ -17,8 +17,8 @@ class EventSubscriber extends BaseSubscriber {
         this.active = true;
         this.telegram_chat_ids.push(telegram_chat_id);
         this._guild = guild;
-        ReverseMap.add(this._guild.id, telegram_chat_id);
         this.event_ids = new Set();
+        ReverseMap.add(this._guild.id, telegram_chat_id);
         this.dump();
     }
 
@@ -85,6 +85,7 @@ class EventSubscriber extends BaseSubscriber {
             return;
         }
         this._guild = guild;
+        this.event_ids = new Set();
 
         let data;
         try {
@@ -258,7 +259,7 @@ const update = (event) => {
     subscribers[key]?.update(event);
 };
 
-const restore = (guild) => {
+const restore = async (guild) => {
     if (!guild) {
         return;
     }
@@ -266,15 +267,15 @@ const restore = (guild) => {
     let key = guild.id;
 
     subscribers[key] = new EventSubscriber();
-    subscribers[key].restore(guild);
+    return subscribers[key].restore(guild);
 };
 
-const cleanup = (guild, existing_event_ids) => {
+const cleanup = async (guild, existing_event_ids) => {
     if (!guild || !existing_event_ids?.length) return;
 
     let key = guild.id;
 
-    subscribers[key]?.cleanup(existing_event_ids);
+    return subscribers[key]?.cleanup(existing_event_ids);
 };
 
 const getScheduled = async (guild_id) => {
