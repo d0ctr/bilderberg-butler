@@ -318,8 +318,34 @@ function isNotificationMessage(chat_id, message_id) {
     return chat_event_map[chat_id] && chat_event_map[chat_id].has(message_id);
 }
 
+async function addToReverseMap(guild_id, chat_id) {
+    if (!guild_id || !chat_id || !getRedis() || getHealth('redis') !== 'ready') return;
+
+    const redis = getRedis();
+    return redis.sadd(`telegram:${chat_id}:event_subscriber:guild_ids`, guild_id);
+}
+
+function removeFromReverseMap(guild_id, chat_id) {
+    if (!guild_id || !chat_id || !getRedis() || getHealth('redis') !== 'ready') return;
+
+    const redis = getRedis();
+    return redis.srem(`telegram:${chat_id}:event_subscriber:guild_ids`, guild_id);
+}
+
+function getReverseMap(chat_id) {
+    if (!chat_id || !getRedis() || getHealth('redis') !== 'ready') return;
+    
+    const redis = getRedis(); 
+    return redis.smembers(`telegram:${chat_id}:event_subscriber:guild_ids`);
+}
+
 module.exports = {
     sendNotification,
     deleteNotification,
-    isNotificationMessage
+    isNotificationMessage,
+    ReverseMap: {
+        add: addToReverseMap,
+        remove: removeFromReverseMap,
+        get: getReverseMap
+    }
 };

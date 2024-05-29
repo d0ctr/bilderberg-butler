@@ -1,6 +1,7 @@
 const { BaseSubscriber } = require('./utils');
-const { sendNotification, deleteNotification } = require('../telegram/event-subscriber');
+const { sendNotification, deleteNotification, ReverseMap } = require('../telegram/event-subscriber');
 
+/** @type {{[guild_id: string]: EventSubscriber}} */
 const subscribers = {};
 
 class EventSubscriber extends BaseSubscriber {
@@ -16,6 +17,7 @@ class EventSubscriber extends BaseSubscriber {
         this.active = true;
         this.telegram_chat_ids.push(telegram_chat_id);
         this._guild = guild;
+        ReverseMap.add(this._guild.id, telegram_chat_id);
         this.event_ids = new Set();
         this.dump();
     }
@@ -23,6 +25,7 @@ class EventSubscriber extends BaseSubscriber {
     stop(telegram_chat_id) {
         if (telegram_chat_id && this.telegram_chat_ids.length) {
             delete this.telegram_chat_ids[this.telegram_chat_ids.indexOf(telegram_chat_id)];
+            ReverseMap.remove(this._guild.id, telegram_chat_id);
             this.logger.info(`Deleting event notifications for ${this._guild.name} in [chat: ${telegram_chat_id}]`);
             this.event_ids.forEach((event_id) => {
                 deleteNotification(telegram_chat_id, event_id);
@@ -31,6 +34,7 @@ class EventSubscriber extends BaseSubscriber {
         else {
             this.logger.info(`Deleting event notifications for ${this._guild.name} in [chats: ${JSON.stringify(this.telegram_chat_ids)}]`);
             this.telegram_chat_ids.forEach((telegram_chat_id) => {
+                ReverseMap.remove(this._guild.id, telegram_chat_id);
                 this.event_ids.forEach((event_id) => {
                     deleteNotification(telegram_chat_id, event_id);
                 });
@@ -141,6 +145,8 @@ class EventSubscriber extends BaseSubscriber {
         parsed_state.channel_id = event.channel?.id;
         parsed_state.channel_name = event.channel?.name;
         parsed_state.channel_url = event.channel?.url;
+        parsed_state.start = event.scheduledStartTimestamp;
+        parsed_state.end = event.scheduledEndTimestamp;
 
         return parsed_state;
     }
@@ -185,6 +191,13 @@ class EventSubscriber extends BaseSubscriber {
                 deleteNotification(telegram_chat_id, event_id);
             });
         });
+    }
+
+    async getScheduled() {
+        if (!this.__guild) return null;
+
+        const events = this._guild.scheduledEvents.cache.map(event => this._parseState(event));
+        return events
     }
 }
 
@@ -264,6 +277,12 @@ const cleanup = (guild, existing_event_ids) => {
     subscribers[key]?.cleanup(existing_event_ids);
 };
 
+const getScheduled = async (guild_id) => {
+    if (!guild_id) return;
+
+    return subscribers[guild_id] ? subscribers[guild_id].getScheduled() : [];
+};
+
 module.exports = {
     EventSubscriber,
     isActive,
@@ -272,4 +291,5 @@ module.exports = {
     update,
     restore,
     cleanup,
+    getScheduled,
 };

@@ -74,4 +74,6 @@ module.exports = {
     autoreply_on: { handler: require('./command-handlers/autoreply-handler').setAutoreplyHandler(true), help: ['Включить автоматический ответ от ChatLLM'] },
 
     autoreply_off: { handler: require('./command-handlers/autoreply-handler').setAutoreplyHandler(false), help: ['Отключить автоматический ответ от ChatLLM'] },
+
+    events: { handler: require('./command-handlers/events-handler').events, help: ['Список запланированных эвентов на дискорд сервере'] },
 }

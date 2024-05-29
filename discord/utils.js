@@ -29,6 +29,9 @@ class BaseSubscriber {
         this.__guild = guild;
     }
 
+    /**
+     * @returns {import('discord.js').Guild || undefined}
+     */
     get _guild() {
         return this.__guild;
     }
