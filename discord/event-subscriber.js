@@ -197,7 +197,7 @@ class EventSubscriber extends BaseSubscriber {
     async getScheduled() {
         if (!this.__guild) return null;
 
-        const events = this._guild.scheduledEvents.cache.map(event => this._parseState(event));
+        const events = this._guild.scheduledEvents.cache.filter(e => e.isScheduled()).map(e => this._parseState(e));
         return events
     }
 }
