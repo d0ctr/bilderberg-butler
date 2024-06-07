@@ -49,9 +49,9 @@ async function events(ctx) {
             message += `- <b><a href="${event.event_url}">${event.event_name}</a></b>\n`;
             const start = new Date(event.start);
             message += `<code>  </code>Начало:\n`;
-            message += `<code>   Аугсбург:        </code>${start.toLocaleString('ru-RU', date_options['CET'])}\n`;
-            message += `<code>   Лимассол:        </code>${start.toLocaleString('ru-RU', date_options['NIC'])}\n`;
-            message += `<code>   Санкт-Петербург: </code>${start.toLocaleString('ru-RU', date_options['MOW'])}\n`;
+            message += `<code>   AUG: </code>${start.toLocaleString('ru-RU', date_options['CET'])}\n`;
+            message += `<code>   LIM: </code>${start.toLocaleString('ru-RU', date_options['NIC'])}\n`;
+            message += `<code>   SPB: </code>${start.toLocaleString('ru-RU', date_options['MOW'])}\n`;
             if (!event.end) continue;
             const end = new Date(event.end);
             message += `<code>  </code>Продолжительность: ${new Date(end - start).toLocaleTimeString('ru-RU', { hour:'2-digit', minute: '2-digit' })}\n`;
