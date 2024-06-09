@@ -304,7 +304,7 @@ exports.callback = async (interaction) => {
  * @returns {Promise<null | {text: string, url?: string}}>}
  */
 exports.webapp_callback = async (slug) => {
-    const game = await getGameFromRAWG(slug);
+    const game = await getGameFromRAWG({ slug });
     if (game === null) return null;
 
     const hltbInfo = await getHltbInfo({ name: game.name, year: new Date(game.released).getFullYear() });
