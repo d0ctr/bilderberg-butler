@@ -408,7 +408,7 @@ class TelegramInteraction {
             else if (response instanceof String || typeof response === 'string') {
                 return this._reply(response, overrides).catch(err => {
                     if (!err?.description?.includes('message is too long')) throw err;
-                    return this._replyWithArticle(overrides.original?.text || response);
+                    return this._replyWithArticle(overrides.original?.text || response, overrides);
                 }).catch(err => {
                     this.logger.error(`Error while replying with response text to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
