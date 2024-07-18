@@ -88,12 +88,14 @@ const { ADMIN_CHAT_ID } = require('../config.json');
  * @memberof ChatLLM
  */
 const models = [
+    'gpt-4o-mini',
     'gpt-4o',
     'claude-3-5-sonnet-20240620',
     'claude-3-opus-20240229'
 ];
 
 const max_tokens = {
+    'gpt-4o-mini': 4096,
     'gpt-4o': 4096,
     'claude-3-5-sonnet-20240620': 4096,
     'claude-3-opus-20240229': 4096,
@@ -115,7 +117,7 @@ const providers = [
 */
 const CHAT_MODEL_NAME = models.includes(process.env.LLM_MODEL) 
                         ? process.env.LLM_MODEL 
-                        : 'claude-3-5-sonnet-20240620';
+                        : 'gpt-4o-mini';
 
 const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant embedded into a Telegram bot`;
 

@@ -83,7 +83,7 @@ Bot also has a **context tree**! Bot saves user's messages and own responses, so
 
 ##### Special commands for ChatLLM 
 
-  - `/answer` - `{query?}` either reply to bot's message or send as a standalone command, bot will reply to it and (if applicable) to query. Current default model is `gpt-4o`
+  - `/answer` - `{query?}` either reply to bot's message or send as a standalone command, bot will reply to it and (if applicable) to query. Current default model is `gpt-4o-mini`
   - `/gpt4`, `/opus`, `/sonnet` — same as /answer but using `gpt-4o`, `claude-3-opus`, `claude-3-sonnet` respectively
   - `/new_system_prompt` — `{prompt}` changes prompt in current chat. Default: `you are a chat-assistant\nanswer should not exceed 4000 characters`
   - <u>DISABLED</u>: `/tree` — get a representation of bot's tree of context for this chat
