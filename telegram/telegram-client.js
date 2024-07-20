@@ -712,6 +712,7 @@ class TelegramClient {
         this._registerTelegramCommand('context', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
         this._registerTelegramCommand('gpt4', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('opus', process.env.ANTHROPIC_TOKEN);
+        this._registerTelegramCommand('sonnet', process.env.ANTHROPIC_TOKEN);
         this._registerTelegramCommand('vision', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('tldr', process.env.YA300_TOKEN && config.YA300_API_BASE, true);
         this._registerTelegramCommand('t', this.app && this.app.redis, true);
