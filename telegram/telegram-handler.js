@@ -59,7 +59,7 @@ module.exports = {
 
     opus: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-opus-20240229', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3 Opus с большей производительностью'] },
     
-    sonnet: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-sonnet-20240229', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3 Sonnet'] },
+    sonnet: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-5-sonnet-20240620', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3 Sonnet'] },
 
     tldr: { handler: require('./command-handlers/tldr-handler').tldr, help: ['{ссылка?}', 'Возвращает краткий персказ сгенерированный YandexGPT'] },
     
