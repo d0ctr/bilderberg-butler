@@ -875,6 +875,16 @@ class TelegramClient {
         });
     }
 
+    _registerBanHammer() {
+        this.client.on(':new_chat_members', async (ctx) => {
+            if (ctx.chat?.id !== -1001842693349) return;
+            const until_date = Date.now() + (5 * 60 * 1000);
+            for (const user of ctx.message.new_chat_members) {
+                ctx.banChatMember(user.id, { until_date, revoke_messages: false }).catch((err) => this.logger.error(`Couldn't ban chat member [${user.username || user.first_name || user.id}] in [${ctx.chat.username || ctx.chat.title || ctx.chat.id}]`, { error: err.stack || err }));
+            }
+        })
+    }
+
     async start() {
         if (!process.env.TELEGRAM_TOKEN) {
             this.logger.warn(`Token for Telegram wasn't specified, client is not started.`);
@@ -898,11 +908,14 @@ class TelegramClient {
 
         // filters
         this._filterServiceMessages();
-        
+
         // handlers
         this._registerCommands();
         this._registerGPTAnswers();
         this._registerCallbacks();
+
+        // autoban
+        this._registerBanHammer();
 
         if (process.env.ENV?.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
             await this._startPolling();
@@ -929,5 +942,5 @@ class TelegramClient {
 
 module.exports = {
     TelegramClient,
-    TelegramInteraction   
+    TelegramInteraction
 };
