@@ -4,6 +4,7 @@ const { Anthropic } = require('@anthropic-ai/sdk');
 
 const logger = require('../logger').child({ module: 'chatllm-handler' });
 const { to, convertMD2HTML } = require('../utils');
+const { isAutoreply } = require('./command-handlers/autoreply-handler');
 
 const { ADMIN_CHAT_ID } = require('../config.json');
 
@@ -21,7 +22,7 @@ const { ADMIN_CHAT_ID } = require('../config.json');
 
 /** 
  * Model name
- * @typedef {('gpt-4-turbo' | 'claude-3-sonnet-20240229' | 'claude-3-opus-20240229')} Model
+ * @typedef {('gpt-4o' | 'claude-3-sonnet-20240229' | 'claude-3-opus-20240229')} Model
  * @memberof ChatLLM
  */
 /** 
@@ -87,14 +88,16 @@ const { ADMIN_CHAT_ID } = require('../config.json');
  * @memberof ChatLLM
  */
 const models = [
-    'gpt-4-turbo',
-    'claude-3-sonnet-20240229',
+    'gpt-4o-mini',
+    'gpt-4o',
+    'claude-3-5-sonnet-20240620',
     'claude-3-opus-20240229'
 ];
 
 const max_tokens = {
-    'gpt-4-turbo': 4096,
-    'claude-3-sonnet-20240229': 4096,
+    'gpt-4o-mini': 4096,
+    'gpt-4o': 4096,
+    'claude-3-5-sonnet-20240620': 4096,
     'claude-3-opus-20240229': 4096,
 }
 
@@ -112,11 +115,13 @@ const providers = [
  * @type {Model}
  * @memberof ChatLLM
 */
-const CHAT_MODEL_NAME = models.includes(process.env.LLM_MODEL) ? process.env.LLM_MODEL : 'claude-3-sonnet-20240229';
+const CHAT_MODEL_NAME = models.includes(process.env.LLM_MODEL) 
+                        ? process.env.LLM_MODEL 
+                        : 'gpt-4o-mini';
 
-const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant`;
+const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant embedded into a Telegram bot`;
 
-const SYSTEM_PROMPT_EXTENSION = '\nanswer should not exceed 4000 characters';
+const SYSTEM_PROMPT_EXTENSION = '\nyour answers must not exceed 3000 characters!';
 
 /** 
  * @type {Provider}
@@ -225,7 +230,7 @@ async function getContent({ api, message: c_message }, type = 'text', message = 
  * @memberof ChatLLM
  */
 function getModelType(model) {
-    return (model.includes('gpt-4') || model.includes('claude')) ? 'vision' : 'text';
+    return (model.includes('gpt') || model.includes('claude')) ? 'vision' : 'text';
 }
 
 /**
@@ -797,7 +802,8 @@ class ChatLLMHandler {
                 },
                 {
                     reply_parameters: { message_id: prev_message_id },
-                    parse_mode: 'HTML'
+                    parse_mode: 'HTML',
+                    original: { text: answer, parse_mode: 'markdown' }
                 }
             ];
         }).catch(err => {
@@ -825,11 +831,11 @@ class ChatLLMHandler {
         return this._replyFromContext(interaction, context, context_tree, prev_message_id)
             .then(([err, response, callback = () => {}, overrides]) => {
                 return interaction._reply(response || err, overrides)
-                    .then(callback)
                     .catch(err => {
                         if (!err?.description?.includes('message is too long')) throw err;
-                        return interaction._replyWithArticle(response);
+                        return interaction._replyWithArticle(response, overrides);
                     })
+                    .then(callback)
                     .catch(err => {
                         this.logger.error('Failed to send gpt response in a direct message', { error: err.stack || err })
                     });
@@ -1072,9 +1078,12 @@ class ChatLLMHandler {
      */
     async answerQuestion(interaction) {
         let text = getWithEntities(interaction.context.message);
-        if (!text || text.startsWith('/ ')) {
+        if (!text || text.startsWith('/')) {
             return;
         }
+
+        const autoreply = await isAutoreply(interaction.context.chat.id);
+        if (!autoreply) return;
 
         const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
         

@@ -10,7 +10,7 @@ const ChatLLMHandler = require('./llm-handler.js');
 const { isNotificationMessage: isChannelNotificationMessage } = require('./channel-subscriber.js');
 const { isNotificationMessage: isEventNotificationMessage } = require('./event-subscriber.js');
 const { used: tinkovUsed } = require('./command-handlers/tinkov-handler.js');
-const { to } = require('../utils');
+const { to, convertMD2Nodes } = require('../utils');
 
 const no_tags_regex = /<\/?[^>]+(>|$)/g;
 
@@ -234,7 +234,8 @@ class TelegramInteraction {
         this.logger.info(`Replying with text`);
         return this.context.reply(text, {
             ...this.getDefaultOther(overrides),
-            ...overrides
+            ...overrides,
+            original: undefined
         });
     }
 
@@ -252,7 +253,8 @@ class TelegramInteraction {
 
         const message_options = {
             ...this._getBasicMessageOptions(),
-            ...overrides
+            ...overrides,
+            original: undefined
         }
 
         const media = message.media.filter((singleMedia) => {
@@ -269,7 +271,8 @@ class TelegramInteraction {
         media[0] = {
             ...media[0],
             ...this._getTextOptions(),
-            ...overrides
+            ...overrides,
+            original: undefined
         };
 
         if (message.text) {
@@ -300,7 +303,8 @@ class TelegramInteraction {
             ...this._getBasicMessageOptions(),
             ...this._getTextOptions(),
             ...overrides,
-            ...message.overrides
+            ...message.overrides,
+            original: undefined
         };
 
         let media;
@@ -338,26 +342,35 @@ class TelegramInteraction {
     /**
      * Reply with link to Telegra.ph article
      * @param {string} text 
-     * @param {'html' | 'markdown'} parse_mode 
+     * @param {{original?: {text: string, parse_mode?: 'html' | 'markdown'} }} overrides
+     * @param {'html' | 'markdown'} parse_mode
      */
-    async _replyWithArticle(text, parse_mode = 'html') {
+    async _replyWithArticle(_text, overrides, _parse_mode = 'html') {
         if (process.env.TELEGRAPH_TOKEN == null) {
-            return null;
+            throw 'Too long text';
         }
 
-        const { Telegraph, parseHtml, parseMarkdown } = await import('better-telegraph');
+        const { Telegraph, parseHtml } = await import('better-telegraph');
         const telegraph = new Telegraph({ accessToken: process.env.TELEGRAPH_TOKEN });
-        text = text.replace('<pre><code', '<code').replace('</code></pre>', '</code>');
+        const parse_mode = overrides.original?.parse_mode || _parse_mode;
+        let text = overrides.original?.text || _text;
+        if (parse_mode === 'html') {
+            text = text.replace('<pre><code', '<code').replace('</code></pre>', '</code>');
+        }
 
-        const content = parse_mode === 'html'
-            ? parseHtml(text)
-            : parseMarkdown(text);
+        const content = parse_mode !== 'html'
+            ? convertMD2Nodes(text)
+            : parseHtml(text);
         
-        const title = (
-                typeof content == 'string'
-                ? content
-                : content.find((node) => node.tag == 'p' || typeof node === 'string')?.children?.[0] || 'Bilderberg Butler'
-            ).split(' ').slice(0, 5).join(' ').slice(0, 256);
+        let title = 'Bilderberg Butler';
+        if (typeof content === 'string') {
+            title = content;
+        }
+        else if (['h3', 'h4', 'p'].includes(content[0].tag) && typeof content[0].children[0] === 'string' ) {
+            title = content[0].children[0];
+        }
+
+        title = title.split(' ').slice(0, 5).join(' ').slice(0, 256);
 
         try {
             const { url } = await telegraph.create({
@@ -413,7 +426,7 @@ class TelegramInteraction {
             else if (response instanceof String || typeof response === 'string') {
                 return this._reply(response, overrides).catch(err => {
                     if (!err?.description?.includes('message is too long')) throw err;
-                    return this._replyWithArticle(response);
+                    return this._replyWithArticle(overrides.original?.text || response, overrides);
                 }).catch(err => {
                     this.logger.error(`Error while replying with response text to [${this.command_name}]`);
                     this._reply(`Что-то случилось:\n<code>${err}</code>`).catch((err) => this.logger.error(`Safe reply failed`, { error: err.stack || err }));
@@ -452,9 +465,11 @@ class TelegramInteraction {
                 message_text: text,
                 ...this._getTextOptions(),
                 ...overrides,
+                original: undefined
             },
             ...this._getTextOptions(),
             ...overrides,
+            original: undefined
         };
 
         return result;
@@ -486,7 +501,8 @@ class TelegramInteraction {
             thumbnail_url,
             ...this._getTextOptions(),
             ...overrides,
-            ...media.overrides
+            ...media.overrides,
+            original: undefined
         };
         result[`${inline_type}${suffix}`] = data;
 
@@ -518,7 +534,8 @@ class TelegramInteraction {
             results: results_array,
             other: {
                 cache_time: 0,
-                ...overrides
+                ...overrides,
+                original: undefined
             }
         }
 
@@ -696,6 +713,7 @@ class TelegramClient {
         // Registering commands specific to Telegram
         this._registerTelegramCommand('start', true);
         this._registerTelegramCommand('help', true, true);
+        this._registerTelegramCommand('info', true);
         this._registerTelegramCommand('html', true, true);
         this._registerTelegramCommand('fizzbuzz', true, true);
         this._registerTelegramCommand('gh', true, true);
@@ -703,22 +721,26 @@ class TelegramClient {
         this._registerTelegramCommand('get', this.app && this.app.redis, true);
         this._registerTelegramCommand('get_list', this.app && this.app.redis, true);
         this._registerTelegramCommand('del', this.app && this.app.redis);
-        this._registerTelegramCommand('deep', config.DEEP_AI_API && process.env.DEEP_AI_TOKEN);
-        this._registerTelegramCommand('info', true);
         this._registerTelegramCommand('webapp', process.env.WEBAPP_URL);
         this._registerTelegramCommand('roundit', true);
-        this._registerTelegramCommand('new_system_prompt', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
-        this._registerTelegramCommand('answer', process.env.ANTHROPIC_TOKEN);
+        this._registerTelegramCommand('deep', config.DEEP_AI_API && process.env.DEEP_AI_TOKEN);
+        this._registerTelegramCommand('voice', true);
+        this._registerTelegramCommand('answer', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
         // this._registerTelegramCommand('tree', process.env.OPENAI_TOKEN);
+        this._registerTelegramCommand('autoreply', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
+        this._registerTelegramCommand('autoreply_on', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
+        this._registerTelegramCommand('autoreply_off', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
+        this._registerTelegramCommand('new_system_prompt', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
         this._registerTelegramCommand('context', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
         this._registerTelegramCommand('gpt4', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('opus', process.env.ANTHROPIC_TOKEN);
+        this._registerTelegramCommand('sonnet', process.env.ANTHROPIC_TOKEN);
         this._registerTelegramCommand('vision', process.env.OPENAI_TOKEN);
         this._registerTelegramCommand('tldr', process.env.YA300_TOKEN && config.YA300_API_BASE, true);
-        this._registerTelegramCommand('voice', true);
         this._registerTelegramCommand('t', this.app && this.app.redis, true);
         this._registerTelegramCommand('set_sticker');
         this._registerTelegramCommand('c', process.env.WEBAPP_URL, true);
+        this._registerTelegramCommand('events', process.env.DISCORD_TOKEN && process.env.REDIS_URL);
         
         // Registering common commands
         commands.forEach((command_name, index) => {
@@ -878,7 +900,17 @@ class TelegramClient {
         });
     }
 
-    start() {
+    _registerBanHammer() {
+        this.client.on(':new_chat_members', async (ctx) => {
+            if (ctx.chat?.id !== -1001842693349) return;
+            const until_date = Date.now() + (5 * 60 * 1000);
+            for (const user of ctx.message.new_chat_members) {
+                ctx.banChatMember(user.id, { until_date, revoke_messages: false }).catch((err) => this.logger.error(`Couldn't ban chat member [${user.username || user.first_name || user.id}] in [${ctx.chat.username || ctx.chat.title || ctx.chat.id}]`, { error: err.stack || err }));
+            }
+        })
+    }
+
+    async start() {
         if (!process.env.TELEGRAM_TOKEN) {
             this.logger.warn(`Token for Telegram wasn't specified, client is not started.`);
             return;
@@ -902,13 +934,15 @@ class TelegramClient {
 
         // filters
         this._filterServiceMessages();
-        
+
         // handlers
         this._registerCommands();
         this._registerGPTAnswers();
         this._registerCallbacks();
 
-        this._publishCommands().finally(() => {
+        // autoban
+        this._registerBanHammer();
+        return this._publishCommands().finally(() => {
             if (process.env.ENV?.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
                 return this._startPolling();
             }
@@ -935,5 +969,5 @@ class TelegramClient {
 
 module.exports = {
     TelegramClient,
-    TelegramInteraction   
+    TelegramInteraction
 };

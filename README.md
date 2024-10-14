@@ -74,7 +74,7 @@ Here is the list of supported inline commands:
 
 If you reply to the bot's message (e.g. in group chats) or write to it directly (in private chat), it will use ChatLLM integration to answer you.
 
-ChatLLM integration uses Anthripcs's `claude-3-sonnet` model to get answers.
+ChatLLM integration uses Anthripcs's and OpenAI's models to get answers.
 
 Bot also has a **context tree**! Bot saves user's messages and own responses, so if you reply to either of it, it will use existing thread of messages as the context, which will affect ChatLLM's response.
 
@@ -83,16 +83,16 @@ Bot also has a **context tree**! Bot saves user's messages and own responses, so
 
 ##### Special commands for ChatLLM 
 
-  - `/answer` - `{query?}` either reply to bot's message or send as a standalone command, bot will reply to it and (if applicable) to query
-  - `/gpt4`, `/opus` — same as /answer but using `gpt-4-turbo` or `claude-3-opus` respectively
+  - `/answer` - `{query?}` either reply to bot's message or send as a standalone command, bot will reply to it and (if applicable) to query. Current default model is `gpt-4o-mini`
+  - `/gpt4`, `/opus`, `/sonnet` — same as /answer but using `gpt-4o`, `claude-3-opus`, `claude-3-sonnet` respectively
   - `/new_system_prompt` — `{prompt}` changes prompt in current chat. Default: `you are a chat-assistant\nanswer should not exceed 4000 characters`
   - <u>DISABLED</u>: `/tree` — get a representation of bot's tree of context for this chat
-  - ~~`/vision` — same as /answer, but will process photo messages using `gpt-4-vision-preview`~~<br/>
   All models can process images
+  - `/context` - get the context of a conversation branch
+  - `/autoreply`, `/autoreply_on`, `/autoreply_off` - toggle, turn on or turn off autoreply in direct messages
 
 > [!NOTE]
 > When `/answer`, `/gpt4`, `/opus` or `/vision` is used as a reply to a thread that already exists (contains AI generated answers) the whole context will be transfered to the model associated with the command, meaning that every message down the thread will be processed with the new model till another transfer comes.<br/>
-> `/vision` will process only the replied photo during the transfer from `gpt-4`'s tree.
 
 ### Common commands
 

@@ -220,12 +220,21 @@ class DiscordNotification {
     /**
      * Get discord channel url
      * @param {ChannelSubscriber.DiscordNotificationData} notification_data - Source notification data to get url from
+     * @param {'a' | 'b' | null} type - Type of a URL to get, 'a' - to app, 'b' - to browser, anything else for redirect page
      * @returns {string} Returns url (may be changed to support application redirect)
      */
-    getChannelUrl(notification_data) {
+    getChannelUrl(notification_data, type) {
         if(!notification_data) {
             return null;
         }
+
+        if (type === 'a') {
+            return notification_data.channel_url.replace('discord.com', 'dr.bldbr.club/a');
+        }
+        else if (type === 'b') {
+            return notification_data.channel_url.replace('discord.com', 'dr.bldbr.club/b');
+        }
+
         return notification_data.channel_url.replace('discord.com', 'dr.bldbr.club');
     }
 
@@ -289,10 +298,14 @@ class DiscordNotification {
      * @returns {import('grammy').InlineKeyboard}
      */
     getNotificationKeyboard() {
-        return new InlineKeyboard().url(
-            'Присоединиться',
-            this.getChannelUrl(this.current_notification_data)
-        );
+        return new InlineKeyboard()
+            .url(
+                'В браузер',
+                this.getChannelUrl(this.current_notification_data, 'b')
+            ).url(
+                'В приложение',
+                this.getChannelUrl(this.current_notification_data, 'a')
+            );
     }
 
     /**

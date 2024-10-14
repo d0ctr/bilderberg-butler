@@ -23,23 +23,23 @@ module.exports = {
 
     fizzbuzz: { handler: fizzbuzz, help: [] },
 
-    get: { handler: get, help: ['{name}', 'Вызвать контент, сохранённый командой /set'] },
+    get: { handler: get, help: ['{название}', 'Вызвать контент, сохранённый командой /set'] },
 
-    set: { handler: set, help: ['{name}', 'Сохранить содержимое сообщения']},
+    set: { handler: set, help: ['{название}', 'Сохранить содержимое сообщения']},
 
-    get_list: { handler: getList, help: ['Вызвать список гетов, доступных в этом чате'] },
+    get_list: { handler: getList, help: ['Список гетов, доступных в этом чате'] },
 
-    del: { handler: del, help: ['{name}', 'Удалить гет, доступно только владельцу (если он есть)'] },
+    del: { handler: del, help: ['{название}', 'Удалить гет, доступно только владельцу'] },
     
     gh: { handler: gh, help: [] },
 
-    help: { handler: help, help: ['Вызвать список доступных команд']},
+    help: { handler: help, help: ['Список доступных команд']},
 
     html: { handler: html, help: [] },
 
-    deep: { handler: generateImage, help: ['{query}', 'Генерирует 4 картинки по описанию (DeepAI)'] },
+    deep: { handler: generateImage, help: ['{запрос}', 'Генерирует 4 картинки по описанию (DeepAI)'] },
 
-    info: { handler: info, help: ['Вызвать информацию о чате и отправителе'] },
+    info: { handler: info, help: ['Информация о чате и отправителе'] },
 
     ytdl: { handler: require('./command-handlers/ytdl-handler').ytdl, help: [] },
 
@@ -47,25 +47,37 @@ module.exports = {
 
     roundit: { handler: require('./command-handlers/roundit-handler').roundit, help: ['Превратить видео в кружок'] },
 
-    new_system_prompt: { handler: (...args) => ChatLLMHandler.handleAdjustSystemPrompt(...args), help: ['{prompt}', 'Задать новый системный промпт для ChatLLM и/или проверить, установленный сейчас'] },
+    new_system_prompt: { handler: (...args) => ChatLLMHandler.handleAdjustSystemPrompt(...args), help: ['{запрос}', 'Задать новый системный промпт для ChatLLM и/или проверить, установленный сейчас'] },
 
-    answer: { handler: (...args) => ChatLLMHandler.handleAnswerCommand(...args), help: ['{query?}', 'Спросить у ChatLLM, можно использовать как реплай (распознаёт изображения)'] },
+    answer: { handler: (...args) => ChatLLMHandler.handleAnswerCommand(...args), help: ['{запрос?}', 'Спросить у ChatLLM, можно использовать как реплай (распознаёт изображения)'] },
 
-    tree: { handler: (...args) => ChatLLMHandler.handleTreeRequest(...args), help: ['Запросить контекстное дерево ChatLLM'] },
+    tree: { handler: (...args) => ChatLLMHandler.handleTreeRequest(...args), help: ['Контекстное дерево ChatLLM'] },
 
-    context: { handler: (...args) => ChatLLMHandler.handleContextRequest(...args), help: ['Запросить контекст сообщения'] },
+    context: { handler: (...args) => ChatLLMHandler.handleContextRequest(...args), help: ['Контекст сообщения'] },
 
-    gpt4: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('gpt-4-turbo', ...args), help: ['{query?}', '/answer, но с использованием GPT-4 (распознаёт изображения)'] },
+    gpt4: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('gpt-4o', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4 (распознаёт изображения)'] },
 
-    opus: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-opus-20240229', ...args), help: ['{query?}', '/answer, но с использованием Claude 3 Opus с большей производительностью'] },
+    opus: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-opus-20240229', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3 Opus с большей производительностью'] },
+    
+    sonnet: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-5-sonnet-20240620', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3 Sonnet'] },
 
-    tldr: { handler: require('./command-handlers/tldr-handler').tldr, help: ['{url?}', 'Возвращает краткий персказ сгенерированный YandexGPT'] },
+    tldr: { handler: require('./command-handlers/tldr-handler').tldr, help: ['{ссылка?}', 'Возвращает краткий персказ сгенерированный YandexGPT'] },
     
     voice: { handler: require('./command-handlers/voice-handler').voice, help: ['Генерирует голосове сообщение из текста или аудио'] },
     
-    t: { handler: require('./command-handlers/tinkov-handler').tinkov, help: ['{query?} Даёт возможность поделится умными словами'] },
+    t: { handler: require('./command-handlers/tinkov-handler').tinkov, help: ['{запрос?} Прописные истины'] },
     
+    set_sticker: { handler: require('./command-handlers/sticker-handler').setSticker, help: [] },
+    
+    autoreply: { handler: require('./command-handlers/autoreply-handler').toggleAutoreplyHandler, help: ['Переключить режим автоответа для ChatLLM'] },
+  
     set_sticker: { handler: require('./command-handlers/sticker-handler').setSticker, help: ['Устанавливает набор эмодзи чата при ответе на сообщение с эмодзи'] },
 
     c: { handler: require('./command-handlers/callback-handler').callback, help: [] },
+
+    autoreply_on: { handler: require('./command-handlers/autoreply-handler').setAutoreplyHandler(true), help: ['Включить автоматический ответ от ChatLLM'] },
+
+    autoreply_off: { handler: require('./command-handlers/autoreply-handler').setAutoreplyHandler(false), help: ['Отключить автоматический ответ от ChatLLM'] },
+
+    events: { handler: require('./command-handlers/events-handler').events, help: ['Список запланированных эвентов на дискорд сервере'] },
 }

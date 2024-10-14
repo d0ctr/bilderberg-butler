@@ -373,16 +373,16 @@ class DiscordClient {
             guild.scheduledEvents.fetch().then(events => {
                 const existing_events_ids = [];
                 const promises = [];
-                for (const event of events.values()) {
+                events.forEach(event => {
                     existing_events_ids.push(event.id);
                     promises.push(updateEventSubscriberState(event));
-                }
+                });
                 cleanupEventSubscriber(guild, existing_events_ids);
                 return Promise.allSettled(promises);
             }).catch(err => {
                 this.logger.error(`Error while fetching events for ${guild.id}`, { error: err.stack || err });
             })
-        )
+        );
     }
 
     restoreData() {
