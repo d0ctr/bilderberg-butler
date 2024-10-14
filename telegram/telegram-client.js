@@ -910,7 +910,7 @@ class TelegramClient {
         })
     }
 
-    async start() {
+    start() {
         if (!process.env.TELEGRAM_TOKEN) {
             this.logger.warn(`Token for Telegram wasn't specified, client is not started.`);
             return;
@@ -942,14 +942,13 @@ class TelegramClient {
 
         // autoban
         this._registerBanHammer();
-        return this._publishCommands().finally(() => {
-            if (process.env.ENV?.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
-                return this._startPolling();
-            }
-            else {
-                return this._setWebhook();
-            }
-        });
+        this._publishCommands();
+        if (process.env.ENV?.toLowerCase() === 'dev' || !process.env.PORT || !process.env.DOMAIN) {
+            this._startPolling();
+        }
+        else {
+            this._setWebhook();
+        }
     }
 
     async stop() {
