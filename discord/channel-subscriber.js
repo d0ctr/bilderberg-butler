@@ -51,7 +51,7 @@ class ChannelSubscriber extends BaseSubscriber {
         return `${this._guild?.id}:${this._subscriber_type}:${this._channel?.id}`;
     }
     
-    update(channel) {
+    async update(channel) {
         if (!this.active) {
             return;
         }
@@ -70,14 +70,18 @@ class ChannelSubscriber extends BaseSubscriber {
         );
         
         if (parsed_state && this.telegram_chat_ids.length) {
-            this.telegram_chat_ids.forEach((telegram_chat_id) => {
-                sendNotification(parsed_state, telegram_chat_id).catch(err => {
-                    this.logger.error(
-                        `Couldn't send channel state notification for ${this._guild.name}:${this._channel.name}`,
-                        { error: err.stack || err, telegram_chat_id}
-                    );
-                });
-            });
+            const promises = [];
+            for (const telegram_chat_id of this.telegram_chat_ids) {
+                promises.push(
+                    sendNotification(parsed_state, telegram_chat_id).catch(err => {
+                        this.logger.error(
+                            `Couldn't send channel state notification for ${this._guild.name}:${this._channel.name}`,
+                            { error: err.stack || err, telegram_chat_id}
+                        );
+                    })
+                );
+            }
+            return Promise.allSettled(promises);
         }
     }
 
@@ -256,7 +260,7 @@ class ChannelSubscriber extends BaseSubscriber {
 const isActive = (channel, telegram_chat_id) => {
     if (!channel) {
         return false;
-    };
+    }
 
     let key = `${channel.guild.id}:${channel.id}`;
 
@@ -300,17 +304,17 @@ const stop = (channel, telegram_chat_id) => {
     subscribers[key].stop(telegram_chat_id);
 };
 
-const update = (channel) => {
+const update = async (channel) => {
     if (!channel){
         return;
     }
 
     let key = `${channel.guild.id}:${channel.id}`;
 
-    subscribers[key].update(channel);
+    return subscribers[key].update(channel);
 }
 
-const restore = (channel) => {
+const restore = async (channel) => {
     if (!channel) {
         return;
     }
@@ -318,7 +322,7 @@ const restore = (channel) => {
     let key = `${channel.guild.id}:${channel.id}`;
 
     subscribers[key] = new ChannelSubscriber();
-    subscribers[key].restore(channel);
+    return subscribers[key].restore(channel);
 }
 
 module.exports = {

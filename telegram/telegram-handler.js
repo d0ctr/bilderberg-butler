@@ -70,7 +70,11 @@ module.exports = {
     set_sticker: { handler: require('./command-handlers/sticker-handler').setSticker, help: [] },
     
     autoreply: { handler: require('./command-handlers/autoreply-handler').toggleAutoreplyHandler, help: ['Переключить режим автоответа для ChatLLM'] },
-    
+  
+    set_sticker: { handler: require('./command-handlers/sticker-handler').setSticker, help: ['Устанавливает набор эмодзи чата при ответе на сообщение с эмодзи'] },
+
+    c: { handler: require('./command-handlers/callback-handler').callback, help: [] },
+
     autoreply_on: { handler: require('./command-handlers/autoreply-handler').setAutoreplyHandler(true), help: ['Включить автоматический ответ от ChatLLM'] },
 
     autoreply_off: { handler: require('./command-handlers/autoreply-handler').setAutoreplyHandler(false), help: ['Отключить автоматический ответ от ChatLLM'] },
