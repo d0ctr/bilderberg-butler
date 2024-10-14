@@ -18,7 +18,7 @@ const { wideSpace } = require('../../utils');
  * @returns {object[]}
  * @memberof Commands.game
  */
-const getGamesFromRAWG = async ({ search, ...args } = {}) => {
+const searchRAWG = async ({ search, ...args } = {}) => {
     return await fetch(
         `${RAWG_API_BASE}/games?`
         + new URLSearchParams({
@@ -27,6 +27,21 @@ const getGamesFromRAWG = async ({ search, ...args } = {}) => {
             page_size: 10,
             ...args
         }));
+}
+
+/**
+ * Get game from RAWG
+ * @param {{ slug: string }}  
+ * @returns 
+ */
+const getGameFromRAWG = async ({ slug }) => {
+    return await fetch(
+        `${RAWG_API_BASE}/games/${slug}?`
+        + new URLSearchParams({
+            key: process.env.RAWG_TOKEN,
+        }))
+        .then(res => res.ok ? res.json() : null)
+        .catch(() => null);
 }
 
 /**
@@ -46,17 +61,17 @@ const getHltbInfo = async ({ name, year } = {}) => {
 
 /**
  * Transform game details to text
- * @param {{slug: string, name: string, released: string?, metacritic: number?, platforms: {name: string}[]?, stores: {name: string}[]?, hltb: {url: string, playtimes: {name: string, value: string | number}[]}?}} game Game details
+ * @param {{slug: string, name: string, released: string?, metacritic: number?, platforms: {name: string}[]?, stores: {name: string}[]?, hltb?: {url: string, playtimes: {name: string, value: string | number}[]}?}} game Game details
  * @returns {string}
  * @memberof Commands.game
  */
 const getTextFromGameDetail = (game) => {
     return `🎮 <a href="${RAWG_BASE}/games/${game?.slug}">${game.name}</a>\n`
-        + (game.released ? `Дата релиза: ${(new Date(game.released)).toLocaleDateString('de-DE')}\n` : '' )
+        + (game.released ? `Дата релиза: ${(new Date(game.released)).toLocaleDateString('de-DE')}\n` : '')
         + (game.metacritic ? `Metacritic: ${game.metacritic}\n` : '')
         + (game.platforms?.length ? `Платформы: ${game.platforms.filter(v => v.platform?.name).map(v => v?.platform.name).join(', ')}\n` : '')
         + (game.stores?.length ? `Магазины: ${game.stores.filter(v => v?.store?.name).map(v => v.store.name).join(', ')}\n` : '')
-        + (game.hltb?.playtimes?.length ? `<a href="${game.hltb?.url}">HLTB</a>:\n${game.hltb.playtimes.map(({name, value}) => `${wideSpace}${name}: ${value}`).join('\n')}` : '');
+        + (game.hltb?.playtimes?.length ? `<a href="${game.hltb?.url}">HLTB</a>:\n${game.hltb.playtimes.map(({ name, value }) => `${wideSpace}${name}: ${value}`).join('\n')}` : '');
 }
 
 /**
@@ -127,7 +142,7 @@ const getGamesFromRedis = async (key, start, stop = start + 2) => {
  * @memberof Commands.game
  */
 const getCallbackData = (data) => {
-    return encodeCallbackData({ prefix: 'game', ...data});
+    return encodeCallbackData({ prefix: 'game', ...data });
 }
 
 /**
@@ -138,9 +153,9 @@ const getCallbackData = (data) => {
  * @returns {string}
  * @memberof Commands.game
  */
-const getNameForButton = ({name, released}, index = null, selected = null) => {
+const getNameForButton = ({ name, released }, index = null, selected = null) => {
     let released_date = released == null ? 'TBA' : new Date(released).getFullYear()
-    return `${(index != null && index === selected) ? '☑️ ' : '' }${name} (${released_date})`;
+    return `${(index != null && index === selected) ? '☑️ ' : ''}${name} (${released_date})`;
 }
 
 /**
@@ -174,7 +189,7 @@ exports.condition = !!process.env.RAWG_TOKEN;
  */
 exports.handler = async (interaction) => {
     const args = interaction.args?.[0];
-    
+
     if (!args) {
         return {
             type: 'error',
@@ -182,7 +197,7 @@ exports.handler = async (interaction) => {
         }
     }
 
-    return getGamesFromRAWG({ search: args })
+    return searchRAWG({ search: args })
         .then(async (res) => {
             interaction.logger.silly(`Received response from RAWG/games`);
             if (!res.ok) {
@@ -205,7 +220,7 @@ exports.handler = async (interaction) => {
             if (json.results[0].released !== 'TBA') {
                 const hltbInfo = await getHltbInfo({ name: json.results[0].name, year: new Date(json.results[0].released).getFullYear() });
                 if (hltbInfo != null) {
-                    const playtimes = hltbInfo.timeLabels.map(([ key, name ]) => ({ name, value: Number.isSafeInteger(hltbInfo[key]) ? hltbInfo[key] : `${Math.floor(hltbInfo[key])}½` }));
+                    const playtimes = hltbInfo.timeLabels.map(([key, name]) => ({ name, value: Number.isSafeInteger(hltbInfo[key]) ? hltbInfo[key] : `${Math.floor(hltbInfo[key])}½` }));
                     json.results[0].hltb = {
                         url: `https://howlongtobeat.com/game/${hltbInfo.id}`,
                         playtimes
@@ -219,7 +234,7 @@ exports.handler = async (interaction) => {
                     if (game.released !== 'TBA') {
                         const hltbInfo = await getHltbInfo({ name: game.name, year: new Date(game.released).getFullYear() });
                         if (hltbInfo != null) {
-                            const playtimes = hltbInfo.timeLabels.map(([ key, name ]) => ({ name, value: Number.isSafeInteger(hltbInfo[key]) ? hltbInfo[key] : `${Math.floor(hltbInfo[key])}½` }));
+                            const playtimes = hltbInfo.timeLabels.map(([key, name]) => ({ name, value: Number.isSafeInteger(hltbInfo[key]) ? hltbInfo[key] : `${Math.floor(hltbInfo[key])}½` }));
                             game.hltb = {
                                 url: `https://howlongtobeat.com/game/${hltbInfo.id}`,
                                 playtimes
@@ -235,7 +250,7 @@ exports.handler = async (interaction) => {
                     interaction.logger.error('Failed to save game results', { error: err.stack || err });
                 }
 
-                
+
             })().catch(err => logger.error('/game background has job failed', { error: err.stack || err }));
 
             let buttons = null;
@@ -248,7 +263,7 @@ exports.handler = async (interaction) => {
             if (json.results.length > 3) {
                 buttons.push([{
                     name: '⏬',
-                    callback: getCallbackData({ key, current: 0, next: `>3`})
+                    callback: getCallbackData({ key, current: 0, next: `>3` })
                 }]);
             }
 
@@ -267,7 +282,7 @@ exports.handler = async (interaction) => {
             };
         })
         .catch((err) => {
-            interaction.logger.error(`Error while getting game details from RAWG`, { error: err.stack || err});
+            interaction.logger.error(`Error while getting game details from RAWG`, { error: err.stack || err });
             return {
                 type: 'error',
                 text: 'Что-то у меня поломалось, можешь попробовать ещё раз'
@@ -281,4 +296,30 @@ exports.handler = async (interaction) => {
  */
 exports.callback = async (interaction) => {
     return listingMenuCallback(interaction, getGamesFromRedis);
+}
+
+/**
+ * 
+ * @param {string} slug Game identifier
+ * @returns {Promise<null | {text: string, url?: string}}>}
+ */
+exports.webapp_callback = async (slug) => {
+    const game = await getGameFromRAWG({ slug });
+    if (game === null) return null;
+
+    const hltbInfo = await getHltbInfo({ name: game.name, year: new Date(game.released).getFullYear() });
+    if (hltbInfo != null) {
+        const playtimes = hltbInfo.timeLabels.map(([key, name]) => ({ name, value: Number.isSafeInteger(hltbInfo[key]) ? hltbInfo[key] : `${Math.floor(hltbInfo[key])}½` }));
+        game.hltb = {
+            url: `https://howlongtobeat.com/game/${hltbInfo.id}`,
+            playtimes
+        };
+    }
+
+    const result = {
+        text: getTextFromGameDetail(game),
+        url: game.background_image,
+    };
+
+    return result;
 }

@@ -13,14 +13,10 @@ function main() {
 
     app.redis = startRedis();
 
-    fetchCurrenciesList().then(currencies_list => {
-        if (currencies_list !== null) {
-            app.currencies_list = currencies_list;
-        }
-    });
+    fetchCurrenciesList(app);
 
     // update daily
-    setInterval(() =>  fetchCurrenciesList(), 24 * 60 * 60 * 1000);
+    setInterval(() => fetchCurrenciesList(app), 24 * 60 * 60 * 1000);
 
     app.discord_client = new DiscordClient(app);
 
@@ -43,7 +39,7 @@ function main() {
 
 let app = main();
 
-process_logger = logger.child({ module: 'process' });
+const process_logger = logger.child({ module: 'process' });
 
 process.on('warning', (warning) => {
     process_logger.warn(warning.message);

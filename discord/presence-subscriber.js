@@ -34,19 +34,23 @@ class PresenceSubscriber extends BaseSubscriber {
         );
 
         if (this.telegram_chat_ids.length) {
-            this.telegram_chat_ids.forEach(telegram_chat_id => {
-                updatePresence(telegram_chat_id, this.telegram_user_id, parsed_presence).catch(err => {
-                    this.logger.error(
-                        `Error while updating presence for ${this._member.displayName}:${this._guild.name}`,
-                        { 
-                            error: err.stack || err,
-                            telegram_chat_id,
-                            telegram_user_id: this.telegram_user_id,
-                            presence: parsed_presence,
-                        }
-                    );
-                })
-            });
+            const promises = [];
+            for (const telegram_chat_id of this.telegram_chat_ids) {
+                promises.push(
+                    updatePresence(telegram_chat_id, this.telegram_user_id, parsed_presence).catch(err => {
+                        this.logger.error(
+                            `Error while updating presence for ${this._member.displayName}:${this._guild.name}`,
+                            { 
+                                error: err.stack || err,
+                                telegram_chat_id,
+                                telegram_user_id: this.telegram_user_id,
+                                presence: parsed_presence,
+                            }
+                        );
+                    })
+                );
+            }
+            return Promise.allSettled(promises);
         }
     }
 
@@ -131,7 +135,7 @@ class PresenceSubscriber extends BaseSubscriber {
         if (!this.redis) {
             return;
         }
-        this.redis.hmset(this._dump_key, {
+        return this.redis.hmset(this._dump_key, {
             active: this.active,
             telegram_chat_ids: this.telegram_chat_ids.length ? JSON.stringify(this.telegram_chat_ids) : null,
             telegram_user_id: this.telegram_user_id,
@@ -256,14 +260,14 @@ const stop = (member, telegram_chat_id) => {
     subscribers[key].stop(member, telegram_chat_id);
 }
 
-const update = (presence) => {
+const update = async (presence) => {
     if (!presence) {
         return;
     }
 
     let key = `${presence.guild.id}:${presence.member.id}`;
 
-    subscribers[key].update(presence);
+    return subscribers[key].update(presence);
 }
 
 const restore = async (member) => {

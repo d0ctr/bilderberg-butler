@@ -152,7 +152,7 @@ class EventSubscriber extends BaseSubscriber {
         return parsed_state;
     }
 
-    update(event) {
+    async update(event) {
         if (!this.active) return;
 
         const parsed_state = this._parseState(event);
@@ -164,23 +164,27 @@ class EventSubscriber extends BaseSubscriber {
             this.event_ids.add(parsed_state.event_id);
         }
 
+        this.dump();
+
         this.logger.debug(
             `Cought updated event state: ${JSON.stringify(parsed_state)}`,
             { state: parsed_state }
         );
 
         if (parsed_state && this.telegram_chat_ids.length) {
-            this.telegram_chat_ids.forEach((telegram_chat_id) => {
-                sendNotification(parsed_state, telegram_chat_id).catch(err => {
-                    this.logger.error(
-                        `Couldn't send event state notification for ${event.name}:${event.guild.name}`,
-                        { error: err.stack || err }
-                    );
-                });
-            });
+            const promises = [];
+            for (const telegram_chat_id of this.telegram_chat_ids) {
+                promises.push(
+                    sendNotification(parsed_state, telegram_chat_id).catch(err => {
+                        this.logger.error(
+                            `Couldn't send event state notification for ${event.name}:${event.guild.name}`,
+                            { error: err.stack || err }
+                        );
+                    })
+                );
+            }
+            return Promise.allSettled(promises);
         }
-
-        this.dump();
     }
 
     async cleanup(existing_event_ids) {
@@ -248,14 +252,14 @@ const stop = (guild, telegram_chat_id) => {
     subscribers[key]?.stop(telegram_chat_id);
 };
 
-const update = (event) => {
+const update = async (event) => {
     if (!event){
         return;
     }
 
     let key = event.guild.id;
 
-    subscribers[key]?.update(event);
+    return subscribers[key]?.update(event);
 };
 
 const restore = async (guild) => {

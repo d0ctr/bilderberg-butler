@@ -1,4 +1,6 @@
-const health = {};
+const health = {
+    last_update: '0'
+};
 
 const getHealth = (service) => {
     if (!service) {
@@ -13,7 +15,13 @@ const setHealth = (service, value) => {
         return;
     }
 
-    health[service] = value;
+    if (value == null) {
+        delete health[service];
+    }
+    else {
+        health[service] = value;
+    }
+    health.last_update = new Date().toISOString();
 }
 
 module.exports = {
