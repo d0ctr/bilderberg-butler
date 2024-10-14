@@ -12,14 +12,15 @@ const { RAWG_API_BASE, RAWG_BASE } = require('../../config.json');
  * @returns {{name: string, slug: string, released: string}[]}
  * @memberof Commands.releases
  */
-const getReleasesFromRAWG = async ({ year = new Date(Date.now()).getFullYear(), month = new Date(Date.now()).getMonth(), ...args } = {}) => {
+const getReleasesFromRAWG = async ({ year = new Date(Date.now()).getFullYear(), month = new Date(Date.now()).getMonth(), size = 25, ...args } = {}) => {
     return await fetch(
         `${RAWG_API_BASE}/games/calendar/${year}/${month}?`
         + new URLSearchParams({
             key: process.env.RAWG_TOKEN,
-            ordering: '-released',
+            // for some reason 'added' is the popularity ordering, where the top of '-added' is the most popular
+            ordering: '-added',
             popular: 'true',
-            page_size: 25,
+            page_size: size,
             ...args
         }));
 }
@@ -38,12 +39,15 @@ const getTextFromGameDetail = (game) => {
 
 /**
  * Transform a list of game release detail to a single text
- * @param {string[]} list List of game details
+ * @param {{name: string, slug: string, released: string}[]} list List of game details
  * @returns {string}
  * @memberof Commands.releases
  */
 const transformReleasesList = (list) => {
-    return list.reduce((acc, game) => acc += `${getTextFromGameDetail(game)}`, 'Релизы:\n');
+    return list
+        // need to sort by date, since ordered by popilarity
+        .sort((a, b) => a.released.split('-')[2] - b.released.split('-')[2])
+        .reduce((acc, game) => acc += `${getTextFromGameDetail(game)}`, 'Релизы:\n');
 }
 
 /**
@@ -105,15 +109,6 @@ exports.handler = async (interaction) => {
             }
 
             const releases = [...json.results];
-
-            // list can be too long, limitting to 30 items with page_size query param
-            // while (json?.next) {
-            //     const next = await fetch(json.next);
-            //     if (!next.ok) break;
-            //     json = await next.json();
-            //     if (!json?.results?.length) break;
-            //     releases.push(...json.results);
-            // }
 
             return {
                 type: 'text',
