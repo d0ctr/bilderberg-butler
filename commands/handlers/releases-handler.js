@@ -61,7 +61,7 @@ exports.definition = {
             name: 'query',
             type: 'string',
             description: 'Дата в формате год-месяц, например 2008-07',
-            optional: false
+            optional: true
         }
     ],
     limit: 1,
@@ -81,14 +81,21 @@ exports.condition = !!process.env.RAWG_TOKEN;
 exports.handler = async (interaction) => {
     const arg = interaction.args?.[0];
     
+    let year, month;
+
     if (!arg?.match(/\d{4}-\d{1,2}/)?.length) {
-        return {
-            type: 'error',
-            text: 'Для запроса нужно предоставить дату, например <code>2008-07</code>.'
-        }
+        // use current date instead
+        // return {
+        //     type: 'error',
+        //     text: 'Для запроса нужно предоставить дату, например <code>2008-07</code>.'
+        // }
+        const date = new Date(Date.now());
+        [year, month] = [date.getFullYear(), date.getMonth()];
+    }
+    else {
+        [[_, year, month]] = [...arg.matchAll(/(?<year>\d{4})-(?<month>\d{1,2})/g)];
     }
 
-    const [[{}, year, month]] = [...arg.matchAll(/(?<year>\d{4})-(?<month>\d{1,2})/g)];
 
     return getReleasesFromRAWG({ year, month })
         .then(async (res) => {
