@@ -23,7 +23,7 @@ const openai = new OpenAI({
 async function generateSpeech(text) {
     return await openai.audio.speech.create({
         model: 'tts-1',
-        voice: 'onyx',
+        voice: 'sage',
         response_format: 'opus',
         input: text,
     }).then(response => response.arrayBuffer())
