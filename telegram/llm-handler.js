@@ -2,7 +2,7 @@ const { OpenAI } = require('openai');
 const { default: axios } = require('axios');
 const { Anthropic } = require('@anthropic-ai/sdk');
 
-const logger = require('../logger').child({ module: 'chatllm-handler' });
+const logger = require('../logger').child({ module: __filename });
 const { to, convertMD2HTML } = require('../utils');
 const { isAutoreply } = require('./command-handlers/autoreply-handler');
 
@@ -90,15 +90,15 @@ const { ADMIN_CHAT_ID } = require('../config.json');
 const models = [
     'gpt-4o-mini',
     'gpt-4o',
-    'claude-3-5-sonnet-20240620',
-    'claude-3-opus-20240229'
+    'claude-3-5-sonnet-latest',
+    'claude-3-opus-latest'
 ];
 
 const max_tokens = {
     'gpt-4o-mini': 4096,
     'gpt-4o': 4096,
-    'claude-3-5-sonnet-20240620': 4096,
-    'claude-3-opus-20240229': 4096,
+    'claude-3-5-sonnet-latest': 8192,
+    'claude-3-opus-latest': 4096,
 }
 
 /**
@@ -240,7 +240,7 @@ function getModelType(model) {
  * @memberof ChatLLM
  */
 function getProvider(model) {
-    return model.includes('gpt') ? 'openai' : 'anthropic';
+    return model.includes('claude') ? 'anthropic' : 'openai';
 }
 
 /**
@@ -654,6 +654,8 @@ class ContextTree {
  * @memberof ChatLLM
  */
 class ChatLLMHandler {
+    static #INSTANCE = new ChatLLMHandler();
+
     constructor() {
         /** @type {logger} */
         this.logger = logger;
@@ -1118,6 +1120,14 @@ class ChatLLMHandler {
     async handleModeledAnswerCommand(model, context, interaction) {
         return await this.handleAnswerCommand(context, interaction, model);
     }
+
+    static getModels() {
+        return models;
+    }
+
+    static getInstance() {
+        return this.#INSTANCE;
+    }
 }
 
-module.exports = new ChatLLMHandler();
+module.exports = ChatLLMHandler;

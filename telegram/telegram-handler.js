@@ -5,7 +5,7 @@ const { help } = require("./command-handlers/help-handler");
 const { html } = require("./command-handlers/html-handler");
 const { generateImage } = require("./command-handlers/deep-handler");
 const { info } = require("./command-handlers/info-handler");
-const ChatLLMHandler = require('./llm-handler');
+const ChatLLMHandler = require('./llm-handler').getInstance();
 
 
 module.exports = {
@@ -67,8 +67,6 @@ module.exports = {
     
     t: { handler: require('./command-handlers/tinkov-handler').tinkov, help: ['{запрос?} Прописные истины'] },
     
-    set_sticker: { handler: require('./command-handlers/sticker-handler').setSticker, help: [] },
-    
     autoreply: { handler: require('./command-handlers/autoreply-handler').toggleAutoreplyHandler, help: ['Переключить режим автоответа для ChatLLM'] },
   
     set_sticker: { handler: require('./command-handlers/sticker-handler').setSticker, help: ['Устанавливает набор эмодзи чата при ответе на сообщение с эмодзи'] },
@@ -80,4 +78,6 @@ module.exports = {
     autoreply_off: { handler: require('./command-handlers/autoreply-handler').setAutoreplyHandler(false), help: ['Отключить автоматический ответ от ChatLLM'] },
 
     events: { handler: require('./command-handlers/events-handler').events, help: ['Список запланированных эвентов на дискорд сервере'] },
+
+    model: { handler: require('./command-handlers/model-handler').model, help: ['Установить модель по-умолчанию'] },
 }
