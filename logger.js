@@ -1,3 +1,5 @@
+const { sep: PATH_SEPARATOR } = require('node:path');
+
 const { createLogger, format, transports } = require('winston');
 const LokiTransport = require('winston-loki');
 
@@ -29,11 +31,22 @@ const replaceToken = format((options) => {
     return options;
 });
 
+const formatModule = format(options => {
+    if (typeof options['module'] === 'string') {
+        options['module'] = options['module'].split(PATH_SEPARATOR).pop();
+        if (options['module'].endsWith('.js')) {
+            options['module'] = options['module'].slice(0, -3);
+        }
+    }
+    return options;
+});
+
 const logger_options = {
     transports: [
         new transports.Console({
             format: format.combine(
                 replaceToken(),
+                formatModule(),
                 format.timestamp(),
                 format.colorize(),
                 format.printf(options => {
@@ -51,6 +64,7 @@ if (process.env?.ENV === 'dev') {
         new transports.File({
             format: format.combine(
                 replaceToken(),
+                formatModule(),
                 format.timestamp(),
                 format.json()
             ),

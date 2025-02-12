@@ -6,7 +6,7 @@ const config = require('../config.json');
 const { setHealth } = require('../services/health');
 const { handleCommand, getLegacyResponse, handleCallback } = require('../commands/telegram');
 const { commands, conditions, definitions, handlers, callbacks } = require('../commands/handlers-exporter');
-const ChatLLMHandler = require('./llm-handler.js');
+const ChatLLMHandler = require('./llm-handler.js').getInstance();
 const { isNotificationMessage: isChannelNotificationMessage } = require('./channel-subscriber.js');
 const { isNotificationMessage: isEventNotificationMessage } = require('./event-subscriber.js');
 const { used: tinkovUsed } = require('./command-handlers/tinkov-handler.js');
@@ -145,7 +145,7 @@ class TelegramInteraction {
         }
 
         if (cursor < entities.slice(-1).offset) {
-            text += original.slice(entity.offset + entity.length);
+            text += original.slice(entities.slice(-1).offset + entities.slice(-1).length);
         }
         return text;
     }
@@ -741,6 +741,7 @@ class TelegramClient {
         this._registerTelegramCommand('set_sticker');
         this._registerTelegramCommand('c', process.env.WEBAPP_URL, true);
         this._registerTelegramCommand('events', process.env.DISCORD_TOKEN && process.env.REDIS_URL);
+        this._registerTelegramCommand('model', process.env.OPENAI_TOKEN || process.env.ANTHROPIC_TOKEN);
         
         // Registering common commands
         commands.forEach((command_name, index) => {
