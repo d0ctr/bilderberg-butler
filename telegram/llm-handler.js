@@ -1088,13 +1088,13 @@ class ChatLLMHandler {
         const autoreply = await isAutoreply(interaction.context.chat.id);
         if (!autoreply) return;
 
-        const default_model = await getModel(interaction.context.chat.id) || undefined;
+        const default_model = await getModel(interaction.context.chat.id);
 
         const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
         
         logger.info(`Processing ChatLLM request received by direct message`);
 
-        const context_tree = this._getContextTree(interaction.context.chat.id, { model: default_model });
+        const context_tree = this._getContextTree(interaction.context.chat.id, { model: default_model || undefined });
         const model_type = context_tree.getModelType();
 
         const {
@@ -1121,9 +1121,7 @@ class ChatLLMHandler {
      * @returns {Promise}
      */
     async handleModeledAnswerCommand(model, context, interaction) {
-        const model_overwrite = model === 'default';
-        const default_model = await getModel(interaction.chat.id);
-        
+        const default_model = await getModel(context.chat.id);
         return await this.handleAnswerCommand(context, interaction, default_model || undefined);
     }
 
