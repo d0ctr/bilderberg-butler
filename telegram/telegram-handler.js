@@ -49,7 +49,7 @@ module.exports = {
 
     new_system_prompt: { handler: (...args) => ChatLLMHandler.handleAdjustSystemPrompt(...args), help: ['{запрос}', 'Задать новый системный промпт для ChatLLM и/или проверить, установленный сейчас'] },
 
-    answer: { handler: (...args) => ChatLLMHandler.handleAnswerCommand(...args), help: ['{запрос?}', 'Спросить у ChatLLM, можно использовать как реплай (распознаёт изображения)'] },
+    answer: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('default', ...args), help: ['{запрос?}', 'Спросить у ChatLLM, можно использовать как реплай (распознаёт изображения)'] },
 
     tree: { handler: (...args) => ChatLLMHandler.handleTreeRequest(...args), help: ['Контекстное дерево ChatLLM'] },
 
@@ -57,9 +57,9 @@ module.exports = {
 
     gpt4: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('gpt-4o', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4 (распознаёт изображения)'] },
 
-    opus: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-opus-20240229', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3 Opus с большей производительностью'] },
+    opus: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-opus-latest', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3 Opus с большей производительностью'] },
     
-    sonnet: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-5-sonnet-20240620', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3 Sonnet'] },
+    sonnet: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-5-sonnet-latest', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3.5 Sonnet'] },
 
     tldr: { handler: require('./command-handlers/tldr-handler').tldr, help: ['{ссылка?}', 'Возвращает краткий персказ сгенерированный YandexGPT'] },
     

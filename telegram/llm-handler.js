@@ -5,7 +5,6 @@ const { Anthropic } = require('@anthropic-ai/sdk');
 const logger = require('../logger').child({ module: __filename });
 const { to, convertMD2HTML } = require('../utils');
 const { isAutoreply } = require('./command-handlers/autoreply-handler');
-const { getModel } = require('./command-handlers/model-handler');
 
 const { ADMIN_CHAT_ID } = require('../config.json');
 
@@ -1121,8 +1120,11 @@ class ChatLLMHandler {
      * @returns {Promise}
      */
     async handleModeledAnswerCommand(model, context, interaction) {
-        const default_model = await getModel(context.chat.id);
-        return await this.handleAnswerCommand(context, interaction, default_model || undefined);
+        if (model === 'default') {
+            const { getModel } = require('./command-handlers/model-handler');
+            model = await getModel(context.chat.id) || undefined;
+        }
+        return await this.handleAnswerCommand(context, interaction, model);
     }
 
     static getModels() {
