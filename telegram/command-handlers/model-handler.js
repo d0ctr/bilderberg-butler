@@ -27,7 +27,7 @@ const getModel = async (id) => {
 
 const model = async (ctx) => {
     const model_name = require('./utils').parseArgs(ctx, 1)[1];
-    const id = await getModel(ctx.chat.id);
+    const id = ctx.chat.id;
 
     if (!model_name) {
         const current_model_name = await getModel(id);
@@ -35,7 +35,7 @@ const model = async (ctx) => {
         return [null, (current_model_name != null ? `Установленная модель: ${current_model_name}\n` : '') + AVAILABLE_MODELS_TEXT]; 
     }
 
-    if (!(model_name in ChatLLMHandler.getModels())) {
+    if (!(ChatLLMHandler.getModels().includes(model_name))) {
         return [`Такой модели не существует.\n${AVAILABLE_MODELS_TEXT}`];
     }
 
