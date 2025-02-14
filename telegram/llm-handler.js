@@ -27,7 +27,7 @@ const { ADMIN_CHAT_ID } = require('../config.json');
  */
 /** 
  * Chat member role name
- * @typedef {('system' | 'assistant' | 'user')} NodeRole
+ * @typedef {('system' | 'developer' | 'assistant' | 'user')} NodeRole
  * @memberof ChatLLM
  */
 /** 
@@ -88,16 +88,16 @@ const { ADMIN_CHAT_ID } = require('../config.json');
  * @memberof ChatLLM
  */
 const models = [
-    'gpt-4o-mini',
     'gpt-4o',
+    'o3-mini'
     'claude-3-5-sonnet-latest',
     'claude-3-opus-latest'
 ];
 
 const max_tokens = {
-    'gpt-4o-mini': 4096,
     'gpt-4o': 4096,
-    'claude-3-5-sonnet-latest': 8192,
+    'o3-mini': 10000,
+    'claude-3-5-sonnet-latest': 4096,
     'claude-3-opus-latest': 4096,
 }
 
@@ -117,7 +117,7 @@ const providers = [
 */
 const CHAT_MODEL_NAME = models.includes(process.env.LLM_MODEL) 
                         ? process.env.LLM_MODEL 
-                        : 'gpt-4o-mini';
+                        : 'claude-3-5-sonnet-latest';
 
 const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant embedded into a Telegram bot`;
 
@@ -230,7 +230,7 @@ async function getContent({ api, message: c_message }, type = 'text', message = 
  * @memberof ChatLLM
  */
 function getModelType(model) {
-    return (model.includes('gpt') || model.includes('claude')) ? 'vision' : 'text';
+    return 'vision';
 }
 
 /**
@@ -465,7 +465,7 @@ class ContextTree {
 
         /** @type {ContextNode} */
         this.root_node = new ContextNode({
-            role: 'system',
+            role: model.includes('o3') ? 'developer' : 'system',
             content: (system_prompt || DEFAULT_SYSTEM_PROMPT) + SYSTEM_PROMPT_EXTENSION,
             model: model || CHAT_MODEL_NAME
         });
@@ -597,7 +597,7 @@ class ContextTree {
 
         // going upwards
         let node = this.getNode(message_id);
-        while (node.prev_node.role !== 'system') {
+        while (!['system', 'developer'].includes(node.prev_node.role)) {
             node = node.prev_node;
         }
 
@@ -764,7 +764,7 @@ class ChatLLMHandler {
         const responsePromise = context_tree.getProvider() === 'openai' 
             ? this.openAI.chat.completions.create({
                 model: context_tree.root_node.model,
-                max_tokens: max_tokens[context_tree.root_node.model],
+                max_completion_tokens: max_tokens[context_tree.root_node.model],
                 messages: context,
             })
             : this.anthropic.messages.create({
