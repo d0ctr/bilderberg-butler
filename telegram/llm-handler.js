@@ -89,7 +89,7 @@ const { ADMIN_CHAT_ID } = require('../config.json');
  */
 const models = [
     'gpt-4o',
-    'o3-mini'
+    'o3-mini',
     'claude-3-5-sonnet-latest',
     'claude-3-opus-latest'
 ];
