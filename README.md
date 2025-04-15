@@ -83,16 +83,16 @@ Bot also has a **context tree**! Bot saves user's messages and own responses, so
 
 ##### Special commands for ChatLLM 
 
-  - `/answer` - `{query?}` either reply to bot's message or send as a standalone command, bot will reply to it and (if applicable) to query. Current default model is `gpt-4o-mini`
-  - `/gpt4`, `/opus`, `/sonnet` — same as /answer but using `gpt-4o`, `claude-3-opus`, `claude-3-sonnet` respectively
+  - `/answer` - `{query?}` either reply to bot's message or send as a standalone command, bot will reply to it and (if applicable) to query. Current default model is `gpt-4.1-mini`
+  - `/gpt4`, `/opus`, `/sonnet` — same as /answer but using `gpt-4.1`, `claude-3-opus`, `claude-3-7-sonnet` respectively
   - `/new_system_prompt` — `{prompt}` changes prompt in current chat. Default: `you are a chat-assistant\nanswer should not exceed 4000 characters`
   - <u>DISABLED</u>: `/tree` — get a representation of bot's tree of context for this chat
-  All models can process images
   - `/context` - get the context of a conversation branch
   - `/autoreply`, `/autoreply_on`, `/autoreply_off` - toggle, turn on or turn off autoreply in direct messages
+  - `/mode` - `{name?}` returns the list of available models or sets the default for `/answer` command
 
 > [!NOTE]
-> When `/answer`, `/gpt4`, `/opus` or `/vision` is used as a reply to a thread that already exists (contains AI generated answers) the whole context will be transfered to the model associated with the command, meaning that every message down the thread will be processed with the new model till another transfer comes.<br/>
+> When `/answer`, `/gpt4`, `/opus` or `/sonnet` is used as a reply to a thread that already exists (contains generated answers) the whole context will be transfered to the model associated with the command, meaning that every message down the thread will be processed with the new model till another transfer comes.<br/>
 
 ### Common commands
 
