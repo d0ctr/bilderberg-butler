@@ -8,13 +8,6 @@ const { isAutoreplyOn } = require('./command-handlers/autoreply-handler');
 
 const { ADMIN_CHAT_ID } = require('../config.json');
 
-// const { Converter: MDConverter } = require('showdown');
-
-// const mdConverter = new MDConverter({
-//     noHeaderId: 'true',
-//     strikethrough: 'true'
-// });
-
 /**
  * ChatLLM
  * @namespace ChatLLM
@@ -77,47 +70,26 @@ const { ADMIN_CHAT_ID } = require('../config.json');
 * @memberof ChatLLM
 */
 
-/** 
- * @typedef {[null | string, null | string | any, null | function, any]} CommandResponse
- * @memberof ChatLLM
- */
-
-/** 
- * List of available models
- * @type {Model[]}
- * @memberof ChatLLM
- */
-const models = [
-    'gpt-4o',
-    'o3-mini',
-    'claude-3-5-sonnet-latest',
-    'claude-3-opus-latest'
-];
-
-const max_tokens = {
-    'gpt-4o': 4096,
-    'o3-mini': 10000,
-    'claude-3-5-sonnet-latest': 4096,
-    'claude-3-opus-latest': 4096,
+class Model {
+  constructor (provider, name, max_tokens, vision) {
+      this.name = name;
+      this.max_tokens = max_tokens;
+      this.provider = provider;
+      this.vision = !!vision
+  }
 }
 
-/**
- * @typedef {'openai' | 'anthropic'} Provider 
- * @type {Provider[]} 
- * @memberof ChatLLM
- */
-const providers = [
-    'openai',
-    'anthropic',
-];
+const models = {
+    'gpt-4.1-mini':              new Model('openai',    'gpt-4.1-mini',              4096,   true), // the first model is always the default
+    'gpt-4.1':                    new Model('openai',   'gpt-4.1',                   4096,   true),
+    'o3-mini':                   new Model('openai',    'o3-mini',                   10000,  false),
+    'claude-3-7-sonnet-latest':  new Model('anthropic', 'claude-3-7-sonnet-latest',  4096,   true),
+    'claude-3-opus-latest':      new Model('anthropic', 'claude-3-opus-latest',      4096,   true)
+};
 
-/** 
- * @type {Model}
- * @memberof ChatLLM
-*/
-const CHAT_MODEL_NAME = models.includes(process.env.LLM_MODEL) 
+const CHAT_MODEL_NAME = process.env.LLM_MODEL in models 
                         ? process.env.LLM_MODEL 
-                        : 'claude-3-5-sonnet-latest';
+                        : Object.keys(models)[0];
 
 const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant embedded into a Telegram bot`;
 
@@ -127,7 +99,7 @@ const SYSTEM_PROMPT_EXTENSION = '\nyour answers must not exceed 3000 characters!
  * @type {Provider}
  * @memberof ChatLLM
  */
-const CHAT_PROVIDER = getProvider(CHAT_MODEL_NAME);
+const CHAT_PROVIDER = models[CHAT_MODEL_NAME].provider;
 
 /**
  * Get message text combined with entities
@@ -230,7 +202,7 @@ async function getContent({ api, message: c_message }, type = 'text', message = 
  * @memberof ChatLLM
  */
 function getModelType(model) {
-    return 'vision';
+    return models[model]?.vision ? 'vision' : 'text';
 }
 
 /**
@@ -240,7 +212,7 @@ function getModelType(model) {
  * @memberof ChatLLM
  */
 function getProvider(model) {
-    return model.includes('claude') ? 'anthropic' : 'openai';
+    return models[model].provider;
 }
 
 /**
@@ -764,12 +736,12 @@ class ChatLLMHandler {
         const responsePromise = context_tree.getProvider() === 'openai' 
             ? this.openAI.chat.completions.create({
                 model: context_tree.root_node.model,
-                max_completion_tokens: max_tokens[context_tree.root_node.model],
+                max_completion_tokens: models[context_tree.root_node.model].max_tokens,
                 messages: context,
             })
             : this.anthropic.messages.create({
                 model: context_tree.root_node.model,
-                max_tokens: max_tokens[context_tree.root_node.model],
+                max_tokens: model[context_tree.root_node.model].max_tokens,
                 system: context.shift()?.content || undefined,
                 messages: context,
             });
