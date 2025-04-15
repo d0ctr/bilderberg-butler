@@ -55,11 +55,11 @@ module.exports = {
 
     context: { handler: (...args) => ChatLLMHandler.handleContextRequest(...args), help: ['Контекст сообщения'] },
 
-    gpt4: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('gpt-4o', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4 (распознаёт изображения)'] },
+    gpt4: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('gpt-4.1', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4.1'] },
 
     opus: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-opus-latest', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3 Opus с большей производительностью'] },
     
-    sonnet: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-5-sonnet-latest', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3.5 Sonnet'] },
+    sonnet: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-7-sonnet-latest', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3.7 Sonnet'] },
 
     tldr: { handler: require('./command-handlers/tldr-handler').tldr, help: ['{ссылка?}', 'Возвращает краткий персказ сгенерированный YandexGPT'] },
     
