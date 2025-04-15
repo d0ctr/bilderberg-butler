@@ -5,7 +5,7 @@ const { help } = require("./command-handlers/help-handler");
 const { html } = require("./command-handlers/html-handler");
 const { generateImage } = require("./command-handlers/deep-handler");
 const { info } = require("./command-handlers/info-handler");
-const ChatLLMHandler = require('./llm-handler');
+const ChatLLMHandler = require('./llm-handler').getInstance();
 
 
 module.exports = {
@@ -49,25 +49,23 @@ module.exports = {
 
     new_system_prompt: { handler: (...args) => ChatLLMHandler.handleAdjustSystemPrompt(...args), help: ['{запрос}', 'Задать новый системный промпт для ChatLLM и/или проверить, установленный сейчас'] },
 
-    answer: { handler: (...args) => ChatLLMHandler.handleAnswerCommand(...args), help: ['{запрос?}', 'Спросить у ChatLLM, можно использовать как реплай (распознаёт изображения)'] },
+    answer: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('default', ...args), help: ['{запрос?}', 'Спросить у ChatLLM, можно использовать как реплай (распознаёт изображения)'] },
 
     tree: { handler: (...args) => ChatLLMHandler.handleTreeRequest(...args), help: ['Контекстное дерево ChatLLM'] },
 
     context: { handler: (...args) => ChatLLMHandler.handleContextRequest(...args), help: ['Контекст сообщения'] },
 
-    gpt4: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('gpt-4o', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4 (распознаёт изображения)'] },
+    gpt4: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('gpt-4.1', ...args), help: ['{запрос?}', '/answer, но с использованием GPT-4.1'] },
 
-    opus: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-opus-20240229', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3 Opus с большей производительностью'] },
+    opus: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-opus-latest', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3 Opus с большей производительностью'] },
     
-    sonnet: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-5-sonnet-20240620', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3 Sonnet'] },
+    sonnet: { handler: (...args) => ChatLLMHandler.handleModeledAnswerCommand('claude-3-7-sonnet-latest', ...args), help: ['{запрос?}', '/answer, но с использованием Claude 3.7 Sonnet'] },
 
     tldr: { handler: require('./command-handlers/tldr-handler').tldr, help: ['{ссылка?}', 'Возвращает краткий персказ сгенерированный YandexGPT'] },
     
     voice: { handler: require('./command-handlers/voice-handler').voice, help: ['Генерирует голосове сообщение из текста или аудио'] },
     
     t: { handler: require('./command-handlers/tinkov-handler').tinkov, help: ['{запрос?} Прописные истины'] },
-    
-    set_sticker: { handler: require('./command-handlers/sticker-handler').setSticker, help: [] },
     
     autoreply: { handler: require('./command-handlers/autoreply-handler').toggleAutoreplyHandler, help: ['Переключить режим автоответа для ChatLLM'] },
   
@@ -80,4 +78,6 @@ module.exports = {
     autoreply_off: { handler: require('./command-handlers/autoreply-handler').setAutoreplyHandler(false), help: ['Отключить автоматический ответ от ChatLLM'] },
 
     events: { handler: require('./command-handlers/events-handler').events, help: ['Список запланированных эвентов на дискорд сервере'] },
+
+    model: { handler: require('./command-handlers/model-handler').model, help: ['Установить модель по-умолчанию'] },
 }

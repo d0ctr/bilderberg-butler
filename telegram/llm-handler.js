@@ -2,18 +2,11 @@ const { OpenAI } = require('openai');
 const { default: axios } = require('axios');
 const { Anthropic } = require('@anthropic-ai/sdk');
 
-const logger = require('../logger').child({ module: 'chatllm-handler' });
+const logger = require('../logger').child({ module: __filename });
 const { to, convertMD2HTML } = require('../utils');
-const { isAutoreply } = require('./command-handlers/autoreply-handler');
+const { isAutoreplyOn } = require('./command-handlers/autoreply-handler');
 
 const { ADMIN_CHAT_ID } = require('../config.json');
-
-// const { Converter: MDConverter } = require('showdown');
-
-// const mdConverter = new MDConverter({
-//     noHeaderId: 'true',
-//     strikethrough: 'true'
-// });
 
 /**
  * ChatLLM
@@ -27,7 +20,7 @@ const { ADMIN_CHAT_ID } = require('../config.json');
  */
 /** 
  * Chat member role name
- * @typedef {('system' | 'assistant' | 'user')} NodeRole
+ * @typedef {('system' | 'developer' | 'assistant' | 'user')} NodeRole
  * @memberof ChatLLM
  */
 /** 
@@ -77,47 +70,26 @@ const { ADMIN_CHAT_ID } = require('../config.json');
 * @memberof ChatLLM
 */
 
-/** 
- * @typedef {[null | string, null | string | any, null | function, any]} CommandResponse
- * @memberof ChatLLM
- */
-
-/** 
- * List of available models
- * @type {Model[]}
- * @memberof ChatLLM
- */
-const models = [
-    'gpt-4o-mini',
-    'gpt-4o',
-    'claude-3-5-sonnet-20240620',
-    'claude-3-opus-20240229'
-];
-
-const max_tokens = {
-    'gpt-4o-mini': 4096,
-    'gpt-4o': 4096,
-    'claude-3-5-sonnet-20240620': 4096,
-    'claude-3-opus-20240229': 4096,
+class Model {
+  constructor (provider, name, max_tokens, vision) {
+      this.name = name;
+      this.max_tokens = max_tokens;
+      this.provider = provider;
+      this.vision = !!vision
+  }
 }
 
-/**
- * @typedef {'openai' | 'anthropic'} Provider 
- * @type {Provider[]} 
- * @memberof ChatLLM
- */
-const providers = [
-    'openai',
-    'anthropic',
-];
+const models = {
+    'gpt-4.1-mini':              new Model('openai',    'gpt-4.1-mini',              4096,   true), // the first model is always the default
+    'gpt-4.1':                   new Model('openai',    'gpt-4.1',                   4096,   true),
+    'o3-mini':                   new Model('openai',    'o3-mini',                   10000,  false),
+    'claude-3-7-sonnet-latest':  new Model('anthropic', 'claude-3-7-sonnet-latest',  4096,   true),
+    'claude-3-opus-latest':      new Model('anthropic', 'claude-3-opus-latest',      4096,   true)
+};
 
-/** 
- * @type {Model}
- * @memberof ChatLLM
-*/
-const CHAT_MODEL_NAME = models.includes(process.env.LLM_MODEL) 
+const CHAT_MODEL_NAME = process.env.LLM_MODEL in models 
                         ? process.env.LLM_MODEL 
-                        : 'gpt-4o-mini';
+                        : Object.keys(models)[0];
 
 const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant embedded into a Telegram bot`;
 
@@ -127,7 +99,7 @@ const SYSTEM_PROMPT_EXTENSION = '\nyour answers must not exceed 3000 characters!
  * @type {Provider}
  * @memberof ChatLLM
  */
-const CHAT_PROVIDER = getProvider(CHAT_MODEL_NAME);
+const CHAT_PROVIDER = models[CHAT_MODEL_NAME].provider;
 
 /**
  * Get message text combined with entities
@@ -230,7 +202,7 @@ async function getContent({ api, message: c_message }, type = 'text', message = 
  * @memberof ChatLLM
  */
 function getModelType(model) {
-    return (model.includes('gpt') || model.includes('claude')) ? 'vision' : 'text';
+    return models[model]?.vision ? 'vision' : 'text';
 }
 
 /**
@@ -240,7 +212,7 @@ function getModelType(model) {
  * @memberof ChatLLM
  */
 function getProvider(model) {
-    return model.includes('gpt') ? 'openai' : 'anthropic';
+    return models[model].provider;
 }
 
 /**
@@ -465,7 +437,7 @@ class ContextTree {
 
         /** @type {ContextNode} */
         this.root_node = new ContextNode({
-            role: 'system',
+            role: model.includes('o3') ? 'developer' : 'system',
             content: (system_prompt || DEFAULT_SYSTEM_PROMPT) + SYSTEM_PROMPT_EXTENSION,
             model: model || CHAT_MODEL_NAME
         });
@@ -597,7 +569,7 @@ class ContextTree {
 
         // going upwards
         let node = this.getNode(message_id);
-        while (node.prev_node.role !== 'system') {
+        while (!['system', 'developer'].includes(node.prev_node.role)) {
             node = node.prev_node;
         }
 
@@ -654,6 +626,8 @@ class ContextTree {
  * @memberof ChatLLM
  */
 class ChatLLMHandler {
+    static #INSTANCE = new ChatLLMHandler();
+
     constructor() {
         /** @type {logger} */
         this.logger = logger;
@@ -762,12 +736,12 @@ class ChatLLMHandler {
         const responsePromise = context_tree.getProvider() === 'openai' 
             ? this.openAI.chat.completions.create({
                 model: context_tree.root_node.model,
-                max_tokens: max_tokens[context_tree.root_node.model],
+                max_completion_tokens: models[context_tree.root_node.model].max_tokens,
                 messages: context,
             })
             : this.anthropic.messages.create({
                 model: context_tree.root_node.model,
-                max_tokens: max_tokens[context_tree.root_node.model],
+                max_tokens: model[context_tree.root_node.model].max_tokens,
                 system: context.shift()?.content || undefined,
                 messages: context,
             });
@@ -1082,14 +1056,16 @@ class ChatLLMHandler {
             return;
         }
 
-        const autoreply = await isAutoreply(interaction.context.chat.id);
+        const autoreply = await isAutoreplyOn(interaction.context.chat.id);
         if (!autoreply) return;
+
+        const default_model = await getModel(interaction.context.chat.id);
 
         const logger = this.logger.child({...interaction.logger.defaultMeta, ...this.logger.defaultMeta});
         
         logger.info(`Processing ChatLLM request received by direct message`);
 
-        const context_tree = this._getContextTree(interaction.context.chat.id);
+        const context_tree = this._getContextTree(interaction.context.chat.id, { model: default_model || undefined });
         const model_type = context_tree.getModelType();
 
         const {
@@ -1116,8 +1092,20 @@ class ChatLLMHandler {
      * @returns {Promise}
      */
     async handleModeledAnswerCommand(model, context, interaction) {
+        if (model === 'default') {
+            const { getModel } = require('./command-handlers/model-handler');
+            model = await getModel(context.chat.id) || undefined;
+        }
         return await this.handleAnswerCommand(context, interaction, model);
+    }
+
+    static getModels() {
+        return Object.keys(models);
+    }
+
+    static getInstance() {
+        return this.#INSTANCE;
     }
 }
 
-module.exports = new ChatLLMHandler();
+module.exports = ChatLLMHandler;
