@@ -89,7 +89,7 @@ Bot also has a **context tree**! Bot saves user's messages and own responses, so
   - <u>DISABLED</u>: `/tree` — get a representation of bot's tree of context for this chat
   - `/context` - get the context of a conversation branch
   - `/autoreply`, `/autoreply_on`, `/autoreply_off` - toggle, turn on or turn off autoreply in direct messages
-  - `/mode` - `{name?}` returns the list of available models or sets the default for `/answer` command
+  - `/model` - `{name?}` returns the list of available models or sets the default for `/answer` command
 
 > [!NOTE]
 > When `/answer`, `/gpt4`, `/opus` or `/sonnet` is used as a reply to a thread that already exists (contains generated answers) the whole context will be transfered to the model associated with the command, meaning that every message down the thread will be processed with the new model till another transfer comes.<br/>
