@@ -81,7 +81,7 @@ class Model {
 
 const models = {
     'gpt-4.1-mini':              new Model('openai',    'gpt-4.1-mini',              4096,   true), // the first model is always the default
-    'gpt-4.1':                    new Model('openai',   'gpt-4.1',                   4096,   true),
+    'gpt-4.1':                   new Model('openai',    'gpt-4.1',                   4096,   true),
     'o3-mini':                   new Model('openai',    'o3-mini',                   10000,  false),
     'claude-3-7-sonnet-latest':  new Model('anthropic', 'claude-3-7-sonnet-latest',  4096,   true),
     'claude-3-opus-latest':      new Model('anthropic', 'claude-3-opus-latest',      4096,   true)
@@ -1100,7 +1100,7 @@ class ChatLLMHandler {
     }
 
     static getModels() {
-        return models;
+        return Object.keys(models);
     }
 
     static getInstance() {
