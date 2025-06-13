@@ -741,7 +741,7 @@ class ChatLLMHandler {
             })
             : this.anthropic.messages.create({
                 model: context_tree.root_node.model,
-                max_tokens: model[context_tree.root_node.model].max_tokens,
+                max_tokens: models[context_tree.root_node.model].max_tokens,
                 system: context.shift()?.content || undefined,
                 messages: context,
             });
