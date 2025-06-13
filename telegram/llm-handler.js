@@ -8,104 +8,39 @@ const { isAutoreplyOn } = require('./command-handlers/autoreply-handler');
 
 const { ADMIN_CHAT_ID } = require('../config.json');
 
+const { Models, ContextNode, ContextTree } = require('../llm');
+
 /**
  * ChatLLM
- * @namespace ChatLLM
+ * @memberof Telegram
+ * @namespace LLM
  */
 
 /** 
- * Model name
- * @typedef {('gpt-4o' | 'claude-3-sonnet-20240229' | 'claude-3-opus-20240229')} Model
- * @memberof ChatLLM
- */
-/** 
- * Chat member role name
- * @typedef {('system' | 'developer' | 'assistant' | 'user')} NodeRole
- * @memberof ChatLLM
- */
-/** 
- * Complex structure for ChatLLM content
- * @typedef {{type: 'text', text: string}} ComplexContentText
- * @typedef {{type: 'image', image_data: string, image_type: string}} ComplexContentImage
- * @typedef {(ComplexContentText | ComplexContentImage)} ComplexContent
- * @memberof ChatLLM
- */
-/** 
- * GPT Message content
- * @typedef {(string | ComplexContent[])} NodeContent
- * @memberof ChatLLM
- */
-/** 
  * @typedef {import('./telegram-client').TelegramInteraction} TelegramInteraction
- * @memberof ChatLLM
+ * @memberof Telegram.LLM
  */
 /** 
  * @typedef {import('@grammyjs/files').FileFlavor<import('grammy').Context>} GrammyContext
- * @memberof ChatLLM
+ * @memberof Telegram.LLM
  */
 /**
  * @typedef {import('grammy/types').Message} TelegramMessage
- * @memberof ChatLLM
+ * @memberof Telegram.LLM
  */
-/** 
- * Message, recognisable by ChatLLM
- * @typedef {{
- *  role: NodeRole,
- *  content: NodeContent,
- *  name: (string | null)
- * }} NodeMessage
- * @memberof ChatLLM
- */
-/**
- * Full context node data
- * @typedef {{
- *  role: NodeRole,
- *  content: NodeContent,
- *  name: string,
- *  message_id: string,
- *  prev_message_id: (string | undefined),
- *  model: (Model | undefined),
- *  name: (string | undefined)
- * }} NodeRawData
-* @memberof ChatLLM
-*/
 
-class Model {
-  constructor (provider, name, max_tokens, vision) {
-      this.name = name;
-      this.max_tokens = max_tokens;
-      this.provider = provider;
-      this.vision = !!vision
-  }
-}
 
-const models = {
-    'gpt-4.1-mini':              new Model('openai',    'gpt-4.1-mini',              4096,   true), // the first model is always the default
-    'gpt-4.1':                   new Model('openai',    'gpt-4.1',                   4096,   true),
-    'o3-mini':                   new Model('openai',    'o3-mini',                   10000,  false),
-    'claude-3-7-sonnet-latest':  new Model('anthropic', 'claude-3-7-sonnet-latest',  4096,   true),
-    'claude-3-opus-latest':      new Model('anthropic', 'claude-3-opus-latest',      4096,   true)
-};
-
-const CHAT_MODEL_NAME = process.env.LLM_MODEL in models 
-                        ? process.env.LLM_MODEL 
-                        : Object.keys(models)[0];
+const CHAT_MODEL = Models.fromName(process.env.LLM_MODEL);
 
 const DEFAULT_SYSTEM_PROMPT = `you are a chat-assistant embedded into a Telegram bot`;
+const SYSTEM_PROMPT_EXTENSION = '\nyour answers must not exceed 3000 characters!\nnever uset TeX/LaTeX in your responses!';
 
-const SYSTEM_PROMPT_EXTENSION = '\nyour answers must not exceed 3000 characters!';
-
-/** 
- * @type {Provider}
- * @memberof ChatLLM
- */
-const CHAT_PROVIDER = models[CHAT_MODEL_NAME].provider;
 
 /**
  * Get message text combined with entities
  * @param {TelegramMessage} message Telegram message object
  * @returns {string}
- * @memberof ChatLLM
+ * @memberof Telegram.LLM
  */
 function getWithEntities(message) {
     let goodEntities = (message?.entities || message?.caption_entities || [])?.filter(e => [
@@ -150,16 +85,14 @@ function getWithEntities(message) {
  * @param {'text' | 'vision'} type
  * @param {TelegramMessage} message
  * @returns {Promise<NodeContent>}
- * @memberof ChatLLM
+ * @memberof Telegram.LLM
  */
 async function getContent({ api, message: c_message }, type = 'text', message = c_message) {
     if (type !== 'vision' || !message.photo?.[0]) {
         return getWithEntities(message);
     }
 
-    const [file_buffer, content_type] = 
-        await api.getFile(message.photo
-            .sort((p1, p2) => (p2.height + p2.width) - (p1.height + p1.width))[0].file_id)
+    const [file_buffer, content_type] = await api.getFile(message.photo.sort((p1, p2) => (p2.height + p2.width) - (p1.height + p1.width))[0].file_id)
         .then(f => f.getUrl())
         .then(file_path => axios.get(
             file_path,
@@ -196,26 +129,6 @@ async function getContent({ api, message: c_message }, type = 'text', message = 
 }
 
 /**
- * Get model type based on model name
- * @param {Model} model 
- * @returns {'vision' | 'text'}
- * @memberof ChatLLM
- */
-function getModelType(model) {
-    return models[model]?.vision ? 'vision' : 'text';
-}
-
-/**
- * Get model provider
- * @param {Model} model 
- * @returns {Provider}
- * @memberof ChatLLM
- */
-function getProvider(model) {
-    return models[model].provider;
-}
-
-/**
  * Merge contents for Claude 3 complience
  * @param {NodeContent} prev_content 
  * @param {NodeContent} content 
@@ -228,8 +141,7 @@ function mergeContent(prev_content, content, prev_author = 'assistant') {
         content.unshift(...prev_content);
         // content[1].text = `Previously ${_author_name} have said:\n"""${prev_content.slice(-1).text}"""\n${content[1].text}`
         return content;
-    }
-    else if (Array.isArray(content) && typeof prev_content === 'string') {
+    } else if (Array.isArray(content) && typeof prev_content === 'string') {
         if (content.length === 1) {
             content.push({
                 type: 'text',
@@ -254,8 +166,7 @@ function mergeContent(prev_content, content, prev_author = 'assistant') {
             });
         }
         return content;
-    }
-    else if (typeof content === 'string' && Array.isArray(prev_content)) {
+    } else if (typeof content === 'string' && Array.isArray(prev_content)) {
         let changed = false;
         for (const piece of prev_content) {
             if (piece.type === 'text') {
@@ -271,359 +182,14 @@ function mergeContent(prev_content, content, prev_author = 'assistant') {
             });
         }
         return prev_content;
-    }
-    else if (typeof prev_content === 'string' && typeof content === 'string') {
+    } else if (typeof prev_content === 'string' && typeof content === 'string') {
         return `Previously ${_author_name} have said:\n"""${prev_content}"""\n${content}`;
     }
 }
 
 /**
  * @class
- * @memberof ChatLLM
- */
-class ContextNode {
-    /**
-     * @param {{
-     *  role: NodeRole,
-     *  content: NodeContent,
-     *  message_id: string,
-     *  prev_node: ContextNode | undefined,
-     *  name: string | undefined,
-     *  model: Model | undefined
-     * }} 
-     */
-    constructor({ role, content, message_id, prev_node = null, name = null, model = null } = {}) {
-        /** @type {string} */
-        this.role = role;
-
-        /** @type {NodeContent} */
-        this.content = content;
-
-        /** @type {Set<ContextNode>} */
-        this.children = new Set();
-        
-        if (name) {
-            /** @type {string} */
-            this.name = name?.replace(/ +/g, '_')?.replace(/[^a-zA-Z0-9_]/g, '')?.slice(0, 64);
-        }
-
-        if (message_id) {
-            /** @type {string} */
-            this.message_id = message_id;
-        }
-        if (prev_node) {
-            /** @type {ContextNode} */
-            this.prev_node = prev_node;
-        }
-        if (model) {
-            /** @type {Model} */
-            this.model = model;
-        }
-
-    }
-
-    /**
-     * @param {ContextNode}
-     */
-    set prev_node(node) {
-        this._prev_node?.removeChild(this);
-        this._prev_node = node == null ? undefined : node;
-        node?.addChild(this);
-    }
-
-    /**
-     * @returns {ContextNode | undefined}
-     */
-    get prev_node() {
-        return this._prev_node;
-    }
-
-    /**
-     * Add child to the set
-     * @param {ContextNode} node 
-     */
-    addChild(node) {
-        this.children.add(node);
-    }
-
-    /**
-     * Remove child from set
-     * @param {ChildNode} node 
-     */
-    removeChild(node) {
-        this.children.delete(node)
-    }
-
-    /**
-     * Get nodes data applicable as context
-     * @param {Provider | undefined} provider 
-     * @returns {NodeMessage}
-     */
-    getMessage(provider = CHAT_PROVIDER) {
-        const message = {
-            role: this.role,
-            content: this.content,
-        };
-
-        if (Array.isArray(this.content)) {
-            message.content = [];
-            for (let i in this.content) {
-                const piece = this.content[i];
-                if (piece.type === 'text') {
-                    message.content.push(piece);
-                }
-                else if (provider === 'openai') {
-                    message.content.push( {
-                        type: 'image_url',
-                        image_url: {
-                            url: `data:${piece.image_type};base64,${piece.image_data}`
-                        },
-                    });
-                }
-                else if (provider === 'anthropic') {
-                    message.content.push({
-                        type: 'image',
-                        source: {
-                            type: 'base64',
-                            media_type: piece.image_type,
-                            data: piece.image_data,
-                        },
-                    });
-                }
-            }
-        }
-        
-        if (this.name && provider === 'openai') message.name = this.name;
-        return message;
-    }
-
-    /**
-     * Get raw data of the node
-     * @returns {NodeRawData}
-     */
-    getRawData() {
-        const data = {
-            role: this.role,
-            content: Array.isArray(this.content) ?
-                this.content.map(c => 
-                    c.image_data != null ?
-                    {...c, image_data: '...buffer...'} :
-                    c
-                ) :
-                this.content,
-            message_id: this.message_id,
-        };
-        if (this.prev_node) data.prev_message_id = this.prev_node.message_id;
-        if (this.model) data.model = this.model;
-        if (this.name) data.name =  this.name;
-        return data;
-    }
-}
-
-/**
- * @class
- * @memberof ChatLLM
- */
-class ContextTree {
-
-    /**
-     * 
-     * @param {string | undefined} system_prompt 
-     * @param {Model | undefined} model
-     */
-    constructor(system_prompt = DEFAULT_SYSTEM_PROMPT, model = CHAT_MODEL_NAME) {
-        /** @type {Map<string, ContextNode>} */
-        this.nodes = new Map();
-
-        /** @type {ContextNode} */
-        this.root_node = new ContextNode({
-            role: model.includes('o3') ? 'developer' : 'system',
-            content: (system_prompt || DEFAULT_SYSTEM_PROMPT) + SYSTEM_PROMPT_EXTENSION,
-            model: model || CHAT_MODEL_NAME
-        });
-    }
-
-    /**
-     * Get Node by message_id
-     * @param {string} message_id 
-     * @returns {ContextNode | undefined}
-     */
-    getNode(message_id) {
-        return this.nodes.has(message_id) ? this.nodes.get(message_id) : null;
-    }
-
-    /**
-     * Creates new node and appends to the tree either by the prev_message_id or to the root node
-     * @param {{ role: NodeRole, content: NodeContent, message_id: string, prev_message_id: string, name: string }}
-     */
-    appendNode({ role, content, message_id, prev_message_id, name } = {}) {
-        let prev_node = this.root_node;
-
-        if (prev_message_id && this.checkNodeExists({ message_id: prev_message_id })) {
-            prev_node = this.nodes.get(prev_message_id);
-        }
-
-        this.nodes.set(message_id, new ContextNode({ role, content, message_id, prev_node, name }));
-    }
-
-    /**
-     * Checks if node exists either by node's message_id or provided message_id
-     * @param {{ node: ContextNode | undefined, message_id: string | undefined }} 
-     * @returns {boolean}
-     */
-    checkNodeExists({ node = null, message_id = null } = {}) {
-        if (node) {
-            message_id = node.message_id;
-        }
-
-        return this.nodes.has(message_id);
-    }
-
-    /**
-     * Gets the context of the message as an array
-     * @param {string} message_id 
-     * @param {number} limit 
-     * @returns {NodeMessage[]}
-     */
-    getContext(message_id, limit = 30) {
-        if (!this.checkNodeExists({ message_id })) {
-            return [this.root_node.getMessage()]
-        }
-
-        let context = [];
-
-        let last_node = this.getNode(message_id);
-
-        while (last_node && context.length <= limit) {
-            context.unshift(last_node.getMessage(this.getProvider()));
-            last_node = last_node.prev_node;
-        }
-
-        
-        if (context[0].role !== this.root_node.role) {
-            context.unshift(this.root_node.getMessage());
-        }
-        
-        // this is mandatory only for Claude but let's make it default
-        if (context[1].role !== 'user') {
-            if (last_node?.role === 'user') {
-                context.unshift(last_node);
-            }
-            else {
-                context = [context[0], context.slice(2)];
-            }
-        }
-
-        return context;
-    }
-
-
-    /**
-     * Gets the raw context of the message as an array
-     * @param {string | undefined} message_id 
-     * @returns {NodeRawData[]}
-     */
-    getRawContext(message_id = null) {
-        const raw_context = [];
-
-        if (!this.checkNodeExists({ message_id })) {
-            return raw_context;
-        }
-
-        let last_node = this.getNode(message_id);
-
-        while (last_node) {
-            raw_context.unshift(last_node.getRawData());
-            last_node = last_node.prev_node;
-        }
-
-        return raw_context;
-    }
-
-    /**
-     * Get node by id and remove it from tree (relinks node's children to node's parent)
-     * @param {string} message_id
-     * @returns {ContextNode | undefined}
-     */
-    detachNode(message_id) {
-        const node = this.nodes.get(message_id);
-        node?.children?.forEach(child => {
-            child.prev_node = node.prev_node;
-            node.children.delete(child);
-        });
-        return this.nodes.delete(message_id) ? node : null;
-    }
-
-    /**
-     * Detach the branch where node with specified message_id exists, returns the child of a root node and a map of nodes
-     * @param {string} message_id
-     * @returns {{node: ContextNode, branch: Map<string, ContextNode>}}
-     */
-    detachBranch(message_id) {
-        if (!this.checkNodeExists({ message_id })) {
-            return {};
-        }
-
-        let branch_root = null;
-        let branch = new Map();
-
-        // going upwards
-        let node = this.getNode(message_id);
-        while (!['system', 'developer'].includes(node.prev_node.role)) {
-            node = node.prev_node;
-        }
-
-        // last prev_node is right under root
-        branch_root = node;
-        branch_root.prev_node = null;
-        branch.set(branch_root.message_id, branch_root);
-        this.nodes.delete(branch_root.message_id);
-
-        // processing downwards
-        const processChildren = (node) => {
-            node.children.forEach(child => {
-                branch.set(child.message_id, child);
-                this.nodes.delete(child.message_id);
-                if (child.children.size) processChildren(child);
-            });
-        };
-
-        processChildren(branch_root);
-        return { node: branch_root, branch };
-    }
-
-    /**
-     * Append branch to the tree
-     * @param {ContextNode} node leading node (that should be attached to root)
-     * @param {Map<string, ContextNode>} branch map of nodes including {@link node}
-     */
-    appendBranch(node, branch) {
-        node.prev_node = this.root_node;
-        branch.forEach((node, message_id) => {
-            this.nodes.set(message_id, node);
-        });
-    }
-
-    /**
-     * Get type of the model used for the tree
-     * @returns {'text' | 'vision'}
-     */
-    getModelType() {
-        return getModelType(this.root_node.model);
-    }
-
-    /**
-     * Get provider for model in the tree
-     * @returns {Provider}
-     */
-    getProvider() {
-        return getProvider(this.root_node.model);
-    }
-}
-
-/**
- * @class
- * @memberof ChatLLM
+ * @memberof Telegram.LLM
  */
 class ChatLLMHandler {
     static #INSTANCE = new ChatLLMHandler();
@@ -667,7 +233,7 @@ class ChatLLMHandler {
      * @param {string} chat_id 
      * @param {Model} model 
      */
-    _createContextTree(chat_id, model = CHAT_MODEL_NAME) {
+    _createContextTree(chat_id, model = CHAT_MODEL) {
         if (!this.context_trees_map.has(chat_id)) {
             this.context_trees_map.set(chat_id, new Map());
         }
@@ -681,9 +247,9 @@ class ChatLLMHandler {
      * Get a context tree fitting the specified arguments
      * @param {string} chat_id
      * @param {{message_id: string | undefined, model: Model}} 
-     * @returns {ContextTree}
+     * @returns {ChatLLM.Tree.ContextTree}
      */
-    _getContextTree(chat_id, { message_id = null, model = CHAT_MODEL_NAME } = {}) {
+    _getContextTree(chat_id, { message_id = null, model = CHAT_MODEL } = {}) {
         if (!chat_id) {
             throw new Error('No chat_id specified to get context tree');
         }
@@ -941,24 +507,16 @@ class ChatLLMHandler {
      * Respond with ChatLLM response based on provided model, content of the replied message and/or text provided with the command
      * @param {GrammyContext} interaction_context 
      * @param {TelegramInteraction} interaction 
-     * @param {Model} model 
+     * @param {Models} model 
      * @returns {Promise}
      */
-    async handleAnswerCommand(interaction_context, interaction, model = CHAT_MODEL_NAME) {
+    async handleAnswerCommand(interaction_context, interaction, model = CHAT_MODEL) {
         const command_text = interaction_context.message.text.split(' ').slice(1).join(' ');
-        const model_type = getModelType(model);
         let reply_text = getWithEntities(interaction_context.message.reply_to_message);
 
-        if ((
-                (
-                    getModelType(model) === 'text' 
-                    && !reply_text
-                ) || (
-                    getModelType(model) === 'vision' 
-                    && !(interaction_context.message.reply_to_message?.photo?.length 
-                    || reply_text)
-                )
-            ) && !command_text.length)
+        if (!command_text.length 
+                && ((!model.vision && !reply_text) 
+                    || (model.vision && !(interaction_context.message.reply_to_message?.photo?.length || reply_text))))
             {
             return ['Отправь эту команду как реплай на другое сообщение или напишите запрос в сообщении с командой, чтобы получить ответ.'];
         }
@@ -973,7 +531,7 @@ class ChatLLMHandler {
         if (interaction_context.message.reply_to_message) {
             ({ message_id, from: { first_name: author } } = interaction_context.message.reply_to_message);
             context_tree = this._getContextTree(interaction_context.chat.id, { message_id, model })
-            const content = await getContent(interaction_context, model_type, interaction_context.message.reply_to_message);
+            const content = await getContent(interaction_context, model.getType(), interaction_context.message.reply_to_message);
             author = interaction_context.message.reply_to_message.from.id === interaction_context.me.id ? 'assistant' : author;
             if (content.length) {
                 if (!context_tree.checkNodeExists({ message_id }) && command_text?.length) {
@@ -993,7 +551,7 @@ class ChatLLMHandler {
                         name: author
                     });
                 }
-                else if (context_tree.getModelType() !== model_type) {
+                else if (context_tree.getModelType() !== model.getType()) {
                     context_tree.getNode(message_id).content = content;
                 }
             }
@@ -1091,11 +649,15 @@ class ChatLLMHandler {
      * @param {TelegramInteraction} interaction 
      * @returns {Promise}
      */
-    async handleModeledAnswerCommand(model, context, interaction) {
-        if (model === 'default') {
+    async handleModeledAnswerCommand(model_name, context, interaction) {
+        let model;
+        if (model_name === 'default') {
             const { getModel } = require('./command-handlers/model-handler');
             model = await getModel(context.chat.id) || undefined;
+        } else {
+            model = Model.fromName(model_name);
         }
+
         return await this.handleAnswerCommand(context, interaction, model);
     }
 
