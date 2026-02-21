@@ -80,11 +80,10 @@ class Model {
 }
 
 const models = {
-    'gpt-4.1-mini':              new Model('openai',    'gpt-4.1-mini',              4096,   true), // the first model is always the default
-    'gpt-4.1':                   new Model('openai',    'gpt-4.1',                   4096,   true),
-    'o3-mini':                   new Model('openai',    'o3-mini',                   10000,  false),
-    'claude-3-7-sonnet-latest':  new Model('anthropic', 'claude-3-7-sonnet-latest',  4096,   true),
-    'claude-3-opus-latest':      new Model('anthropic', 'claude-3-opus-latest',      4096,   true)
+    'gpt-5-mini':                new Model('openai',    'gpt-5-mini',                4096,   true), // the first model is always the default
+    // 'o3-mini':                   new Model('openai',    'o3-mini',                   10000,  false),
+    // 'claude-3-7-sonnet-latest':  new Model('anthropic', 'claude-3-7-sonnet-latest',  4096,   true),
+    // 'claude-3-opus-latest':      new Model('anthropic', 'claude-3-opus-latest',      4096,   true)
 };
 
 const CHAT_MODEL_NAME = process.env.LLM_MODEL in models 
@@ -158,8 +157,8 @@ async function getContent({ api, message: c_message }, type = 'text', message = 
     }
 
     const [file_buffer, content_type] = 
-        await api.getFile(message.photo
-            .sort((p1, p2) => (p2.height + p2.width) - (p1.height + p1.width))[0].file_id)
+        await api.getFile(
+            message.photo.sort((p1, p2) => (p2.height + p2.width) - (p1.height + p1.width))[0].file_id)
         .then(f => f.getUrl())
         .then(file_path => axios.get(
             file_path,
@@ -371,16 +370,12 @@ class ContextNode {
                 const piece = this.content[i];
                 if (piece.type === 'text') {
                     message.content.push(piece);
-                }
-                else if (provider === 'openai') {
+                } else if (provider === 'openai') {
                     message.content.push( {
-                        type: 'image_url',
-                        image_url: {
-                            url: `data:${piece.image_type};base64,${piece.image_data}`
-                        },
+                        type: 'input_image',
+                        image_url: `data:${piece.image_type};base64,${piece.image_data}`,
                     });
-                }
-                else if (provider === 'anthropic') {
+                } else if (provider === 'anthropic') {
                     message.content.push({
                         type: 'image',
                         source: {
@@ -404,13 +399,13 @@ class ContextNode {
     getRawData() {
         const data = {
             role: this.role,
-            content: Array.isArray(this.content) ?
-                this.content.map(c => 
-                    c.image_data != null ?
-                    {...c, image_data: '...buffer...'} :
-                    c
-                ) :
-                this.content,
+            content: Array.isArray(this.content)
+            ? this.content.map(c => 
+                c.image_data != null
+                ? {...c, image_data: '...buffer...'}
+                : c
+            )
+            : this.content,
             message_id: this.message_id,
         };
         if (this.prev_node) data.prev_message_id = this.prev_node.message_id;
@@ -437,7 +432,7 @@ class ContextTree {
 
         /** @type {ContextNode} */
         this.root_node = new ContextNode({
-            role: model.includes('o3') ? 'developer' : 'system',
+            role: 'developer',
             content: (system_prompt || DEFAULT_SYSTEM_PROMPT) + SYSTEM_PROMPT_EXTENSION,
             model: model || CHAT_MODEL_NAME
         });
@@ -734,10 +729,12 @@ class ChatLLMHandler {
         }, 5000);
 
         const responsePromise = context_tree.getProvider() === 'openai' 
-            ? this.openAI.chat.completions.create({
+            ? this.openAI.responses.create({
                 model: context_tree.root_node.model,
-                max_completion_tokens: models[context_tree.root_node.model].max_tokens,
-                messages: context,
+                tools: [{ type: "web_search" }],
+                max_output_tokens: models[context_tree.root_node.model].max_tokens,
+                input: context,
+                store: false,
             })
             : this.anthropic.messages.create({
                 model: context_tree.root_node.model,
@@ -752,13 +749,16 @@ class ChatLLMHandler {
                 return ['ChatLLM сломался, попробуй спросить позже', null, null, { reply_parameters: { message_id: prev_message_id } }];
             }
 
-            if (!data?.choices?.length && !data?.content?.length) {
+            if (!data.output?.length && !data.content?.length) {
                 this.logger.warn('No choices for ChatLLM Completion');
                 return ['У ChatLLM просто нет слов', null, null, { reply_parameters: { message_id: prev_message_id } }];
             }
 
             let answer = context_tree.getProvider() === 'openai'
-                ? data.choices[0].message.content
+                ? data
+                    .output.find(item => item.type === 'message' && item.status === 'completed')?
+                    .content.find(item => item.type === 'output_text')?
+                    .text
                 : data.content[0].text;
 
             return [
@@ -783,8 +783,7 @@ class ChatLLMHandler {
         }).catch(err => {
             if (err?.response) {
                 this.logger.error(`API Error while getting ChatLLM Completion`, { error: err.response?.data || err.response?.status || err})
-            }
-            else {
+            } else {
                 this.logger.error(`Error while getting ChatLLM Completion`, { error: err.stack || err });
             }
             return ['ChatLLM отказывается отвечать, можешь попробовать ещё раз, может он поддастся!', null, null, { reply_to_message_id: prev_message_id }];

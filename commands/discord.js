@@ -82,8 +82,7 @@ function commonizeInteraction(interaction, definition) {
             type: 'guild'
         }
         common_interaction.from.name = interaction.member.displayName;
-    }
-    else {
+    } else {
         common_interaction.space = common_interaction.from;
         common_interaction.type = 'private';
     }
@@ -155,23 +154,25 @@ function replyWithText(interaction, response, logger) {
     //     response.embeds = [embed];
     // }
 
-    interaction.editReply({ content: response.text, components: response?.components, embeds: response?.embeds })
-    .then((messsage) => {
-        logger.debug('Replied!', { message_id: messsage.id });
-    }).catch(err => {
-        logger.error(`Error while replying`, { error: err.stack || err });
-        // Try again if only it wasn't an error message
-        if (response.type !== 'error') {
-            replyWithText(
-                interaction,
-                {
-                    type: 'error',
-                    text: `Что-то случилось:\n\`${err}\``
-                },
-                logger
-            );
-        }
-    });
+    interaction
+        .editReply({ content: response.text, components: response?.components, embeds: response?.embeds })
+        .then((messsage) => {
+            logger.debug('Replied!', { message_id: messsage.id });
+        })
+        .catch(err => {
+            logger.error(`Error while replying`, { error: err.stack || err });
+            // Try again if only it wasn't an error message
+            if (response.type !== 'error') {
+                replyWithText(
+                    interaction,
+                    {
+                        type: 'error',
+                        text: `Что-то случилось:\n\`${err}\``
+                    },
+                    logger
+                );
+            }
+        });
 }
 
 /**
@@ -197,8 +198,7 @@ function replyWithEmbed(interaction, response, logger) {
     if (response.filename) {
         logger.info(`Replying with file of type: ${response.type}`);
         payload.files = [{ name: response.filename, attachment: response.media }];
-    }
-    else {
+    } else {
         logger.info(`Replying with media of type: ${response.type}`);
         embed.setImage(response.media);
         payload.embeds.push(embed);
@@ -207,20 +207,22 @@ function replyWithEmbed(interaction, response, logger) {
         payload.embeds.unshift(...response.embeds);
     }
 
-    interaction.editReply(payload)
-    .then((messsage) => {
-        logger.debug('Replied!', { message_id: messsage.id });
-    }).catch(err => {
-        logger.error(`Error while replying`, { error: err.stack || err });
-        replyWithText(
-            interaction,
-            {
-                type: 'error',
-                text: `Что-то случилось:\n\`${err}\``
-            },
-            logger
-        );
-    });
+    interaction
+        .editReply(payload)
+        .then((messsage) => {
+            logger.debug('Replied!', { message_id: messsage.id });
+        })
+        .catch(err => {
+            logger.error(`Error while replying`, { error: err.stack || err });
+            replyWithText(
+                interaction,
+                {
+                    type: 'error',
+                    text: `Что-то случилось:\n\`${err}\``
+                },
+                logger
+            );
+        });
 }
 
 /**
@@ -393,14 +395,11 @@ async function answerCallback(interaction, response) {
                 files: response.files,
             })
         case 'delete_buttons':
-            return interaction.followUp(response.text)
-                .then(() => interaction.editReply({
-                    components: []
-                }));
+            return interaction
+                .followUp(response.text)
+                .then(() => interaction.editReply({ components: [] }));
         case 'edit_buttons':
-            return interaction.editReply({
-                components: response.components
-            });
+            return interaction.editReply({ components: response.components });
     }
 }
 
@@ -424,17 +423,18 @@ async function handleCallback(interaction, handle) {
 
     logger.info(`Received callback: ${common_interaction.data}`);
 
-    interaction.deferUpdate()
-    .then(() => handle(common_interaction))
-    .then(transformOverrides)
-    .then(response => {
-        if (response.text) {
-            response.text = response.text.replace(/\n|\\n/gm, '<br/>');
-            response.text = turndownService.turndown(response.text);
-            response.text = response.text.replace(/( *\n *){2,}/gm, '\n\n')
-        }
-        return answerCallback(interaction, response);
-    })
+    interaction
+        .deferUpdate()
+        .then(() => handle(common_interaction))
+        .then(transformOverrides)
+        .then(response => {
+            if (response.text) {
+                response.text = response.text.replace(/\n|\\n/gm, '<br/>');
+                response.text = turndownService.turndown(response.text);
+                response.text = response.text.replace(/( *\n *){2,}/gm, '\n\n')
+            }
+            return answerCallback(interaction, response);
+        })
 }
 
 module.exports = {

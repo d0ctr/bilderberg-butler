@@ -1,5 +1,4 @@
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
-const { Routes, ChannelType } = require('discord-api-types/v10');
+const { Client, GatewayIntentBits, EmbedBuilder, ChannelType, Routes, REST } = require('discord.js');
 
 const DiscordHandler = require('./discord-handler');
 
