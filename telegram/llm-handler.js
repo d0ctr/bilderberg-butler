@@ -756,9 +756,11 @@ class ChatLLMHandler {
 
             let answer = context_tree.getProvider() === 'openai'
                 ? data
-                    .output.find(item => item.type === 'message' && item.status === 'completed')?
-                    .content.find(item => item.type === 'output_text')?
-                    .text
+                    .output
+                    .find(item => item.type === 'message' && item.status === 'completed')
+                    ?.content
+                    .find(item => item.type === 'output_text')
+                    ?.text
                 : data.content[0].text;
 
             return [
