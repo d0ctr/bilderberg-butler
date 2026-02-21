@@ -81,8 +81,8 @@ class Model {
 }
 
 const models = {
-    'gpt-5-nano':     new Model('openai', 'gpt-5-nano', 10000, true, 'minimal'), // the first model is always the default
-    'gpt-5.2':        new Model('openai', 'gpt-5-nano', 10000, true, 'none'),
+    'gpt-5-nano':     new Model('openai', 'gpt-5-nano', 10000, true, 'low'), // the first model is always the default
+    'gpt-5.2':        new Model('openai', 'gpt-5-nano', 10000, true, 'low'),
 };
 
 const CHAT_MODEL_NAME = process.env.LLM_MODEL in models 
