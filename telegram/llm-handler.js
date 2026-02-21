@@ -71,19 +71,18 @@ const { ADMIN_CHAT_ID } = require('../config.json');
 */
 
 class Model {
-  constructor (provider, name, max_tokens, vision) {
+  constructor (provider, name, max_tokens, vision, effort) {
       this.name = name;
       this.max_tokens = max_tokens;
       this.provider = provider;
-      this.vision = !!vision
+      this.vision = !!vision;
+      this.effort = effort;
   }
 }
 
 const models = {
-    'gpt-5-mini':                new Model('openai',    'gpt-5-mini',                4096,   true), // the first model is always the default
-    // 'o3-mini':                   new Model('openai',    'o3-mini',                   10000,  false),
-    // 'claude-3-7-sonnet-latest':  new Model('anthropic', 'claude-3-7-sonnet-latest',  4096,   true),
-    // 'claude-3-opus-latest':      new Model('anthropic', 'claude-3-opus-latest',      4096,   true)
+    'gpt-5-nano':     new Model('openai', 'gpt-5-nano', 10000, true, 'minimal'), // the first model is always the default
+    'gpt-5.2':        new Model('openai', 'gpt-5-nano', 10000, true, 'none'),
 };
 
 const CHAT_MODEL_NAME = process.env.LLM_MODEL in models 
@@ -730,17 +729,21 @@ class ChatLLMHandler {
             interaction.context.replyWithChatAction('typing');
         }, 5000);
 
+        const model = models[context_tree.root_node.model];
+
         const responsePromise = context_tree.getProvider() === 'openai' 
             ? this.openAI.responses.create({
-                model: context_tree.root_node.model,
+                model: model.name,
                 tools: [{ type: "web_search" }],
-                max_output_tokens: models[context_tree.root_node.model].max_tokens,
+                tool_choice: 'auto',
+                // max_output_tokens: model.max_tokens,
                 input: context,
                 store: false,
+                reasoning: { effort: model.effort },
             })
             : this.anthropic.messages.create({
-                model: context_tree.root_node.model,
-                max_tokens: models[context_tree.root_node.model].max_tokens,
+                model: model.name,
+                max_tokens: model.max_tokens,
                 system: context.shift()?.content || undefined,
                 messages: context,
             });
