@@ -361,6 +361,7 @@ class ContextNode {
     getMessage(provider = CHAT_PROVIDER) {
         const message = {
             role: this.role,
+            content: this.content,
         };
 
         if (Array.isArray(this.content)) {
