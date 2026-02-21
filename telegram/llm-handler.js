@@ -388,7 +388,7 @@ class ContextNode {
             }
         }
         
-        if (this.name && provider === 'openai') message.name = this.name;
+        // if (this.name && provider === 'openai') message.name = this.name;
         return message;
     }
 
