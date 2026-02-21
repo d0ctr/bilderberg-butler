@@ -361,7 +361,6 @@ class ContextNode {
     getMessage(provider = CHAT_PROVIDER) {
         const message = {
             role: this.role,
-            content: this.content,
         };
 
         if (Array.isArray(this.content)) {
@@ -369,9 +368,12 @@ class ContextNode {
             for (let i in this.content) {
                 const piece = this.content[i];
                 if (piece.type === 'text') {
-                    message.content.push(piece);
+                    message.content.push({
+                        type: 'input_text',
+                        text: piece.text,
+                    });
                 } else if (provider === 'openai') {
-                    message.content.push( {
+                    message.content.push({
                         type: 'input_image',
                         image_url: `data:${piece.image_type};base64,${piece.image_data}`,
                     });
@@ -387,7 +389,6 @@ class ContextNode {
                 }
             }
         }
-        
         // if (this.name && provider === 'openai') message.name = this.name;
         return message;
     }
