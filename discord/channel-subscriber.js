@@ -1,6 +1,6 @@
 const { BaseSubscriber } = require('./utils');
 const { sendNotification, deleteNotification } = require('../telegram/channel-subscriber');
-const { ChannelType } = require('discord.js');
+const { ChannelType, ActivityType } = require('discord.js');
 
 const subscribers = {};
 
@@ -124,6 +124,9 @@ class ChannelSubscriber extends BaseSubscriber {
         parsed_state.members = [];
         
         channel.members.forEach((member) => {
+            let first_activity = member.presence?.activities?.[0];
+            let activity = first_activity?.state || first_activity?.name;
+
             parsed_state.members.push({
                     user_id: member.user.id,
                     user_name: member.user.username,
@@ -135,9 +138,7 @@ class ChannelSubscriber extends BaseSubscriber {
                     // server_muted: member.voice.serverMute,
                     // server_deafened: member.voice.serverDeaf,
                     camera: member.voice.selfVideo,
-                    activity: member?.presence?.activities?.[0]?.name?.toLowerCase() === 'status' 
-                        ? member.presence.activities[0].details
-                        : member?.presence?.activities?.[0]?.name
+                    activity: activity,
                 });
         });
 
