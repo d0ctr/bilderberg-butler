@@ -933,6 +933,16 @@ class TelegramClient {
             buildFileUrl: (root, token, path) => `${root}/file/bot${token}${process.env?.ENV === 'dev' ? '/test' : ''}/${path}`
         }));
 
+        if (process.env.TELEGRAM_DISABLED === "true") {
+            this.client.init().then(() -> {
+                this.logger.info('API-only mode started');
+                setHealth('telegram', 'connect');
+            }).catch(err -> {
+                this.logger.error('API-only mode failed', { error: err });
+                setHealth('telegram', 'failed');
+            });
+            return;
+        }
         // filters
         this._filterServiceMessages();
 
