@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('@dotenvx/dotenvx').config();
 const { startRedis } = require('./services/redis');
 const DiscordClient = require('./discord');
 const { TelegramClient } = require('./telegram');
